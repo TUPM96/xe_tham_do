@@ -9,7 +9,7 @@ from launch.substitutions import PythonExpression
 
 
 def generate_launch_description():
-    my_package_name = 'articubot_one'
+    my_package_name = 'xe_tham_do'
     sim_mode = LaunchConfiguration('sim_mode')
     sim_mode_dec = DeclareLaunchArgument('sim_mode', default_value='false')
 

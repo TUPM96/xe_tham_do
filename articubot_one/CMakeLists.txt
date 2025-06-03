@@ -1,5 +1,5 @@
 cmake_minimum_required(VERSION 3.5)
-project(articubot_one)
+project(xe_tham_do)
 
 # Default to C99
 if(NOT CMAKE_C_STANDARD)
