@@ -7,7 +7,7 @@ services:
       dockerfile: Dockerfile
     container_name: ros2_humble_container
     volumes:
-      - ./ros2_ws:/root/ros2_ws
+      - ./ros2_ws:/root/ros2_ws/src
       - $HOME/.Xauthority:/root/.Xauthority:ro
       - /tmp/.X11-unix:/tmp/.X11-unix
     environment:

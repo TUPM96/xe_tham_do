@@ -30,7 +30,7 @@ RUN if [ ! -f /etc/ros/rosdep/sources.list.d/20-default.list ]; then \
     fi && \
     rosdep fix-permissions && rosdep update
 
-COPY ./ros2_ws /root/ros2_ws
+COPY ./ros2_ws /root/ros2_ws/src
 
 # Cài đặt dependencies cho ROS workspace
 RUN rosdep install --from-paths /root/ros2_ws/src --ignore-src -r -y
