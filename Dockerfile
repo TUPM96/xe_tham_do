@@ -3,6 +3,8 @@ FROM dustynv/ros:humble-desktop-pytorch-l4t-r35.4.1
 
 WORKDIR /root/ros2_ws
 
+RUN rm -f /etc/apt/sources.list.d/ros2.list
+
 # Sửa lỗi GPG key ROS2 (chuẩn mới 2024)
 RUN apt-get update && apt-get install -y curl gnupg2 lsb-release && \
     curl -sSL https://raw.githubusercontent.com/ros/rosdistro/master/ros.key -o /usr/share/keyrings/ros-archive-keyring.gpg && \
