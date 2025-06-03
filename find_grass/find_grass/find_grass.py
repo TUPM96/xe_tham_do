@@ -1,0 +1,122 @@
+import find_grass.process_image as proc
+import rclpy
+from cv_bridge import CvBridge, CvBridgeError
+from geometry_msgs.msg import Point
+from rclpy.node import Node
+from sensor_msgs.msg import Image
+import os
+import cv2
+import time
+
+
+class DetectGrass(Node):
+
+    def __init__(self):
+        super().__init__('find_grass')
+
+        self.image_save_dir = os.path.expanduser('~/Desktop/xe/images')
+        os.makedirs(self.image_save_dir, exist_ok=True)
+        self.image_count = 0
+
+        self.get_logger().info('Looking for the grass...')
+        self.image_sub = self.create_subscription(Image, "/image_in", self.callback,
+                                                  rclpy.qos.QoSPresetProfiles.SENSOR_DATA.value)
+        self.image_out_pub = self.create_publisher(Image, "/image_out", 1)
+        self.image_tuning_pub = self.create_publisher(Image, "/image_tuning", 1)
+        self.grass_pub = self.create_publisher(Point, "/detected_grass", 1)
+
+
+
+        self.declare_parameter('tuning_mode', False)
+
+        self.declare_parameter("x_min", 0)
+        self.declare_parameter("x_max", 100)
+        self.declare_parameter("y_min", 0)
+        self.declare_parameter("y_max", 100)
+        self.declare_parameter("h_min", 0)
+        self.declare_parameter("h_max", 180)
+        self.declare_parameter("s_min", 0)
+        self.declare_parameter("s_max", 255)
+        self.declare_parameter("v_min", 0)
+        self.declare_parameter("v_max", 255)
+        self.declare_parameter("sz_min", 0)
+        self.declare_parameter("sz_max", 100)
+
+        self.tuning_mode = self.get_parameter('tuning_mode').get_parameter_value().bool_value
+        self.tuning_params = {'x_min': self.get_parameter('x_min').get_parameter_value().integer_value,
+            'x_max': self.get_parameter('x_max').get_parameter_value().integer_value,
+            'y_min': self.get_parameter('y_min').get_parameter_value().integer_value,
+            'y_max': self.get_parameter('y_max').get_parameter_value().integer_value,
+            'h_min': self.get_parameter('h_min').get_parameter_value().integer_value,
+            'h_max': self.get_parameter('h_max').get_parameter_value().integer_value,
+            's_min': self.get_parameter('s_min').get_parameter_value().integer_value,
+            's_max': self.get_parameter('s_max').get_parameter_value().integer_value,
+            'v_min': self.get_parameter('v_min').get_parameter_value().integer_value,
+            'v_max': self.get_parameter('v_max').get_parameter_value().integer_value,
+            'sz_min': self.get_parameter('sz_min').get_parameter_value().integer_value,
+            'sz_max': self.get_parameter('sz_max').get_parameter_value().integer_value}
+
+        self.bridge = CvBridge()
+
+        if (self.tuning_mode):
+            proc.create_tuning_window(self.tuning_params)
+
+    def callback(self, data):
+        try:
+            cv_image = self.bridge.imgmsg_to_cv2(data, "bgr8")
+        except CvBridgeError as e:
+            print(e)
+
+        filename = os.path.join(
+            self.image_save_dir,
+            f'image_{int(time.time() * 1000)}_{self.image_count}.png'
+        )
+        cv2.imwrite(filename, cv_image)
+        self.image_count += 1
+
+        try:
+            if (self.tuning_mode):
+                self.tuning_params = proc.get_tuning_params()
+
+            keypoints_norm, out_image, tuning_image = proc.find_circles(cv_image, self.tuning_params)
+
+            img_to_pub = self.bridge.cv2_to_imgmsg(out_image, "bgr8")
+            img_to_pub.header = data.header
+            self.image_out_pub.publish(img_to_pub)
+
+            img_to_pub = self.bridge.cv2_to_imgmsg(tuning_image, "bgr8")
+            img_to_pub.header = data.header
+            self.image_tuning_pub.publish(img_to_pub)
+
+            point_out = Point()
+
+            # Keep the biggest point
+            # They are already converted to normalised coordinates
+            for i, kp in enumerate(keypoints_norm):
+                x = kp.pt[0]
+                y = kp.pt[1]
+                s = kp.size
+
+                self.get_logger().info(f"Pt {i}: ({x},{y},{s})")
+
+                if (s > point_out.z):
+                    point_out.x = x
+                    point_out.y = y
+                    point_out.z = s
+
+            if (point_out.z > 0):
+                self.grass_pub.publish(point_out)
+        except CvBridgeError as e:
+            print(e)
+
+
+def main(args=None):
+    rclpy.init(args=args)
+
+    find_grass = DetectGrass()
+    while rclpy.ok():
+        rclpy.spin_once(find_grass)
+        proc.wait_on_gui()
+
+    find_grass.destroy_node()
+    rclpy.shutdown()
