@@ -14,6 +14,8 @@ RUN apt-get update && apt-get install -y curl gnupg2 lsb-release && \
 RUN apt-get update && apt-get install -y \
     python3-pip \
     build-essential \
+    libserial-dev \
+    libopencv-dev \
     libqt5gui5 \
     libqt5widgets5 \
     libxkbcommon-x11-0 \
