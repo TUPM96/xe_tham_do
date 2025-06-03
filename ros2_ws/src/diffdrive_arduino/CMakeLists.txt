@@ -24,7 +24,7 @@ endforeach()
 add_library(
   diffdrive_arduino
   SHARED
-  hardware/diffbot_system.cpp
+        hardware/diffbot_system.cpp
 )
 target_compile_features(diffdrive_arduino PUBLIC cxx_std_17)
 target_include_directories(diffdrive_arduino PUBLIC
@@ -47,7 +47,7 @@ pluginlib_export_plugin_description_file(hardware_interface diffdrive_arduino.xm
 
 # INSTALL
 install(
-  DIRECTORY hardware/include/
+  DIRECTORY hardware/include
   DESTINATION include/diffdrive_arduino
 )
 install(
