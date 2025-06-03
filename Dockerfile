@@ -23,13 +23,6 @@ RUN apt-get update && apt-get install -y \
     && pip3 install pyserial \
     && rm -rf /var/lib/apt/lists/*
 
-# Cài đặt ROS 2 Control và các gói liên quan
-RUN apt-get update && apt-get install -y \
-    ros-humble-ros2-control \
-    ros-humble-hardware-interface \
-    ros-humble-controller-manager \
-    ros-humble-joint-state-broadcaster \
-    ros-humble-diff-drive-controller
 
 # Không cần sudo trong container (user root rồi), chỉ cần khởi tạo rosdep nếu cần
 RUN if [ ! -f /etc/ros/rosdep/sources.list.d/20-default.list ]; then \

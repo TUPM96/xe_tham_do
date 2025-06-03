@@ -95,16 +95,6 @@ source ~/ros2_ws/install/setup.bash
 ros2 launch xe_tham_do navigation_launch.py
 `
 
-* ### Chạy tìm cỏ
-`
-source ~/ros2_ws/install/setup.bash
-ros2 launch xe_tham_do find_grass.launch.py
-`
-
-
-
-
-
 
 
 Hôm nay chạy 26/05/2025
@@ -129,15 +119,6 @@ source ~/ros2_ws/install/setup.bash
 ros2 launch xe_tham_do launch_robot.launch.py
 `
 
-
---------------------------
-
-* ### Chạy tìm cỏ theo tay
-`
-cd ~/Desktop
-cd xedieukhien
-python3 grass.py
-`
 
 
 
