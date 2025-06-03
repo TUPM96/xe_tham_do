@@ -41,8 +41,5 @@ RUN if [ ! -f /etc/ros/rosdep/sources.list.d/20-default.list ]; then \
     fi && \
     rosdep fix-permissions && rosdep update
 
-# Copy workspace vào container (tuỳ chọn, hoặc mount ngoài cũng được)
-COPY ./ros2_ws /root/ros2_ws
-
 # Cài đặt dependencies cho ROS workspace
 RUN rosdep install --from-paths /root/ros2_ws/src --ignore-src -r -y
