@@ -14,8 +14,6 @@ RUN apt-get update && apt-get install -y curl gnupg2 lsb-release && \
 RUN apt-get update && apt-get install -y \
     python3-pip \
     build-essential \
-    libserial-dev \
-    libopencv-dev \
     libqt5gui5 \
     libqt5widgets5 \
     libxkbcommon-x11-0 \
@@ -31,8 +29,3 @@ RUN if [ ! -f /etc/ros/rosdep/sources.list.d/20-default.list ]; then \
       rosdep init; \
     fi && \
     rosdep fix-permissions && rosdep update
-
-COPY ./ros2_ws /root/ros2_ws/src
-
-# Cài đặt dependencies cho ROS workspace
-RUN rosdep install --from-paths /root/ros2_ws/src --ignore-src -r -y
