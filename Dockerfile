@@ -3,6 +3,10 @@ FROM dustynv/ros:humble-desktop-pytorch-l4t-r35.4.1
 
 WORKDIR /root/ros2_ws
 
+# Update ROS2 GPG key
+RUN apt-get update && apt-get install -y curl gnupg2 && \
+    curl -sSL https://raw.githubusercontent.com/ros/rosdistro/master/ros.key | apt-key add -
+
 # Cài đặt các dependencies cần thiết, bao gồm thư viện "serial" và các gói GUI/X11
 RUN apt-get update && apt-get install -y \
     python3-pip \
