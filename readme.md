@@ -1,24 +1,21 @@
-# Source bao gồm các thư viện ROS2 cần thiết để chạy robot
-# Cây thư mục: 
-# - xe_tham_do
-Source code chính của chạy robot
-# - diffdrive_arduino
-Source code cho điều khiển động cơ
-# - serial
-Source code cho giao tiếp qua serial
+# A. Build source
+## 1. Chạy docker
+```bash
+cd ~/Desktop/xe_tham_do
+docker-compose build --no-cache
+docker-compose up
+```
 
-
-
-
-# 1. Chạy robot để test điều khiển động cơ từ bàn phím
+# B. Chạy các phần tử
+## 1. Chạy robot để test điều khiển động cơ từ bàn phím
 
 * ### Chạy diffdrive_arduino
-`
-cd ~/ros2_ws
+```
+docker exec -it ros2_humble_container bash
 colcon build --symlink-install
 source ~/ros2_ws/install/setup.bash
 ros2 launch diffdrive_arduino diffbot.launch.py
-`
+```
 
 * ### Chạy robot với điều khiển từ bàn phím
 `

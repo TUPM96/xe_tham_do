@@ -1,5 +1,5 @@
 # Sử dụng image NVIDIA đã có ROS 2 Humble, PyTorch, CUDA, ... trên Jetson
-FROM dustynv/ros:humble-desktop-pytorch-l4t-r35.4.1
+FROM dustynv/ros:humble-desktop-l4t-r36.4.0
 
 WORKDIR /root/ros2_ws
 
