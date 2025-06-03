@@ -14,10 +14,6 @@ RUN apt-get update && apt-get install -y curl gnupg2 lsb-release && \
 RUN apt-get update && apt-get install -y \
     python3-pip \
     build-essential \
-    ros-humble-serial-driver \
-    ros-humble-rviz2 \
-    ros-humble-xacro \
-    ros-humble-teleop-twist-keyboard \
     libqt5gui5 \
     libqt5widgets5 \
     libxkbcommon-x11-0 \
