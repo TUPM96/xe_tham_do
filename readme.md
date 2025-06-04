@@ -15,6 +15,7 @@ docker exec -it ros2_humble_container bash
 * ### Chạy diffdrive_arduino
 ``` bash
 docker exec -it ros2_humble_container bash
+rm -rf logs install build
 colcon build --symlink-install
 source ~/ros2_ws/install/setup.bash
 ros2 launch diffdrive_arduino diffbot.launch.py
