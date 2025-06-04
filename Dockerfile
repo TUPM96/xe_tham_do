@@ -10,7 +10,7 @@ RUN apt-get update && apt-get install -y curl gnupg2 lsb-release && \
     curl -sSL https://raw.githubusercontent.com/ros/rosdistro/master/ros.key -o /usr/share/keyrings/ros-archive-keyring.gpg && \
     echo "deb [arch=arm64 signed-by=/usr/share/keyrings/ros-archive-keyring.gpg] http://packages.ros.org/ros2/ubuntu $(lsb_release -cs) main" > /etc/apt/sources.list.d/ros2.list
 
-# Cài đặt các dependencies cần thiết, bao gồm thư viện "serial" và các gói GUI/X11
+# Cài đặt dependencies cần thiết, bao gồm build tools, GUI libs và pip packages
 RUN apt-get update && apt-get install -y \
     python3-pip \
     build-essential \
@@ -20,11 +20,24 @@ RUN apt-get update && apt-get install -y \
     libgl1-mesa-glx \
     libgl1-mesa-dri \
     x11-apps \
+    git \
+    cmake \
     && pip3 install pyserial \
     && rm -rf /var/lib/apt/lists/*
 
+# Gỡ bất kỳ libbenchmark cũ nào (nếu có, tránh LTO mismatch)
+RUN apt-get purge -y libbenchmark-dev libbenchmark1 || true
 
-# Không cần sudo trong container (user root rồi), chỉ cần khởi tạo rosdep nếu cần
+# Build lại Google Benchmark từ source với GCC hiện tại (11.4)
+RUN git clone --depth 1 --branch v1.8.3 https://github.com/google/benchmark.git /tmp/benchmark && \
+    cd /tmp/benchmark && \
+    mkdir build && cd build && \
+    cmake .. -DCMAKE_BUILD_TYPE=Release && \
+    make -j$(nproc) && \
+    make install && \
+    cd / && rm -rf /tmp/benchmark
+
+# Khởi tạo rosdep nếu cần
 RUN if [ ! -f /etc/ros/rosdep/sources.list.d/20-default.list ]; then \
       rosdep init; \
     fi && \
