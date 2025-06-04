@@ -32,7 +32,7 @@ RUN apt-get purge -y libbenchmark-dev libbenchmark1 || true
 RUN git clone --depth 1 --branch v1.8.3 https://github.com/google/benchmark.git /tmp/benchmark && \
     cd /tmp/benchmark && \
     mkdir build && cd build && \
-    cmake .. -DCMAKE_BUILD_TYPE=Release && \
+    cmake .. -DCMAKE_BUILD_TYPE=Release -DBENCHMARK_ENABLE_GTEST_TESTS=OFF && \
     make -j$(nproc) && \
     make install && \
     cd / && rm -rf /tmp/benchmark
