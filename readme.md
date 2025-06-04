@@ -2,9 +2,12 @@
 ## 1. Chạy docker
 ``` bash
 cd ~/Desktop/xe_tham_do
+git pull
 docker-compose build --no-cache
-docker-compose up
+docker-compose up -d
+docker exec -it ros2_humble_container bash
 ```
+**Sau đó có thể chạy lệnh bên dưới**
 
 # B. Chạy các phần tử
 ## 1. Chạy robot để test điều khiển động cơ từ bàn phím
