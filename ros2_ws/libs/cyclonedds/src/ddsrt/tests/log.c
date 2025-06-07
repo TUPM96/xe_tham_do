@@ -1,18 +1,18 @@
-// Copyright(c) 2006 to 2021 ZettaScale Technology and others
-//
-// This program and the accompanying materials are made available under the
-// terms of the Eclipse Public License v. 2.0 which is available at
-// http://www.eclipse.org/legal/epl-2.0, or the Eclipse Distribution License
-// v. 1.0 which is available at
-// http://www.eclipse.org/org/documents/edl-v10.php.
-//
-// SPDX-License-Identifier: EPL-2.0 OR BSD-3-Clause
-
+/*
+ * Copyright(c) 2006 to 2021 ZettaScale Technology and others
+ *
+ * This program and the accompanying materials are made available under the
+ * terms of the Eclipse Public License v. 2.0 which is available at
+ * http://www.eclipse.org/legal/epl-2.0, or the Eclipse Distribution License
+ * v. 1.0 which is available at
+ * http://www.eclipse.org/org/documents/edl-v10.php.
+ *
+ * SPDX-License-Identifier: EPL-2.0 OR BSD-3-Clause
+ */
 #include <assert.h>
 #include <errno.h>
 #include <stdio.h>
 #include <string.h>
-#include <setjmp.h>
 
 #ifdef __APPLE__
 #include <pthread.h>
@@ -37,8 +37,7 @@
    because it runs on the source rather than on the output of the C preprocessor
    (a reasonable decision in itself).  Therefore, just skip the body of each test. */
 
-#if (defined __APPLE__ && !(defined MAC_OS_X_VERSION_10_13 && MAC_OS_X_VERSION_MIN_REQUIRED >= MAC_OS_X_VERSION_10_13)) || defined __QNXNTO__ || defined __VXWORKS__
-
+#if __APPLE__ && !(defined MAC_OS_X_VERSION_10_13 && MAC_OS_X_VERSION_MIN_REQUIRED >= MAC_OS_X_VERSION_10_13)
 #define HAVE_FMEMOPEN 0
 #else
 #define HAVE_FMEMOPEN 1
@@ -507,6 +506,5 @@ CU_Theory((bool local, int mode, bool expect_in_trace), dds_log, fatal_aborts)
   (void) local;
   (void) mode;
   (void) expect_in_trace;
-  CU_PASS ("test skipped on this platform");
 #endif
 }

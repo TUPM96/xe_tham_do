@@ -1,13 +1,14 @@
-// Copyright(c) 2006 to 2021 ZettaScale Technology and others
-//
-// This program and the accompanying materials are made available under the
-// terms of the Eclipse Public License v. 2.0 which is available at
-// http://www.eclipse.org/legal/epl-2.0, or the Eclipse Distribution License
-// v. 1.0 which is available at
-// http://www.eclipse.org/org/documents/edl-v10.php.
-//
-// SPDX-License-Identifier: EPL-2.0 OR BSD-3-Clause
-
+/*
+ * Copyright(c) 2006 to 2021 ZettaScale Technology and others
+ *
+ * This program and the accompanying materials are made available under the
+ * terms of the Eclipse Public License v. 2.0 which is available at
+ * http://www.eclipse.org/legal/epl-2.0, or the Eclipse Distribution License
+ * v. 1.0 which is available at
+ * http://www.eclipse.org/org/documents/edl-v10.php.
+ *
+ * SPDX-License-Identifier: EPL-2.0 OR BSD-3-Clause
+ */
 #include <stdio.h>
 #include "CUnit/Test.h"
 
@@ -36,6 +37,7 @@ CU_Test(ddsrt_heap, malloc)
       size_t s = allocsizes[i] * allocsizes[j]; /* Allocates up to 1MB */
       void *ptr = ddsrt_malloc(s);
       CU_ASSERT_PTR_NOT_NULL_FATAL(ptr); /* ddsrt_malloc is supposed to abort on failure */
+      assert(ptr);
       memset(ptr, 0, s); /* This potentially segfaults if the actual allocated block is too small */
       ddsrt_free(ptr);
     }
@@ -69,6 +71,7 @@ CU_Test(ddsrt_heap, realloc)
       printf("ddsrt_realloc(%p) %zu -> %zu\n", ptr, prevs, s);
       ptr = ddsrt_realloc(ptr, s);
       CU_ASSERT_PTR_NOT_NULL_FATAL(ptr); /* ddsrt_realloc is supposed to abort on failure */
+      assert(ptr);
       unchanged = (prevs < s) ? prevs : s;
       if(unchanged) {
         CU_ASSERT (ptr && ptr[0] == 1 && !memcmp(ptr, ptr + 1, unchanged - 1)); /* ddsrt_realloc shouldn't change memory */

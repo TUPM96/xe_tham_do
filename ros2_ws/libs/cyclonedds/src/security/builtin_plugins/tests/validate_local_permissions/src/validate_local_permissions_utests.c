@@ -1,13 +1,14 @@
-// Copyright(c) 2006 to 2021 ZettaScale Technology and others
-//
-// This program and the accompanying materials are made available under the
-// terms of the Eclipse Public License v. 2.0 which is available at
-// http://www.eclipse.org/legal/epl-2.0, or the Eclipse Distribution License
-// v. 1.0 which is available at
-// http://www.eclipse.org/org/documents/edl-v10.php.
-//
-// SPDX-License-Identifier: EPL-2.0 OR BSD-3-Clause
-
+/*
+ * Copyright(c) 2006 to 2021 ZettaScale Technology and others
+ *
+ * This program and the accompanying materials are made available under the
+ * terms of the Eclipse Public License v. 2.0 which is available at
+ * http://www.eclipse.org/legal/epl-2.0, or the Eclipse Distribution License
+ * v. 1.0 which is available at
+ * http://www.eclipse.org/org/documents/edl-v10.php.
+ *
+ * SPDX-License-Identifier: EPL-2.0 OR BSD-3-Clause
+ */
 #include <assert.h>
 
 #include "dds/ddsrt/environ.h"
@@ -602,6 +603,7 @@ static DDS_Security_long test_corrupted_signature(bool corrupt_permissions, bool
   /* Just some (hardcoded) sanity checks. */
   CU_ASSERT_FATAL(prop != NULL);
   CU_ASSERT_FATAL(prop->value != NULL);
+  assert(prop && prop->value); // for Clang's static analyzer
   len = strlen(prop->value);
   CU_ASSERT_FATAL(len > 2250);
 

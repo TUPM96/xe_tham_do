@@ -1,13 +1,14 @@
-// Copyright(c) 2006 to 2022 ZettaScale Technology and others
-//
-// This program and the accompanying materials are made available under the
-// terms of the Eclipse Public License v. 2.0 which is available at
-// http://www.eclipse.org/legal/epl-2.0, or the Eclipse Distribution License
-// v. 1.0 which is available at
-// http://www.eclipse.org/org/documents/edl-v10.php.
-//
-// SPDX-License-Identifier: EPL-2.0 OR BSD-3-Clause
-
+/*
+ * Copyright(c) 2006 to 2022 ZettaScale Technology and others
+ *
+ * This program and the accompanying materials are made available under the
+ * terms of the Eclipse Public License v. 2.0 which is available at
+ * http://www.eclipse.org/legal/epl-2.0, or the Eclipse Distribution License
+ * v. 1.0 which is available at
+ * http://www.eclipse.org/org/documents/edl-v10.php.
+ *
+ * SPDX-License-Identifier: EPL-2.0 OR BSD-3-Clause
+ */
 /* TODO: do we really need to expose all of this as an API? maybe some, but all? */
 
 /** @file
@@ -85,7 +86,7 @@ dds_key_descriptor_t;
  */
 struct dds_type_meta_ser
 {
-  const unsigned char * data;  /**< data pointer */
+  unsigned char * data;  /**< data pointer */
   uint32_t sz;  /**< data size */
 };
 
@@ -337,13 +338,11 @@ dds_typeid_kind_t;
 
 /**
  * @brief Enable or disable write batching.
- * @component domain
- *
  * Overrides default configuration setting for write batching (Internal/WriteBatch).
  *
  * @param[in] enable Enables or disables write batching for all writers.
  */
-DDS_DEPRECATED_EXPORT void dds_write_set_batch (bool enable);
+DDS_EXPORT void dds_write_set_batch (bool enable);
 
 #if defined (__cplusplus)
 }

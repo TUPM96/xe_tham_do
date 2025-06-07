@@ -1,13 +1,14 @@
-// Copyright(c) 2006 to 2021 ZettaScale Technology and others
-//
-// This program and the accompanying materials are made available under the
-// terms of the Eclipse Public License v. 2.0 which is available at
-// http://www.eclipse.org/legal/epl-2.0, or the Eclipse Distribution License
-// v. 1.0 which is available at
-// http://www.eclipse.org/org/documents/edl-v10.php.
-//
-// SPDX-License-Identifier: EPL-2.0 OR BSD-3-Clause
-
+/*
+ * Copyright(c) 2006 to 2021 ZettaScale Technology and others
+ *
+ * This program and the accompanying materials are made available under the
+ * terms of the Eclipse Public License v. 2.0 which is available at
+ * http://www.eclipse.org/legal/epl-2.0, or the Eclipse Distribution License
+ * v. 1.0 which is available at
+ * http://www.eclipse.org/org/documents/edl-v10.php.
+ *
+ * SPDX-License-Identifier: EPL-2.0 OR BSD-3-Clause
+ */
 #include <assert.h>
 
 #include "dds/ddsrt/bswap.h"
@@ -18,7 +19,7 @@
 #include "dds/security/dds_security_api.h"
 #include "dds/security/core/dds_security_serialize.h"
 #include "dds/security/core/dds_security_utils.h"
-#include "dds/security/core/dds_security_shared_secret.h"
+#include "dds/security/core/shared_secret.h"
 #include "dds/security/openssl_support.h"
 #include "CUnit/CUnit.h"
 #include "CUnit/Test.h"
@@ -783,6 +784,7 @@ CU_Test(ddssec_builtin_decode_serialized_payload, invalid_data, .init = suite_de
   }
 
   CU_ASSERT_FATAL(result);
+  assert(result); // for Clang's static analyzer
   CU_ASSERT(exception.code == 0);
   CU_ASSERT(exception.message == NULL);
 

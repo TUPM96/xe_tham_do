@@ -1,13 +1,14 @@
-// Copyright(c) 2020 to 2021 ZettaScale Technology and others
-//
-// This program and the accompanying materials are made available under the
-// terms of the Eclipse Public License v. 2.0 which is available at
-// http://www.eclipse.org/legal/epl-2.0, or the Eclipse Distribution License
-// v. 1.0 which is available at
-// http://www.eclipse.org/org/documents/edl-v10.php.
-//
-// SPDX-License-Identifier: EPL-2.0 OR BSD-3-Clause
-
+/*
+ * Copyright(c) 2020 to 2021 ZettaScale Technology and others
+ *
+ * This program and the accompanying materials are made available under the
+ * terms of the Eclipse Public License v. 2.0 which is available at
+ * http://www.eclipse.org/legal/epl-2.0, or the Eclipse Distribution License
+ * v. 1.0 which is available at
+ * http://www.eclipse.org/org/documents/edl-v10.php.
+ *
+ * SPDX-License-Identifier: EPL-2.0 OR BSD-3-Clause
+ */
 #include <assert.h>
 #include <stdint.h>
 #include <inttypes.h>
@@ -192,9 +193,7 @@ CU_Test(idl_union, typedef_switch_types)
 
   ret = idl_create_pstate(0u, NULL, &pstate);
   CU_ASSERT_EQUAL_FATAL(ret, IDL_RETCODE_OK);
-  assert(ret == IDL_RETCODE_OK);
-  // Coverity thinks pstate is possibly a freed pointer
-  // coverity[use_after_free:FALSE]
+  assert(ret == IDL_RETCODE_OK); // Coverity thinks pstate is possibly a freed pointer
   CU_ASSERT_PTR_NOT_NULL(pstate);
   assert(pstate);
   str = M("foo", T("char", "baz") U("baz"));
@@ -467,7 +466,6 @@ CU_Test(idl_union, default_discriminator_unsigned_int)
       CU_ASSERT(u->default_case && u->default_case->const_expr);
       CU_ASSERT_PTR_EQUAL(idl_parent(u->default_case), u);
     }
-    CU_ASSERT_FATAL(u->default_case->const_expr);
     CU_ASSERT_FATAL(idl_is_literal(u->default_case->const_expr));
     l = u->default_case->const_expr;
     CU_ASSERT_FATAL(idl_type(l) == IDL_UINT8);

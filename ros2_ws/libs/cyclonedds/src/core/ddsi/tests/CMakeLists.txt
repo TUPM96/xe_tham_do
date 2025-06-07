@@ -12,16 +12,12 @@
 include(CUnit)
 
 set(ddsi_test_sources
-    "ipaddr.c"
     "locators.c"
     "plist_generic.c"
     "plist.c"
-    "plist_leasedur.c"
-    "pmd_message.c"
     "radmin.c"
-    "receive_packet.c"
     "sysdeps.c"
-    "wraddrset.c")
+    "mem_ser.h")
 
 if(ENABLE_SECURITY)
   set(ddsi_test_sources ${ddsi_test_sources} "security_msg.c")
@@ -33,8 +29,10 @@ add_cunit_executable(cunit_ddsi ${ddsi_test_sources})
 target_include_directories(
   cunit_ddsi PRIVATE
     "$<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/../../ddsc/src>"
-    "$<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/../../ddsi/include>"
-    "$<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/../../ddsi/src>"
-    "$<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/../../cdr/include>"
-    "$<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/../../cdr/test>")
+    "$<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/../../ddsi/include>")
+if(ENABLE_SHM)
+  target_include_directories(
+    cunit_ddsi PRIVATE
+    "$<BUILD_INTERFACE:$<TARGET_PROPERTY:iceoryx_binding_c::iceoryx_binding_c,INTERFACE_INCLUDE_DIRECTORIES>>")
+endif()
 target_link_libraries(cunit_ddsi PRIVATE ddsc)

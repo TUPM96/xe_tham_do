@@ -1,12 +1,14 @@
-// Copyright(c) 2020 ZettaScale Technology and others
-//
-// This program and the accompanying materials are made available under the
-// terms of the Eclipse Public License v. 2.0 which is available at
-// http://www.eclipse.org/legal/epl-2.0, or the Eclipse Distribution License
-// v. 1.0 which is available at
-// http://www.eclipse.org/org/documents/edl-v10.php.
-//
-// SPDX-License-Identifier: EPL-2.0 OR BSD-3-Clause
+/*
+ * Copyright(c) 2020 ZettaScale Technology and others
+ *
+ * This program and the accompanying materials are made available under the
+ * terms of the Eclipse Public License v. 2.0 which is available at
+ * http://www.eclipse.org/legal/epl-2.0, or the Eclipse Distribution License
+ * v. 1.0 which is available at
+ * http://www.eclipse.org/org/documents/edl-v10.php.
+ *
+ * SPDX-License-Identifier: EPL-2.0 OR BSD-3-Clause
+ */
 
 #ifndef DDS_STATISTICS_H
 #define DDS_STATISTICS_H
@@ -66,8 +68,6 @@ struct dds_statistics {
 /**
  * @brief Allocate a new statistics object for entity
  * @ingroup statistics
- * @component statistics
- * @unstable
  *
  * This allocates and populates a newly allocated `struct dds_statistics` for the
  * specified entity.
@@ -82,8 +82,6 @@ DDS_EXPORT struct dds_statistics *dds_create_statistics (dds_entity_t entity);
 /**
  * @brief Update a previously created statistics structure with current values
  * @ingroup statistics
- * @component statistics
- * @unstable
  *
  * Only the time stamp and the values (and "opaque") may change.  The set of keys and the
  * types of the values do not change.
@@ -104,8 +102,6 @@ DDS_EXPORT dds_return_t dds_refresh_statistics (struct dds_statistics *stat);
 /**
  * @brief Free a previously created statistics object
  * @ingroup statistics
- * @component statistics
- * @unstable
  *
  * This frees the statistics object.  Passing a null pointer is a no-op.  The operation
  * succeeds also if the referenced entity no longer exists.
@@ -117,8 +113,6 @@ DDS_EXPORT void dds_delete_statistics (struct dds_statistics *stat);
 /**
  * @brief Lookup a specific value by name
  * @ingroup statistics
- * @component statistics
- * @unstable
  *
  * This looks up the specified name in the list of keys in `stat` and returns the address
  * of the key-value pair if present, a null pointer if not.  If `stat` is a null pointer,

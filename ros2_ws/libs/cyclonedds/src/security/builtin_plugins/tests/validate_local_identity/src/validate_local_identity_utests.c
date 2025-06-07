@@ -1,13 +1,3 @@
-// Copyright(c) 2006 to 2021 ZettaScale Technology and others
-//
-// This program and the accompanying materials are made available under the
-// terms of the Eclipse Public License v. 2.0 which is available at
-// http://www.eclipse.org/legal/epl-2.0, or the Eclipse Distribution License
-// v. 1.0 which is available at
-// http://www.eclipse.org/org/documents/edl-v10.php.
-//
-// SPDX-License-Identifier: EPL-2.0 OR BSD-3-Clause
-
 /** @file qos_utests.c
  *  @brief Unit tests for qos APIs
  *
@@ -1229,6 +1219,7 @@ CU_Test(ddssec_builtin_validate_local_identity,missing_certificate_property)
     CU_ASSERT (result != DDS_SECURITY_VALIDATION_OK);
     CU_ASSERT (exception.minor_code != 0);
     CU_ASSERT_FATAL (exception.message != NULL);
+    assert(exception.message != NULL); // for Clang's static analyzer
     CU_ASSERT(strcmp(exception.message, "validate_local_identity: missing property '" DDS_SEC_PROP_AUTH_IDENTITY_CERT "'") == 0);
 
     dds_security_property_deinit(&participant_qos.property.value);
@@ -1287,6 +1278,7 @@ CU_Test(ddssec_builtin_validate_local_identity,missing_ca_property)
     CU_ASSERT (result != DDS_SECURITY_VALIDATION_OK);
     CU_ASSERT (exception.minor_code != 0);
     CU_ASSERT_FATAL (exception.message != NULL);
+    assert(exception.message != NULL); // for Clang's static analyzer
     CU_ASSERT(strcmp(exception.message, "validate_local_identity: missing property '" DDS_SEC_PROP_AUTH_IDENTITY_CA "'") == 0);
 
     dds_security_property_deinit(&participant_qos.property.value);
@@ -1340,6 +1332,7 @@ CU_Test(ddssec_builtin_validate_local_identity,missing_private_key_property)
     CU_ASSERT (result != DDS_SECURITY_VALIDATION_OK);
     CU_ASSERT (exception.minor_code != 0);
     CU_ASSERT_FATAL (exception.message != NULL);
+    assert(exception.message != NULL); // for Clang's static analyzer
     CU_ASSERT(strcmp(exception.message, "validate_local_identity: missing property '" DDS_SEC_PROP_AUTH_PRIV_KEY "'") == 0);
 
     dds_security_property_deinit(&participant_qos.property.value);

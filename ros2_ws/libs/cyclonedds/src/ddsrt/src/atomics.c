@@ -1,13 +1,14 @@
-// Copyright(c) 2006 to 2021 ZettaScale Technology and others
-//
-// This program and the accompanying materials are made available under the
-// terms of the Eclipse Public License v. 2.0 which is available at
-// http://www.eclipse.org/legal/epl-2.0, or the Eclipse Distribution License
-// v. 1.0 which is available at
-// http://www.eclipse.org/org/documents/edl-v10.php.
-//
-// SPDX-License-Identifier: EPL-2.0 OR BSD-3-Clause
-
+/*
+ * Copyright(c) 2006 to 2021 ZettaScale Technology and others
+ *
+ * This program and the accompanying materials are made available under the
+ * terms of the Eclipse Public License v. 2.0 which is available at
+ * http://www.eclipse.org/legal/epl-2.0, or the Eclipse Distribution License
+ * v. 1.0 which is available at
+ * http://www.eclipse.org/org/documents/edl-v10.php.
+ *
+ * SPDX-License-Identifier: EPL-2.0 OR BSD-3-Clause
+ */
 #include "dds/ddsrt/atomics.h"
 
 /* LD, ST */
@@ -17,128 +18,81 @@ DDS_EXPORT extern inline uint64_t ddsrt_atomic_ld64 (const volatile ddsrt_atomic
 #endif
 DDS_EXPORT extern inline uintptr_t ddsrt_atomic_ldptr (const volatile ddsrt_atomic_uintptr_t *x);
 DDS_EXPORT extern inline void *ddsrt_atomic_ldvoidp (const volatile ddsrt_atomic_voidp_t *x);
-
 DDS_EXPORT extern inline void ddsrt_atomic_st32 (volatile ddsrt_atomic_uint32_t *x, uint32_t v);
 #if DDSRT_HAVE_ATOMIC64
 DDS_EXPORT extern inline void ddsrt_atomic_st64 (volatile ddsrt_atomic_uint64_t *x, uint64_t v);
 #endif
 DDS_EXPORT extern inline void ddsrt_atomic_stptr (volatile ddsrt_atomic_uintptr_t *x, uintptr_t v);
 DDS_EXPORT extern inline void ddsrt_atomic_stvoidp (volatile ddsrt_atomic_voidp_t *x, void *v);
-
 /* INC */
 DDS_EXPORT extern inline void ddsrt_atomic_inc32 (volatile ddsrt_atomic_uint32_t *x);
 #if DDSRT_HAVE_ATOMIC64
 DDS_EXPORT extern inline void ddsrt_atomic_inc64 (volatile ddsrt_atomic_uint64_t *x);
 #endif
-DDS_EXPORT extern inline void ddsrt_atomic_incptr (volatile ddsrt_atomic_uintptr_t *x);
-
 DDS_EXPORT extern inline uint32_t ddsrt_atomic_inc32_ov (volatile ddsrt_atomic_uint32_t *x);
-#if DDSRT_HAVE_ATOMIC64
-DDS_EXPORT extern inline uint64_t ddsrt_atomic_inc64_ov (volatile ddsrt_atomic_uint64_t *x);
-#endif
-DDS_EXPORT extern inline uintptr_t ddsrt_atomic_incptr_ov (volatile ddsrt_atomic_uintptr_t *x);
-
 DDS_EXPORT extern inline uint32_t ddsrt_atomic_inc32_nv (volatile ddsrt_atomic_uint32_t *x);
 #if DDSRT_HAVE_ATOMIC64
 DDS_EXPORT extern inline uint64_t ddsrt_atomic_inc64_nv (volatile ddsrt_atomic_uint64_t *x);
 #endif
-DDS_EXPORT extern inline uintptr_t ddsrt_atomic_incptr_nv (volatile ddsrt_atomic_uintptr_t *x);
-
 /* DEC */
 DDS_EXPORT extern inline void ddsrt_atomic_dec32 (volatile ddsrt_atomic_uint32_t *x);
 #if DDSRT_HAVE_ATOMIC64
 DDS_EXPORT extern inline void ddsrt_atomic_dec64 (volatile ddsrt_atomic_uint64_t *x);
 #endif
-DDS_EXPORT extern inline void ddsrt_atomic_decptr (volatile ddsrt_atomic_uintptr_t *x);
-
 DDS_EXPORT extern inline uint32_t ddsrt_atomic_dec32_nv (volatile ddsrt_atomic_uint32_t *x);
 #if DDSRT_HAVE_ATOMIC64
 DDS_EXPORT extern inline uint64_t ddsrt_atomic_dec64_nv (volatile ddsrt_atomic_uint64_t *x);
 #endif
-DDS_EXPORT extern inline uintptr_t ddsrt_atomic_decptr_nv (volatile ddsrt_atomic_uintptr_t *x);
-
 DDS_EXPORT extern inline uint32_t ddsrt_atomic_dec32_ov (volatile ddsrt_atomic_uint32_t *x);
 #if DDSRT_HAVE_ATOMIC64
 DDS_EXPORT extern inline uint64_t ddsrt_atomic_dec64_ov (volatile ddsrt_atomic_uint64_t *x);
 #endif
-DDS_EXPORT extern inline uintptr_t ddsrt_atomic_decptr_ov (volatile ddsrt_atomic_uintptr_t *x);
-
 /* ADD */
 DDS_EXPORT extern inline void ddsrt_atomic_add32 (volatile ddsrt_atomic_uint32_t *x, uint32_t v);
 #if DDSRT_HAVE_ATOMIC64
 DDS_EXPORT extern inline void ddsrt_atomic_add64 (volatile ddsrt_atomic_uint64_t *x, uint64_t v);
 #endif
-DDS_EXPORT extern inline void ddsrt_atomic_addptr (volatile ddsrt_atomic_uintptr_t *x, uintptr_t v);
-
 DDS_EXPORT extern inline uint32_t ddsrt_atomic_add32_ov (volatile ddsrt_atomic_uint32_t *x, uint32_t v);
-#if DDSRT_HAVE_ATOMIC64
-DDS_EXPORT extern inline uint64_t ddsrt_atomic_add64_ov (volatile ddsrt_atomic_uint64_t *x, uint64_t v);
-#endif
-DDS_EXPORT extern inline uintptr_t ddsrt_atomic_addptr_ov (volatile ddsrt_atomic_uintptr_t *x, uintptr_t v);
-
 DDS_EXPORT extern inline uint32_t ddsrt_atomic_add32_nv (volatile ddsrt_atomic_uint32_t *x, uint32_t v);
 #if DDSRT_HAVE_ATOMIC64
 DDS_EXPORT extern inline uint64_t ddsrt_atomic_add64_nv (volatile ddsrt_atomic_uint64_t *x, uint64_t v);
 #endif
-DDS_EXPORT extern inline uintptr_t ddsrt_atomic_addptr_nv (volatile ddsrt_atomic_uintptr_t *x, uintptr_t v);
-
 /* SUB */
 DDS_EXPORT extern inline void ddsrt_atomic_sub32 (volatile ddsrt_atomic_uint32_t *x, uint32_t v);
 #if DDSRT_HAVE_ATOMIC64
 DDS_EXPORT extern inline void ddsrt_atomic_sub64 (volatile ddsrt_atomic_uint64_t *x, uint64_t v);
 #endif
-DDS_EXPORT extern inline void ddsrt_atomic_subptr (volatile ddsrt_atomic_uintptr_t *x, uintptr_t v);
-
 DDS_EXPORT extern inline uint32_t ddsrt_atomic_sub32_ov (volatile ddsrt_atomic_uint32_t *x, uint32_t v);
-#if DDSRT_HAVE_ATOMIC64
-DDS_EXPORT extern inline uint64_t ddsrt_atomic_sub64_ov (volatile ddsrt_atomic_uint64_t *x, uint64_t v);
-#endif
-DDS_EXPORT extern inline uintptr_t ddsrt_atomic_subptr_ov (volatile ddsrt_atomic_uintptr_t *x, uintptr_t v);
-
 DDS_EXPORT extern inline uint32_t ddsrt_atomic_sub32_nv (volatile ddsrt_atomic_uint32_t *x, uint32_t v);
 #if DDSRT_HAVE_ATOMIC64
 DDS_EXPORT extern inline uint64_t ddsrt_atomic_sub64_nv (volatile ddsrt_atomic_uint64_t *x, uint64_t v);
 #endif
-DDS_EXPORT extern inline uintptr_t ddsrt_atomic_subptr_nv (volatile ddsrt_atomic_uintptr_t *x, uintptr_t v);
-
 /* AND */
 DDS_EXPORT extern inline void ddsrt_atomic_and32 (volatile ddsrt_atomic_uint32_t *x, uint32_t v);
 #if DDSRT_HAVE_ATOMIC64
 DDS_EXPORT extern inline void ddsrt_atomic_and64 (volatile ddsrt_atomic_uint64_t *x, uint64_t v);
 #endif
-DDS_EXPORT extern inline void ddsrt_atomic_andptr (volatile ddsrt_atomic_uintptr_t *x, uintptr_t v);
-
 DDS_EXPORT extern inline uint32_t ddsrt_atomic_and32_ov (volatile ddsrt_atomic_uint32_t *x, uint32_t v);
 #if DDSRT_HAVE_ATOMIC64
 DDS_EXPORT extern inline uint64_t ddsrt_atomic_and64_ov (volatile ddsrt_atomic_uint64_t *x, uint64_t v);
 #endif
-DDS_EXPORT extern inline uintptr_t ddsrt_atomic_andptr_ov (volatile ddsrt_atomic_uintptr_t *x, uintptr_t v);
-
 DDS_EXPORT extern inline uint32_t ddsrt_atomic_and32_nv (volatile ddsrt_atomic_uint32_t *x, uint32_t v);
 #if DDSRT_HAVE_ATOMIC64
 DDS_EXPORT extern inline uint64_t ddsrt_atomic_and64_nv (volatile ddsrt_atomic_uint64_t *x, uint64_t v);
 #endif
-DDS_EXPORT extern inline uintptr_t ddsrt_atomic_andptr_nv (volatile ddsrt_atomic_uintptr_t *x, uintptr_t v);
-
 /* OR */
 DDS_EXPORT extern inline void ddsrt_atomic_or32 (volatile ddsrt_atomic_uint32_t *x, uint32_t v);
 #if DDSRT_HAVE_ATOMIC64
 DDS_EXPORT extern inline void ddsrt_atomic_or64 (volatile ddsrt_atomic_uint64_t *x, uint64_t v);
 #endif
-DDS_EXPORT extern inline void ddsrt_atomic_orptr (volatile ddsrt_atomic_uintptr_t *x, uintptr_t v);
-
 DDS_EXPORT extern inline uint32_t ddsrt_atomic_or32_ov (volatile ddsrt_atomic_uint32_t *x, uint32_t v);
 #if DDSRT_HAVE_ATOMIC64
 DDS_EXPORT extern inline uint64_t ddsrt_atomic_or64_ov (volatile ddsrt_atomic_uint64_t *x, uint64_t v);
 #endif
-DDS_EXPORT extern inline uintptr_t ddsrt_atomic_orptr_ov (volatile ddsrt_atomic_uintptr_t *x, uintptr_t v);
-
 DDS_EXPORT extern inline uint32_t ddsrt_atomic_or32_nv (volatile ddsrt_atomic_uint32_t *x, uint32_t v);
 #if DDSRT_HAVE_ATOMIC64
 DDS_EXPORT extern inline uint64_t ddsrt_atomic_or64_nv (volatile ddsrt_atomic_uint64_t *x, uint64_t v);
 #endif
-DDS_EXPORT extern inline uintptr_t ddsrt_atomic_orptr_nv (volatile ddsrt_atomic_uintptr_t *x, uintptr_t v);
-
 /* CAS */
 DDS_EXPORT extern inline int ddsrt_atomic_cas32 (volatile ddsrt_atomic_uint32_t *x, uint32_t exp, uint32_t des);
 #if DDSRT_HAVE_ATOMIC64
@@ -149,7 +103,6 @@ DDS_EXPORT extern inline int ddsrt_atomic_casvoidp (volatile ddsrt_atomic_voidp_
 #if DDSRT_HAVE_ATOMIC_LIFO
 DDS_EXPORT extern inline int ddsrt_atomic_casvoidp2 (volatile ddsrt_atomic_uintptr2_t *x, uintptr_t a0, uintptr_t b0, uintptr_t a1, uintptr_t b1);
 #endif
-
 /* FENCES */
 DDS_EXPORT extern inline void ddsrt_atomic_fence (void);
 DDS_EXPORT extern inline void ddsrt_atomic_fence_ldld (void);
@@ -217,7 +170,7 @@ void ddsrt_atomics_fini (void) { }
    something else will have to be done. */
 #define N_MUTEXES_LG2 4
 #define N_MUTEXES     (1 << N_MUTEXES_LG2)
-#if !defined(PTHREAD_MUTEX_INITIALIZER) || defined(__ZEPHYR__)
+#ifndef PTHREAD_MUTEX_INITIALIZER
 static ddsrt_mutex_t mutexes[N_MUTEXES];
 
 void ddsrt_atomics_init (void)

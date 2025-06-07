@@ -29,13 +29,11 @@ static int parse_args(int argc, char **argv, uint32_t *payloadSize, int *burstIn
 static dds_entity_t prepare_dds(dds_entity_t *writer, const char *partitionName);
 static void finalize_dds(dds_entity_t participant, dds_entity_t writer, ThroughputModule_DataType sample);
 
-#if !DDSRT_WITH_FREERTOS && !__ZEPHYR__
 static void sigint (int sig)
 {
   (void)sig;
   done = true;
 }
-#endif
 
 int main (int argc, char **argv)
 {
@@ -75,9 +73,7 @@ int main (int argc, char **argv)
   }
 
   /* Register handler for Ctrl-C */
-#if !DDSRT_WITH_FREERTOS && !__ZEPHYR__
   signal (SIGINT, sigint);
-#endif
 
   /* Register the sample instance and write samples repeatedly or until time out */
   start_writing(writer, &sample, burstInterval, burstSize, timeOut);
@@ -144,23 +140,20 @@ static dds_entity_t prepare_dds(dds_entity_t *writer, const char *partitionName)
   dds_entity_t publisher;
   const char *pubParts[1];
   dds_qos_t *pubQos;
-  dds_qos_t *wrQos;
-  dds_qos_t *tQos;
+  dds_qos_t *dwQos;
 
   /* A domain participant is created for the default domain. */
   participant = dds_create_participant (DDS_DOMAIN_DEFAULT, NULL, NULL);
   if (participant < 0)
     DDS_FATAL("dds_create_participant: %s\n", dds_strretcode(-participant));
 
+  /* Enable write batching */
+  dds_write_set_batch (true);
+
   /* A topic is created for our sample type on the domain participant. */
-  tQos = dds_create_qos ();
-  dds_qset_reliability (tQos, DDS_RELIABILITY_RELIABLE, DDS_SECS (10));
-  dds_qset_history (tQos, DDS_HISTORY_KEEP_ALL, 0);
-  dds_qset_resource_limits (tQos, MAX_SAMPLES, DDS_LENGTH_UNLIMITED, DDS_LENGTH_UNLIMITED);
-  topic = dds_create_topic (participant, &ThroughputModule_DataType_desc, "Throughput", tQos, NULL);
+  topic = dds_create_topic (participant, &ThroughputModule_DataType_desc, "Throughput", NULL, NULL);
   if (topic < 0)
     DDS_FATAL("dds_create_topic: %s\n", dds_strretcode(-topic));
-  dds_delete_qos (tQos);
 
   /* A publisher is created on the domain participant. */
   pubQos = dds_create_qos ();
@@ -172,12 +165,14 @@ static dds_entity_t prepare_dds(dds_entity_t *writer, const char *partitionName)
   dds_delete_qos (pubQos);
 
   /* A DataWriter is created on the publisher. */
-  wrQos = dds_create_qos ();
-  dds_qset_writer_batching (wrQos, true);
-  *writer = dds_create_writer (publisher, topic, wrQos, NULL);
+  dwQos = dds_create_qos ();
+  dds_qset_reliability (dwQos, DDS_RELIABILITY_RELIABLE, DDS_SECS (10));
+  dds_qset_history (dwQos, DDS_HISTORY_KEEP_ALL, 0);
+  dds_qset_resource_limits (dwQos, MAX_SAMPLES, DDS_LENGTH_UNLIMITED, DDS_LENGTH_UNLIMITED);
+  *writer = dds_create_writer (publisher, topic, dwQos, NULL);
   if (*writer < 0)
     DDS_FATAL("dds_create_writer: %s\n", dds_strretcode(-*writer));
-  dds_delete_qos (wrQos);
+  dds_delete_qos (dwQos);
 
   return participant;
 }

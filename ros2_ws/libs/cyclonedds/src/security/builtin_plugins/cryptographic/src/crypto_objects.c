@@ -1,13 +1,14 @@
-// Copyright(c) 2006 to 2020 ZettaScale Technology and others
-//
-// This program and the accompanying materials are made available under the
-// terms of the Eclipse Public License v. 2.0 which is available at
-// http://www.eclipse.org/legal/epl-2.0, or the Eclipse Distribution License
-// v. 1.0 which is available at
-// http://www.eclipse.org/org/documents/edl-v10.php.
-//
-// SPDX-License-Identifier: EPL-2.0 OR BSD-3-Clause
-
+/*
+ * Copyright(c) 2006 to 2020 ZettaScale Technology and others
+ *
+ * This program and the accompanying materials are made available under the
+ * terms of the Eclipse Public License v. 2.0 which is available at
+ * http://www.eclipse.org/legal/epl-2.0, or the Eclipse Distribution License
+ * v. 1.0 which is available at
+ * http://www.eclipse.org/org/documents/edl-v10.php.
+ *
+ * SPDX-License-Identifier: EPL-2.0 OR BSD-3-Clause
+ */
 #include <assert.h>
 #include <string.h>
 #include <stdio.h>
@@ -83,7 +84,7 @@ static uint32_t crypto_object_hash(const void *obj)
   return (uint32_t)((x * c) >> 32);
 }
 
-static bool crypto_object_equal(const void *ha, const void *hb)
+static int crypto_object_equal(const void *ha, const void *hb)
 {
   const CryptoObject *la = ha;
   const CryptoObject *lb = hb;

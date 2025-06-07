@@ -10,8 +10,7 @@
 # SPDX-License-Identifier: EPL-2.0 OR BSD-3-Clause
 #
 cmake_minimum_required(VERSION 3.16)
-# C++ is only for Iceoryx plugin
-project(CycloneDDS VERSION 0.11.0 LANGUAGES C CXX)
+project(CycloneDDS VERSION 0.10.3 LANGUAGES C)
 
 # Set a default build type if none was specified
 set(default_build_type "RelWithDebInfo")
@@ -30,28 +29,6 @@ else()
   set(not_crosscompiling ON)
 endif()
 
-# By default we do shared libraries (we really prefer shared libraries because of the
-# plugins for IDLC, security, PSMX, ...)
-#
-# For static builds, we recommend doing a regular shared library build first, then
-# building the static Cyclone library with CMAKE_CROSSCOMPILING set.  This avoids the
-# dynamic linking in IDLC of something involving the static library, and that in turn
-# avoids a position-dependent/position-independent mess.
-#
-# Note that on Linux that mess can be partially resolved by defining
-#
-#  CMAKE_POSITION_INDEPENDENT_CODE=1
-#
-# resulting in a PIC static library, but that is in turn incompatible with the
-# system-provided static libraries for OpenSSL.  So much easier to avoid it for the rare
-# case where it is needed.
-#
-# It appears that on macOS, all code is position independent and it'll work regardless.
-option(BUILD_SHARED_LIBS "Build using shared libraries" ON)
-if(NOT BUILD_SHARED_LIBS AND NOT CMAKE_CROSSCOMPILING)
-  message(WARNING "It is probably best to build a static library as-if cross compiling (e.g., use -DCMAKE_CROSSCOMPILING=1 -DCMAKE_SYSTEM_NAME=${CMAKE_SYSTEM_NAME} -DCMAKE_PREFIX_PATH=<path to shared-library build>)")
-endif()
-
 # By default don't treat warnings as errors, else anyone building it with a different compiler that
 # just happens to generate a warning, as well as anyone adding or modifying something and making a
 # small mistake would run into errors.  CI builds can be configured differently.
@@ -62,21 +39,13 @@ set(CMAKE_MODULE_PATH "${CMAKE_CURRENT_LIST_DIR}/cmake/Modules")
 option(BUILD_IDLC "Build IDL preprocessor" ${not_crosscompiling})
 option(BUILD_DDSPERF "Build ddsperf tool" ${not_crosscompiling})
 
-option(WITH_ZEPHYR "Build for Zephyr RTOS" OFF)
-
 set(CMAKE_C_STANDARD 99)
 if(CMAKE_SYSTEM_NAME STREQUAL "VxWorks")
   add_definitions(-std=c99)
 endif()
 
-if (MSVC_VERSION LESS 1920)
-  message(WARNING "Building with Visual Studio 15 2017 or lower, usage of restrict keyword is disabled. Some performance optimizations are disabled. Consider update the MSVC compiler.")
-  # restrict is supported since Visual Studio 16 2019.
-  add_definitions("-Drestrict=")
-endif()
-
 if(${CMAKE_C_COMPILER_ID} STREQUAL "SunPro")
-  set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} -m64 -xc99 -D__deprecated__=")
+  set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} -m64 -xc99 -D__restrict=restrict -D__deprecated__=")
   set(CMAKE_LINKER_FLAGS "${CMAKE_LINKER_FLAGS} -m64")
 elseif(CMAKE_SYSTEM_NAME STREQUAL "SunOS")
   set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} -m64")
@@ -103,6 +72,33 @@ if(APPLE)
   endif()
 endif()
 
+# Conan
+if(EXISTS "${CMAKE_BINARY_DIR}/conanbuildinfo.cmake")
+  include(${CMAKE_BINARY_DIR}/conanbuildinfo.cmake)
+  if(APPLE)
+    # By default Conan strips all RPATHs (see conanbuildinfo.cmake), which
+    # causes tests to fail as the executables cannot find the library target.
+    # By setting KEEP_RPATHS, Conan does not set CMAKE_SKIP_RPATH and the
+    # resulting binaries still have the RPATH information. This is fine because
+    # CMake will strip the build RPATH information in the install step.
+    #
+    # NOTE:
+    # Conan's default approach is to use the "imports" feature, which copies
+    # all the dependencies into the bin directory. Of course, this doesn't work
+    # quite that well for libraries generated in this Project (see Conan
+    # documentation).
+    #
+    # See the links below for more information.
+    # https://github.com/conan-io/conan/issues/337
+    # https://docs.conan.io/en/latest/howtos/manage_shared_libraries/rpaths.html
+    # https://gitlab.kitware.com/cmake/community/wikis/doc/cmake/RPATH-handling
+    conan_basic_setup(KEEP_RPATHS)
+  else()
+    conan_basic_setup()
+  endif()
+  conan_define_targets()
+endif()
+
 # Set reasonably strict warning options for clang, gcc, msvc
 # Enable coloured ouput if Ninja is used for building
 if("${CMAKE_C_COMPILER_ID}" STREQUAL "Clang" OR
@@ -112,34 +108,27 @@ if("${CMAKE_C_COMPILER_ID}" STREQUAL "Clang" OR
              "-Wextra"
              "-Wconversion"
              "-Wunused"
+             "-Wmissing-prototypes"
              "-Winfinite-recursion"
              "-Wassign-enum"
              "-Wcomma"
+             "-Wmissing-prototypes"
              "-Wdocumentation"
              "-Wstrict-prototypes"
              "-Wconditional-uninitialized"
              "-Wshadow")
   add_compile_options(${wflags})
-  add_compile_options($<$<COMPILE_LANGUAGE:C>:-Wmissing-prototypes>)
   if(${WERROR})
     add_compile_options(-Werror)
-    add_link_options(-Werror)
   endif()
   if("${CMAKE_GENERATOR}" STREQUAL "Ninja")
     add_compile_options(-Xclang -fcolor-diagnostics)
   endif()
 elseif("${CMAKE_C_COMPILER_ID}" STREQUAL "GNU")
   #message(STATUS gcc)
-  if(WITH_ZEPHYR)
-    # Suppress false warnings from system includes
-    add_compile_options(-Wall -Wextra -Wno-unused-parameter)
-  else()
-    add_compile_options(-Wall -Wextra -Wconversion)
-  endif()
-  add_compile_options($<$<COMPILE_LANGUAGE:C>:-Wmissing-prototypes>)
+  add_compile_options(-Wall -Wextra -Wconversion -Wmissing-prototypes)
   if(${WERROR})
     add_compile_options(-Werror)
-    add_link_options(-Werror)
   endif()
   if("${CMAKE_GENERATOR}" STREQUAL "Ninja")
     add_compile_options(-fdiagnostics-color=always)
@@ -149,7 +138,6 @@ elseif("${CMAKE_C_COMPILER_ID}" STREQUAL "MSVC")
   add_compile_options(/W3)
   if(${WERROR})
     add_compile_options(/WX)
-    add_link_options(/WX)
   endif()
 endif()
 
@@ -211,13 +199,10 @@ if(ANALYZER)
     endif()
   elseif(ANALYZER STREQUAL "on")
     if(CMAKE_C_COMPILER_ID STREQUAL "GNU")
-      # GCC 10 static analyzer is a bit problematic
-      # GCC 11 is a full rewrite, also not quite happy with the code
-      # GCC 12 is pretty much happy, but some parts of IDLC (main file, type object
-      # generation) still cause problems, but we can disable those
-      if(CMAKE_C_COMPILER_VERSION VERSION_GREATER_EQUAL "12")
+      if(CMAKE_C_COMPILER_VERSION VERSION_GREATER_EQUAL "10")
         message(STATUS "Enabling analyzer: GCC")
-        add_compile_options(-fanalyzer)
+        # -Wanalyzer-malloc-leak generates lots of false positives
+        add_compile_options(-fanalyzer -Wno-analyzer-malloc-leak)
       endif()
     endif()
   endif()
@@ -230,7 +215,6 @@ if(SANITIZER)
     if(san STREQUAL "address")
       add_compile_options("-fno-omit-frame-pointer")
       add_link_options("-fno-omit-frame-pointer")
-      set(DDS_BUILD_OPTION_WITH_ASAN YES)
     endif()
     if(san AND NOT san STREQUAL "none")
       message(STATUS "Enabling sanitizer: ${san}")
@@ -243,22 +227,20 @@ endif()
 find_package(codecov)
 set(MEMORYCHECK_COMMAND_OPTIONS "--track-origins=yes --leak-check=full --trace-children=yes --child-silent-after-fork=yes --xml=yes --xml-file=TestResultValgrind_%p.xml --tool=memcheck --show-reachable=yes --leak-resolution=high")
 
-# Tests (integrated with CTest) are not built by default: not only are they not useful to
-# most people, building the test suite also forces exporting way more symbols from the
-# library so we can actually build the tests.
+# By default building the testing tree is enabled by including CTest, but
+# since not everybody has CUnit, and because it is not strictly required to
+# build the product itself, switch to off by default.
 option(BUILD_TESTING "Build the testing tree." OFF)
 
-# For special-purpose builds it can be useful to export all symbols from the library,
-# like we do when building the tests.
-option(EXPORT_ALL_SYMBOLS "Export all symbols from the library." OFF)
-
-# Include the xtests for idlc. These tests use the idl compiler (C back-end) to
+# Include the tests for idlc. These tests use the idl compiler (C back-end) to
 # compile an idl file at (test) runtime, and use the C compiler to build a test
 # application for the generated types, that is executed to do the actual testing.
-option(BUILD_IDLC_XTESTS "Build the idlc compile tests" OFF)
+option(BUILD_IDLC_TESTING "Build the idl compiler tests" OFF)
 
 # Disable building examples by default because it is not strictly required.
 option(BUILD_EXAMPLES "Build examples." OFF)
+
+option(BUILD_DOCS "Build documentation." OFF)
 
 option(ENABLE_LTO "Enable link time optimization." ON)
 
@@ -329,16 +311,6 @@ install(
   COMPONENT dev)
 
 # Generate Pkg-Config file
-if(IS_ABSOLUTE "${CMAKE_INSTALL_INCLUDEDIR}")
-  set(CYCLONEDDS_PKG_CONFIG_INCLUDEDIR "${CMAKE_INSTALL_INCLUDEDIR}")
-else()
-  set(CYCLONEDDS_PKG_CONFIG_INCLUDEDIR "\${prefix}/${CMAKE_INSTALL_INCLUDEDIR}")
-endif()
-if(IS_ABSOLUTE "${CMAKE_INSTALL_LIBDIR}")
-  set(CYCLONEDDS_PKG_CONFIG_LIBDIR "${CMAKE_INSTALL_LIBDIR}")
-else()
-  set(CYCLONEDDS_PKG_CONFIG_LIBDIR "\${prefix}/${CMAKE_INSTALL_LIBDIR}")
-endif()
 configure_file(
   "PkgConfig.pc.in"
   "${PROJECT_NAME}.pc"
@@ -349,10 +321,6 @@ install(
   DESTINATION "${CMAKE_INSTALL_LIBDIR}/pkgconfig"
   COMPONENT dev
 )
-install(
-  FILES "${CycloneDDS_SOURCE_DIR}/cmake/Modules/Generate.cmake"
-  DESTINATION "${CMAKE_INSTALL_LIBDIR}/cmake/${PROJECT_NAME}/idlc"
-  COMPONENT dev)
 
 # Generated file paths
 # although the following files are generated, they are checked into source
@@ -360,7 +328,6 @@ install(
 set(generated_cyclonedds_rnc "${CMAKE_CURRENT_SOURCE_DIR}/etc/cyclonedds.rnc")
 set(generated_cyclonedds_xsd "${CMAKE_CURRENT_SOURCE_DIR}/etc/cyclonedds.xsd")
 set(generated_options_md     "${CMAKE_CURRENT_SOURCE_DIR}/docs/manual/options.md")
-set(generated_options_rst    "${CMAKE_CURRENT_SOURCE_DIR}/docs/manual/config/config_file_reference.rst")
 set(generated_defconfig_src  "${CMAKE_CURRENT_SOURCE_DIR}/src/core/ddsi/defconfig.c")
 
 add_subdirectory(compat)
@@ -368,6 +335,8 @@ add_subdirectory(src)
 if(BUILD_EXAMPLES)
   add_subdirectory(examples)
 endif()
+
+add_subdirectory(docs)
 
 if(DEFINED ENV{LIB_FUZZING_ENGINE})
   add_subdirectory(fuzz)

@@ -1,13 +1,14 @@
-// Copyright(c) 2006 to 2022 ZettaScale Technology and others
-//
-// This program and the accompanying materials are made available under the
-// terms of the Eclipse Public License v. 2.0 which is available at
-// http://www.eclipse.org/legal/epl-2.0, or the Eclipse Distribution License
-// v. 1.0 which is available at
-// http://www.eclipse.org/org/documents/edl-v10.php.
-//
-// SPDX-License-Identifier: EPL-2.0 OR BSD-3-Clause
-
+/*
+ * Copyright(c) 2006 to 2022 ZettaScale Technology and others
+ *
+ * This program and the accompanying materials are made available under the
+ * terms of the Eclipse Public License v. 2.0 which is available at
+ * http://www.eclipse.org/legal/epl-2.0, or the Eclipse Distribution License
+ * v. 1.0 which is available at
+ * http://www.eclipse.org/org/documents/edl-v10.php.
+ *
+ * SPDX-License-Identifier: EPL-2.0 OR BSD-3-Clause
+ */
 #include <stdlib.h>
 #include <assert.h>
 
@@ -22,9 +23,10 @@
 #include "dds/ddsrt/string.h"
 #include "dds/ddsrt/threads.h"
 #include "dds/ddsrt/process.h"
+#include "dds/ddsi/ddsi_config_impl.h"
 #include "dds/ddsi/ddsi_domaingv.h"
+#include "dds/ddsi/q_misc.h"
 #include "dds/ddsi/ddsi_xqos.h"
-#include "ddsi__misc.h"
 #include "dds/security/dds_security_api.h"
 
 #include "common/config_env.h"
@@ -42,6 +44,11 @@ static const char *config =
     "    <ExternalDomainId>0</ExternalDomainId>"
     "    <Tag>\\${CYCLONEDDS_PID}</Tag>"
     "  </Discovery>"
+#ifdef DDS_HAS_SHM
+    "  <SharedMemory>"
+    "    <Enable>false</Enable>"
+    "  </SharedMemory>"
+#endif
     "  <Security>"
     "    <Authentication>"
     "      <Library finalizeFunction=\"finalize_authentication\" initFunction=\"init_authentication\" />"
@@ -99,7 +106,7 @@ const char * g_pp_secret = "ppsecret";
 const char * g_groupdata_secret = "groupsecret";
 const char * g_ep_secret = "epsecret";
 
-static dds_qos_t *get_qos(void)
+static dds_qos_t *get_qos()
 {
   dds_qos_t * qos = dds_create_qos ();
   CU_ASSERT_FATAL (qos != NULL);

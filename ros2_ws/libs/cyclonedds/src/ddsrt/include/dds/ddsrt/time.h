@@ -1,13 +1,14 @@
-// Copyright(c) 2006 to 2022 ZettaScale Technology and others
-//
-// This program and the accompanying materials are made available under the
-// terms of the Eclipse Public License v. 2.0 which is available at
-// http://www.eclipse.org/legal/epl-2.0, or the Eclipse Distribution License
-// v. 1.0 which is available at
-// http://www.eclipse.org/org/documents/edl-v10.php.
-//
-// SPDX-License-Identifier: EPL-2.0 OR BSD-3-Clause
-
+/*
+ * Copyright(c) 2006 to 2022 ZettaScale Technology and others
+ *
+ * This program and the accompanying materials are made available under the
+ * terms of the Eclipse Public License v. 2.0 which is available at
+ * http://www.eclipse.org/legal/epl-2.0, or the Eclipse Distribution License
+ * v. 1.0 which is available at
+ * http://www.eclipse.org/org/documents/edl-v10.php.
+ *
+ * SPDX-License-Identifier: EPL-2.0 OR BSD-3-Clause
+ */
 
 /**
  * @file
@@ -21,7 +22,6 @@
 
 #include <stdint.h>
 #include <assert.h>
-#include <stddef.h>
 
 #include "dds/export.h"
 #include "dds/config.h"
@@ -247,7 +247,7 @@ DDS_INLINE_EXPORT inline ddsrt_etime_t ddsrt_etime_add_duration(ddsrt_etime_t ab
  * @returns INFINITE if @reltime was @DDS_INIFINITY, relative time converted to
  *          microseconds otherwise.
  */
-inline DWORD
+DDS_INLINE_EXPORT inline DWORD
 ddsrt_duration_to_msecs_ceil(dds_duration_t reltime)
 {
   if (reltime == DDS_INFINITY) {
@@ -276,7 +276,7 @@ ddsrt_duration_to_msecs_ceil(dds_duration_t reltime)
  * @param[out]  sec   Seconds part
  * @param[out]  usec  Microseconds part
  */
-DDS_EXPORT void ddsrt_mtime_to_sec_usec (int32_t *sec, int32_t *usec, ddsrt_mtime_t t);
+DDS_EXPORT void ddsrt_mtime_to_sec_usec (int32_t * __restrict sec, int32_t * __restrict usec, ddsrt_mtime_t t);
 
 /**
  * @brief Convert wall-clock time seconds & microseconds
@@ -285,7 +285,7 @@ DDS_EXPORT void ddsrt_mtime_to_sec_usec (int32_t *sec, int32_t *usec, ddsrt_mtim
  * @param[out]  sec   Seconds part
  * @param[out]  usec  Microseconds part
  */
-DDS_EXPORT void ddsrt_wctime_to_sec_usec (int32_t *sec, int32_t *usec, ddsrt_wctime_t t);
+DDS_EXPORT void ddsrt_wctime_to_sec_usec (int32_t * __restrict sec, int32_t * __restrict usec, ddsrt_wctime_t t);
 
 /**
  * @brief Convert elapsed time seconds & microseconds
@@ -294,7 +294,7 @@ DDS_EXPORT void ddsrt_wctime_to_sec_usec (int32_t *sec, int32_t *usec, ddsrt_wct
  * @param[out]  sec   Seconds part
  * @param[out]  usec  Microseconds part
  */
-DDS_EXPORT void ddsrt_etime_to_sec_usec (int32_t *sec, int32_t *usec, ddsrt_etime_t t);
+DDS_EXPORT void ddsrt_etime_to_sec_usec (int32_t * __restrict sec, int32_t * __restrict usec, ddsrt_etime_t t);
 
 #if defined(__cplusplus)
 }

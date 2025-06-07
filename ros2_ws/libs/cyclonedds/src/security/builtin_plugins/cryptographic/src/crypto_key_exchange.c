@@ -1,13 +1,14 @@
-// Copyright(c) 2006 to 2021 ZettaScale Technology and others
-//
-// This program and the accompanying materials are made available under the
-// terms of the Eclipse Public License v. 2.0 which is available at
-// http://www.eclipse.org/legal/epl-2.0, or the Eclipse Distribution License
-// v. 1.0 which is available at
-// http://www.eclipse.org/org/documents/edl-v10.php.
-//
-// SPDX-License-Identifier: EPL-2.0 OR BSD-3-Clause
-
+/*
+ * Copyright(c) 2006 to 2021 ZettaScale Technology and others
+ *
+ * This program and the accompanying materials are made available under the
+ * terms of the Eclipse Public License v. 2.0 which is available at
+ * http://www.eclipse.org/legal/epl-2.0, or the Eclipse Distribution License
+ * v. 1.0 which is available at
+ * http://www.eclipse.org/org/documents/edl-v10.php.
+ *
+ * SPDX-License-Identifier: EPL-2.0 OR BSD-3-Clause
+ */
 #include <string.h>
 #include "dds/ddsrt/heap.h"
 #include "dds/ddsrt/string.h"
@@ -133,23 +134,17 @@ serialize_master_key_material(
 
   sd[i++] = ddsrt_toBE4u(keymat->transformation_kind);
   sd[i++] = ddsrt_toBE4u(key_bytes);
-  if (key_bytes > 0) {
-    memcpy(&sd[i], keymat->master_salt, key_bytes);
-  }
+  memcpy(&sd[i], keymat->master_salt, key_bytes);
   i += key_bytes / sizeof (uint32_t);
   sd[i++] = ddsrt_toBE4u(keymat->sender_key_id);
   sd[i++] = ddsrt_toBE4u(key_bytes);
-  if (key_bytes > 0) {
-    memcpy(&sd[i], keymat->master_sender_key, key_bytes);
-  }
+  memcpy(&sd[i], keymat->master_sender_key, key_bytes);
   i += key_bytes / sizeof (uint32_t);
   sd[i++] = ddsrt_toBE4u(keymat->receiver_specific_key_id);
   if (keymat->receiver_specific_key_id)
   {
     sd[i++] = ddsrt_toBE4u(key_bytes);
-    if (key_bytes > 0) {
-      memcpy(&sd[i], keymat->master_receiver_specific_key, key_bytes);
-    }
+    memcpy(&sd[i], keymat->master_receiver_specific_key, key_bytes);
   }
   else
   {

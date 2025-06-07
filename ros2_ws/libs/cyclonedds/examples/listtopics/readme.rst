@@ -8,34 +8,29 @@
    http://www.eclipse.org/org/documents/edl-v10.php.
 
    SPDX-License-Identifier: EPL-2.0 OR BSD-3-Clause
-   
-.. index:: 
-   single: Examples; listtopics
-   single: listtopics example
-  
-.. _listtopics_bm:
 
 listtopics
 ==========
 
-The listtopics example shows how to monitor topics that have been defined in the system.
+Description
+***********
+
+The "listtopics" example shows how to monitor which topics have been defined in the
+system.
 
 Running the example
 *******************
 
-Discovering remote topics is only possible when topic discovery is enabled. To configure 
-topic discovery set:
-
-.. code-block:: xml
+Discovering remote topics is only possible when topic discovery is enabled in the
+configuration using:
 
     <Discovery>
       <EnableTopicDiscoveryEndpoints>true</EnableTopicDiscoveryEndpoints>
     </Discovery>
 
-Most applications create topics, which are always visible. The listtopics example creates 
-no topics and therefore, if there is no discovery of remote topics, shows no output. To
-mitigate this, the listtopics example also monitors the discovery of other participants. 
-If any show up but no topics are discovered, it prints a warning.
+most applications create some topics and those are always visible, but this example
+creates none and so yields no output if there is no discovery of remote topics.
 
-.. note::
-   Running two copies of the listtopics example (and nothing else) always triggers a warning.
+It does make an effort to detect this case by also monitoring the discovery of other
+participants.  If any show up but no topics are discovered, it will print a warning.
+Running two copies of this program (and nothing) else will always trigger this warning.

@@ -1,13 +1,14 @@
-// Copyright(c) 2006 to 2019 ZettaScale Technology and others
-//
-// This program and the accompanying materials are made available under the
-// terms of the Eclipse Public License v. 2.0 which is available at
-// http://www.eclipse.org/legal/epl-2.0, or the Eclipse Distribution License
-// v. 1.0 which is available at
-// http://www.eclipse.org/org/documents/edl-v10.php.
-//
-// SPDX-License-Identifier: EPL-2.0 OR BSD-3-Clause
-
+/*
+ * Copyright(c) 2006 to 2019 ZettaScale Technology and others
+ *
+ * This program and the accompanying materials are made available under the
+ * terms of the Eclipse Public License v. 2.0 which is available at
+ * http://www.eclipse.org/legal/epl-2.0, or the Eclipse Distribution License
+ * v. 1.0 which is available at
+ * http://www.eclipse.org/org/documents/edl-v10.php.
+ *
+ * SPDX-License-Identifier: EPL-2.0 OR BSD-3-Clause
+ */
 #include <assert.h>
 #include "dds/ddsrt/cdtors.h"
 #include "dds/ddsrt/ifaddrs.h"
@@ -73,6 +74,7 @@ CU_Test(ddsrt_getifaddrs, ipv4)
   CU_ASSERT_EQUAL_FATAL(ret, DDS_RETCODE_OK);
   for (ifa = ifa_root; ifa; ifa = ifa->next) {
     CU_ASSERT_PTR_NOT_EQUAL_FATAL(ifa->addr, NULL);
+    assert (ifa->addr != NULL); /* for the benefit of clang's static analyzer */
     CU_ASSERT_EQUAL(ifa->addr->sa_family, AF_INET);
     if (ifa->addr->sa_family == AF_INET) {
       if (ifa->flags & IFF_LOOPBACK) {
@@ -130,6 +132,7 @@ CU_Test(ddsrt_getifaddrs, ipv6)
     CU_ASSERT_EQUAL_FATAL(ret, DDS_RETCODE_OK);
     for (ifa = ifa_root; ifa; ifa = ifa->next) {
       CU_ASSERT_PTR_NOT_EQUAL_FATAL(ifa->addr, NULL);
+      assert (ifa->addr != NULL); /* for the benefit of clang's static analyzer */
       CU_ASSERT_EQUAL(ifa->addr->sa_family, AF_INET6);
       if (ifa->addr->sa_family == AF_INET6) {
         have_ipv6 = 1;
@@ -170,6 +173,7 @@ CU_Test(ddsrt_getifaddrs, ipv4_n_ipv6)
     CU_ASSERT_EQUAL_FATAL(ret, DDS_RETCODE_OK);
     for (ifa = ifa_root; ifa; ifa = ifa->next) {
       CU_ASSERT_PTR_NOT_EQUAL_FATAL(ifa->addr, NULL);
+      assert (ifa->addr != NULL); /* for the benefit of clang's static analyzer */
       CU_ASSERT(ifa->addr->sa_family == AF_INET ||
                 ifa->addr->sa_family == AF_INET6);
       if (ifa->addr->sa_family == AF_INET) {

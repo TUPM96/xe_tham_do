@@ -1,19 +1,21 @@
-// Copyright(c) 2006 to 2021 ZettaScale Technology and others
-//
-// This program and the accompanying materials are made available under the
-// terms of the Eclipse Public License v. 2.0 which is available at
-// http://www.eclipse.org/legal/epl-2.0, or the Eclipse Distribution License
-// v. 1.0 which is available at
-// http://www.eclipse.org/org/documents/edl-v10.php.
-//
-// SPDX-License-Identifier: EPL-2.0 OR BSD-3-Clause
+/*
+ * Copyright(c) 2006 to 2021 ZettaScale Technology and others
+ *
+ * This program and the accompanying materials are made available under the
+ * terms of the Eclipse Public License v. 2.0 which is available at
+ * http://www.eclipse.org/legal/epl-2.0, or the Eclipse Distribution License
+ * v. 1.0 which is available at
+ * http://www.eclipse.org/org/documents/edl-v10.php.
+ *
+ * SPDX-License-Identifier: EPL-2.0 OR BSD-3-Clause
+ */
 
 #ifndef DDS_SECURITY_TIMED_CALLBACK_H
 #define DDS_SECURITY_TIMED_CALLBACK_H
 
 #include "dds/export.h"
 #include "dds/ddsrt/time.h"
-#include "dds/ddsi/ddsi_xevent.h"
+#include "dds/ddsi/q_xevent.h"
 
 #if defined (__cplusplus)
 extern "C" {
@@ -61,7 +63,7 @@ typedef void (*dds_security_timed_cb_t) (dds_security_time_event_handle_t timer,
  * @return              New (disabled) timed callbacks dispatcher.
  * @param evq           The event queue used to handle the timers.
  */
-DDS_EXPORT struct dds_security_timed_dispatcher * dds_security_timed_dispatcher_new(struct ddsi_xeventq *evq);
+DDS_EXPORT struct dds_security_timed_dispatcher * dds_security_timed_dispatcher_new(struct xeventq *evq);
 
 /**
  * Frees the given dispatcher.
@@ -70,7 +72,7 @@ DDS_EXPORT struct dds_security_timed_dispatcher * dds_security_timed_dispatcher_
  * is done whether the dispatcher is enabled or not.
  *
  * @param d             The dispatcher to free.
- *
+ * 
  */
 DDS_EXPORT void dds_security_timed_dispatcher_free(struct dds_security_timed_dispatcher *d);
 

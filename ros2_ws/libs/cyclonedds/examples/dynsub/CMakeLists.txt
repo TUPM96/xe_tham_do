@@ -1,4 +1,5 @@
-# Copyright(c) 2023 ZettaScale Technology and others
+#
+# Copyright(c) 2021 ZettaScale Technology and others
 #
 # This program and the accompanying materials are made available under the
 # terms of the Eclipse Public License v. 2.0 which is available at
@@ -7,29 +8,19 @@
 # http://www.eclipse.org/org/documents/edl-v10.php.
 #
 # SPDX-License-Identifier: EPL-2.0 OR BSD-3-Clause
-
-cmake_minimum_required(VERSION 3.16)
+#
 project(dynsub LANGUAGES C)
+cmake_minimum_required(VERSION 3.16)
 
 if(NOT TARGET CycloneDDS::ddsc)
   find_package(CycloneDDS REQUIRED)
 endif()
 
-set(headers
-  dynsub.h)
-set(sources
-  dynsub.c
-  type_cache.c
-  print_type.c
-  print_sample.c)
-
-add_executable(dynsub ${sources} ${headers})
-
+add_executable(dynsub dynsub.c)
 if(TARGET CycloneDDS::ddsc)
   # shouldn't need this ...
   target_include_directories(dynsub
     PRIVATE
-    "${CMAKE_CURRENT_SOURCE_DIR}/../../src/core/cdr/include"
     "${CMAKE_CURRENT_SOURCE_DIR}/../../src/core/ddsi/include")
 endif()
 target_link_libraries(dynsub CycloneDDS::ddsc)

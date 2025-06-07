@@ -1,13 +1,14 @@
-// Copyright(c) 2006 to 2021 ZettaScale Technology and others
-//
-// This program and the accompanying materials are made available under the
-// terms of the Eclipse Public License v. 2.0 which is available at
-// http://www.eclipse.org/legal/epl-2.0, or the Eclipse Distribution License
-// v. 1.0 which is available at
-// http://www.eclipse.org/org/documents/edl-v10.php.
-//
-// SPDX-License-Identifier: EPL-2.0 OR BSD-3-Clause
-
+/*
+ * Copyright(c) 2006 to 2021 ZettaScale Technology and others
+ *
+ * This program and the accompanying materials are made available under the
+ * terms of the Eclipse Public License v. 2.0 which is available at
+ * http://www.eclipse.org/legal/epl-2.0, or the Eclipse Distribution License
+ * v. 1.0 which is available at
+ * http://www.eclipse.org/org/documents/edl-v10.php.
+ *
+ * SPDX-License-Identifier: EPL-2.0 OR BSD-3-Clause
+ */
 #include <assert.h>
 
 #include "dds/ddsrt/environ.h"
@@ -260,6 +261,7 @@ static void corrupt_permission_signature(DDS_Security_AuthenticatedPeerCredentia
   /* It is expected that the permissions are available in a fixed location. */
   CU_ASSERT_FATAL(token != NULL);
   CU_ASSERT_FATAL(token->properties._buffer != NULL);
+  assert(token->properties._buffer != NULL); // for Clang's static analyzer
   CU_ASSERT_FATAL(token->properties._length == 2);
   CU_ASSERT_FATAL(token->properties._buffer[1].name != NULL);
   CU_ASSERT_FATAL(token->properties._buffer[1].value != NULL);
@@ -268,6 +270,7 @@ static void corrupt_permission_signature(DDS_Security_AuthenticatedPeerCredentia
   /* Corrupt a byte somewhere in the signature. */
   permissions = token->properties._buffer[1].value;
   CU_ASSERT_FATAL(permissions != NULL);
+  assert(permissions != NULL); // for Clang's static analyzer
   len = strlen(permissions);
   CU_ASSERT_FATAL(len > 100);
   permissions[len - 75]--;

@@ -1,13 +1,14 @@
-// Copyright(c) 2006 to 2021 ZettaScale Technology and others
-//
-// This program and the accompanying materials are made available under the
-// terms of the Eclipse Public License v. 2.0 which is available at
-// http://www.eclipse.org/legal/epl-2.0, or the Eclipse Distribution License
-// v. 1.0 which is available at
-// http://www.eclipse.org/org/documents/edl-v10.php.
-//
-// SPDX-License-Identifier: EPL-2.0 OR BSD-3-Clause
-
+/*
+ * Copyright(c) 2006 to 2021 ZettaScale Technology and others
+ *
+ * This program and the accompanying materials are made available under the
+ * terms of the Eclipse Public License v. 2.0 which is available at
+ * http://www.eclipse.org/legal/epl-2.0, or the Eclipse Distribution License
+ * v. 1.0 which is available at
+ * http://www.eclipse.org/org/documents/edl-v10.php.
+ *
+ * SPDX-License-Identifier: EPL-2.0 OR BSD-3-Clause
+ */
 #include "dds/dds.h"
 #include "dds/ddsrt/misc.h"
 
@@ -83,8 +84,7 @@ CU_Test(ddsc_subscriber, create) {
 
   sqos = dds_create_qos();
   DDSRT_WARNING_CLANG_OFF(assign-enum);
-  const union { dds_destination_order_kind_t dok; int i; } dok = { .i = 3 };
-  dds_qset_destination_order(sqos, dok.dok); /* Set invalid dest. order (ignored, not applicable for subscriber) */
+  dds_qset_destination_order(sqos, 3); /* Set invalid dest. order (ignored, not applicable for subscriber) */
   DDSRT_WARNING_CLANG_ON(assign-enum);
   subscriber = dds_create_subscriber(participant, sqos, NULL);
   CU_ASSERT_FATAL(subscriber > 0);
@@ -93,8 +93,7 @@ CU_Test(ddsc_subscriber, create) {
 
   sqos = dds_create_qos();
   DDSRT_WARNING_CLANG_OFF(assign-enum);
-  const union { dds_presentation_access_scope_kind_t pask; int i; } pask = { .i = 123 };
-  dds_qset_presentation(sqos, pask.pask, 1, 1); /* Set invalid presentation policy */
+  dds_qset_presentation(sqos, 123, 1, 1); /* Set invalid presentation policy */
   DDSRT_WARNING_CLANG_ON(assign-enum);
   subscriber = dds_create_subscriber(participant, sqos, NULL);
   CU_ASSERT_EQUAL_FATAL(subscriber, DDS_RETCODE_BAD_PARAMETER);
@@ -143,8 +142,7 @@ CU_Test(ddsc_subscriber, invalid_qos)
 
   // deliberately set an invalid value for the access scope kind, this should
   // result in create_publisher failing with BAD_PARAMETER
-  const union { dds_presentation_access_scope_kind_t pask; int i; } pask = { .i = 123 };
-  dds_qset_presentation(qos, pask.pask, false, false);
+  dds_qset_presentation(qos, (dds_presentation_access_scope_kind_t)123, false, false);
 
   subscriber = dds_create_subscriber(participant, qos, NULL);
   CU_ASSERT_FATAL(subscriber == DDS_RETCODE_BAD_PARAMETER);

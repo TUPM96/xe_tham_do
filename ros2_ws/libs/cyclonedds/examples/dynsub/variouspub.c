@@ -1,7 +1,6 @@
 #include <stdio.h>
 #include <string.h>
 #include <stdlib.h>
-#include <signal.h>
 #include <assert.h>
 
 #include "dds/dds.h"
@@ -85,28 +84,6 @@ static void *samples_c[] = {
   NULL
 };
 
-static int32_t long_4 = 4;
-static void *samples_M1_O[] = {
-  &(M1_O){ .x = NULL },
-  &(M1_O){ .x = &long_4 },
-  NULL
-};
-
-static void *samples_d[] = {
-  &(D){ L"😀 Een Kruyck gaat soo langh te water tot datse barst.", 0x2206, 0 },
-  &(D){ L"🙃 Men treckt een Boogh soo lang tot datse stucken knarst.", 0x2207, 0 },
-  &(D){ L"😊 De Steel-kunst doet zyn Meester de dood vaak verwerven.", 0x22a5, 0 },
-  NULL
-};
-
-static void *samples_e[] = {
-  &(E){ 0, {{0},{0}}, 456 },
-  &(E){ 0, {{0},{._length=1, ._maximum=1, ._buffer=&(U){34,"aap","noot",56}}}, 456},
-  &(E){ 0, {{0},{._length=1, ._maximum=1, ._buffer=&(U){78,"aap","zus",56}}}, 456},
-  &(E){ 0, {{0},{._length=1, ._maximum=1, ._buffer=&(U){78,"wim","zus",90}}}, 456},
-  NULL
-};
-
 static struct tpentry {
   const char *name;
   const dds_topic_descriptor_t *descr;
@@ -116,9 +93,6 @@ static struct tpentry {
   { "A", &A_desc, samples_a, offsetof (A, count) },
   { "B", &B_desc, samples_b, offsetof (B, a.count) },
   { "C", &C_desc, samples_c, offsetof (C, b.a.count) },
-  { "M1::O", &M1_O_desc, samples_M1_O, SIZE_MAX },
-  { "D", &D_desc, samples_d, offsetof (D, count) },
-  { "E", &E_desc, samples_e, offsetof (E, a) },
   { NULL, NULL, NULL, 0 }
 };
 
@@ -133,14 +107,6 @@ static void usage (const char *argv0)
   }
   fprintf (stderr, "}\n");
   exit (2);
-}
-
-static volatile sig_atomic_t interrupted;
-
-static void sigint (int sig)
-{
-  (void) sig;
-  interrupted = 1;
 }
 
 int main (int argc, char **argv)
@@ -165,17 +131,12 @@ int main (int argc, char **argv)
   const dds_entity_t writer = dds_create_writer (participant, topic, NULL, NULL);
   uint32_t sample_idx = 0;
   uint32_t count = 0;
-  signal (SIGINT, sigint);
-  while (!interrupted)
+  while (1)
   {
     dds_return_t ret = 0;
     void *sample = tpentry->samples[sample_idx];
-    uint32_t * const countp =
-      (tpentry->count_offset != SIZE_MAX)
-      ? (uint32_t *) ((unsigned char *) sample + tpentry->count_offset)
-      : 0;
-    if (countp)
-      *countp = count++;
+    uint32_t *countp = (uint32_t *) ((unsigned char *) sample + tpentry->count_offset);
+    *countp = count++;
     if ((ret = dds_write (writer, sample)) < 0)
     {
       fprintf (stderr, "dds_write: %s\n", dds_strretcode (ret));

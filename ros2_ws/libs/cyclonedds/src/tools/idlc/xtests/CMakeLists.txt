@@ -27,16 +27,13 @@ set(_sources
   test_union_member_types_r.idl
   test_union_r.idl
   test_bounded_seq.idl
-  test_bounded_str.idl
   test_enum.idl
   test_bool.idl
   test_bitmask.idl
   test_struct_keys.idl
   test_struct_inherit_mutable_keys.idl
-  test_key_seq.idl
 )
 
-set(_includes "${_includes}\\;${CMAKE_SOURCE_DIR}/src/core/cdr/include")
 set(_includes "${_includes}\\;${CMAKE_SOURCE_DIR}/src/core/ddsc/include")
 set(_includes "${_includes}\\;${CMAKE_SOURCE_DIR}/src/core/ddsi/include")
 set(_includes "${_includes}\\;${CMAKE_SOURCE_DIR}/src/ddsrt/include")
@@ -98,7 +95,7 @@ if(MSVC)
   set(_libs "${_libs}\\;${_windows_kit_libs}/um/${CMAKE_MSVC_ARCH}")
 endif()
 
-if(ENABLE_TYPELIB)
+if(ENABLE_TYPE_DISCOVERY)
   set(_type_meta 1)
 endif()
 

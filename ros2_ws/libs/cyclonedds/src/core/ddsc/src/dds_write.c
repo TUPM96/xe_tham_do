@@ -1,102 +1,46 @@
-// Copyright(c) 2006 to 2022 ZettaScale Technology and others
-//
-// This program and the accompanying materials are made available under the
-// terms of the Eclipse Public License v. 2.0 which is available at
-// http://www.eclipse.org/legal/epl-2.0, or the Eclipse Distribution License
-// v. 1.0 which is available at
-// http://www.eclipse.org/org/documents/edl-v10.php.
-//
-// SPDX-License-Identifier: EPL-2.0 OR BSD-3-Clause
-
+/*
+ * Copyright(c) 2006 to 2022 ZettaScale Technology and others
+ *
+ * This program and the accompanying materials are made available under the
+ * terms of the Eclipse Public License v. 2.0 which is available at
+ * http://www.eclipse.org/legal/epl-2.0, or the Eclipse Distribution License
+ * v. 1.0 which is available at
+ * http://www.eclipse.org/org/documents/edl-v10.php.
+ *
+ * SPDX-License-Identifier: EPL-2.0 OR BSD-3-Clause
+ */
 #include <assert.h>
 #include <string.h>
-#include "dds/ddsi/ddsi_tkmap.h"
-#include "dds/ddsi/ddsi_thread.h"
-#include "dds/ddsi/ddsi_xmsg.h"
-#include "dds/ddsi/ddsi_rhc.h"
-#include "dds/ddsi/ddsi_serdata.h"
-#include "dds/cdr/dds_cdrstream.h"
-#include "dds/ddsi/ddsi_transmit.h"
-#include "dds/ddsi/ddsi_entity_index.h"
-#include "dds/ddsi/ddsi_entity.h"
-#include "dds/ddsi/ddsi_endpoint_match.h"
-#include "dds/ddsi/ddsi_endpoint.h"
-#include "dds/ddsi/ddsi_radmin.h" /* sampleinfo */
-#include "dds/ddsi/ddsi_domaingv.h"
-#include "dds/ddsi/ddsi_deliver_locally.h"
-#include "dds/ddsi/ddsi_addrset.h"
-#include "dds__heap_loan.h"
 #include "dds__writer.h"
 #include "dds__write.h"
-#include "dds__loaned_sample.h"
-#include "dds__psmx.h"
-#include "dds__guid.h"
+#include "dds/ddsi/ddsi_tkmap.h"
+#include "dds/ddsi/q_thread.h"
+#include "dds/ddsi/q_xmsg.h"
+#include "dds/ddsi/ddsi_rhc.h"
+#include "dds/ddsi/ddsi_serdata.h"
+#include "dds/ddsi/ddsi_cdrstream.h"
+#include "dds/ddsi/q_transmit.h"
+#include "dds/ddsi/ddsi_entity_index.h"
+#include "dds/ddsi/ddsi_config_impl.h"
+#include "dds/ddsi/ddsi_entity.h"
+#include "dds/ddsi/ddsi_entity_match.h"
+#include "dds/ddsi/ddsi_endpoint.h"
+#include "dds/ddsi/q_radmin.h"
+#include "dds/ddsi/ddsi_domaingv.h"
+#include "dds/ddsi/ddsi_deliver_locally.h"
 
-extern inline bool dds_source_timestamp_is_valid_ddsi_time (dds_time_t timestamp, ddsi_protocol_version_t protover);
+#include "dds/ddsc/dds_loan_api.h"
+#include "dds__loan.h"
+
+#ifdef DDS_HAS_SHM
+#include "dds/ddsi/ddsi_cdrstream.h"
+#include "dds/ddsi/ddsi_shm_transport.h"
+#include "dds/ddsi/q_addrset.h"
+#endif
 
 struct ddsi_serdata_plain { struct ddsi_serdata p; };
+struct ddsi_serdata_iox   { struct ddsi_serdata x; };
 struct ddsi_serdata_any   { struct ddsi_serdata a; };
-
-struct dds_write_impl_psmx_key {
-  struct ddsi_serdata *ksd;
-  struct ddsi_serdata *ksdref;
-  ddsrt_iovec_t key_iov;
-  // type, sample are only needed for writecdr
-  const struct ddsi_sertype *type;
-  void *sample;
-};
-
-static void dds_write_impl_psmx_key_init (struct dds_write_impl_psmx_key *k)
-{
-  k->ksd = NULL;
-  k->ksdref = NULL;
-  k->key_iov.iov_len = 0;
-  k->key_iov.iov_base = NULL;
-  k->type = NULL;
-  k->sample = NULL;
-}
-
-static dds_return_t dds_write_impl_psmx_get_key (struct dds_write_impl_psmx_key *k, const struct ddsi_sertype *type, const void *data)
-{
-  if (k->ksd || !type->has_key)
-    return DDS_RETCODE_OK;
-  if ((k->ksd = ddsi_serdata_from_sample (type, SDK_KEY, data)) == NULL)
-    return DDS_RETCODE_ERROR;
-  k->ksdref = ddsi_serdata_to_ser_ref (k->ksd, 0, ddsi_serdata_size (k->ksd), &k->key_iov);
-  return DDS_RETCODE_OK;
-}
-
-static dds_return_t dds_write_impl_psmx_get_key_untyped_serdata (struct dds_write_impl_psmx_key *k, const struct ddsi_sertype *type, const struct ddsi_serdata *serdata)
-{
-  if (k->ksd || !type->has_key)
-    return DDS_RETCODE_OK;
-  // ouch, but less painful than changing the interface to allow extracting the serialized key
-  // optimizing writing a key is not worth the bother
-  // we get here from writecdr, so we don't have a sample on input
-  k->type = type;
-  k->sample = dds_alloc (type->sizeof_type);
-  if (!ddsi_serdata_untyped_to_sample (type, serdata, k->sample, NULL, NULL))
-  {
-    dds_free (k->sample);
-    k->sample = NULL;
-    return DDS_RETCODE_ERROR;
-  }
-  return dds_write_impl_psmx_get_key (k, type, k->sample);
-}
-
-static void dds_write_impl_psmx_key_fini (struct dds_write_impl_psmx_key *k)
-{
-  if (k->ksd)
-  {
-    ddsi_serdata_to_ser_unref (k->ksdref, &k->key_iov);
-    ddsi_serdata_unref (k->ksd);
-  }
-  if (k->sample)
-  {
-    ddsi_sertype_free_sample (k->type, k->sample, DDS_FREE_CONTENTS);
-    dds_free (k->sample);
-  }
-}
 
 dds_return_t dds_write (dds_entity_t writer, const void *data)
 {
@@ -160,7 +104,7 @@ dds_return_t dds_write_ts (dds_entity_t writer, const void *data, dds_time_t tim
   dds_return_t ret;
   dds_writer *wr;
 
-  if (data == NULL)
+  if (data == NULL || timestamp < 0)
     return DDS_RETCODE_BAD_PARAMETER;
 
   if ((ret = dds_writer_lock (writer, &wr)) != DDS_RETCODE_OK)
@@ -168,6 +112,20 @@ dds_return_t dds_write_ts (dds_entity_t writer, const void *data, dds_time_t tim
   ret = dds_write_impl (wr, data, timestamp, 0);
   dds_writer_unlock (wr);
   return ret;
+}
+
+static struct ddsi_reader *writer_first_in_sync_reader (struct entity_index *entity_index, struct ddsi_entity_common *wrcmn, ddsrt_avl_iter_t *it)
+{
+  assert (wrcmn->kind == DDSI_EK_WRITER);
+  struct ddsi_writer *wr = (struct ddsi_writer *) wrcmn;
+  struct ddsi_wr_rd_match *m = ddsrt_avl_iter_first (&ddsi_wr_local_readers_treedef, &wr->local_readers, it);
+  return m ? entidx_lookup_reader_guid (entity_index, &m->rd_guid) : NULL;
+}
+
+static struct ddsi_reader *writer_next_in_sync_reader (struct entity_index *entity_index, ddsrt_avl_iter_t *it)
+{
+  struct ddsi_wr_rd_match *m = ddsrt_avl_iter_next (it);
+  return m ? entidx_lookup_reader_guid (entity_index, &m->rd_guid) : NULL;
 }
 
 struct local_sourceinfo {
@@ -180,37 +138,12 @@ struct local_sourceinfo {
 static struct ddsi_serdata *local_make_sample (struct ddsi_tkmap_instance **tk, struct ddsi_domaingv *gv, struct ddsi_sertype const * const type, void *vsourceinfo)
 {
   struct local_sourceinfo *si = vsourceinfo;
-  struct ddsi_serdata * const din = si->src_payload;
-
-  struct ddsi_serdata *d;
-  // Mustn't store *PSMX writer* loans in RHCs because the PSMX write operation is
-  // assumed to consume the reference (the write path zeros some pointers in the
-  // loan structure to give us a fighting chance of catching a mistake).
-  //
-  // Loans from *PSMX reader* are ok, those are meant to hang around until the
-  // application uses that data and releases it. But those don't go through here.
-  //
-  // And for completeness: data arriving over the network never goes through here
-  // either.
-  if (din->loan != NULL && din->loan->loan_origin.origin_kind == DDS_LOAN_ORIGIN_KIND_PSMX)
-    d = ddsi_serdata_copy_as_type (type, din);
-  else
-    d = ddsi_serdata_ref_as_type (type, din);
+  struct ddsi_serdata *d = ddsi_serdata_ref_as_type (type, si->src_payload);
   if (d == NULL)
   {
     DDS_CWARNING (&gv->logconfig, "local: deserialization %s failed in type conversion\n", type->type_name);
     return NULL;
   }
-  // Mustn't store *PSMX writer* loans in RHCs because the PSMX write operation is
-  // assumed to consume the reference (the write path zeros some pointers in the
-  // loan structure to give us a fighting chance of catching a mistake).
-  //
-  // Loans from *PSMX reader* are ok, those are meant to hang around until the
-  // application uses that data and releases it. But those don't go through here.
-  //
-  // And for completeness: data arriving over the network never goes through here
-  // either.
-  assert (d->loan == NULL || d->loan->loan_origin.origin_kind == DDS_LOAN_ORIGIN_KIND_HEAP);
   if (type != si->src_type)
     *tk = ddsi_tkmap_lookup_instance_ref (gv->m_tkmap, d);
   else
@@ -243,66 +176,87 @@ static dds_return_t local_on_delivery_failure_fastpath (struct ddsi_entity_commo
 
 static dds_return_t deliver_locally (struct ddsi_writer *wr, struct ddsi_serdata *payload, struct ddsi_tkmap_instance *tk)
 {
-  static const struct ddsi_deliver_locally_ops deliver_locally_ops = {
+  static const struct deliver_locally_ops deliver_locally_ops = {
     .makesample = local_make_sample,
-    .first_reader = ddsi_writer_first_in_sync_reader,
-    .next_reader = ddsi_writer_next_in_sync_reader,
+    .first_reader = writer_first_in_sync_reader,
+    .next_reader = writer_next_in_sync_reader,
     .on_failure_fastpath = local_on_delivery_failure_fastpath
   };
   struct local_sourceinfo sourceinfo = {
     .src_type = wr->type,
     .src_payload = payload,
     .src_tk = tk,
-    .timeout = { 0 }
+    .timeout = { 0 },
   };
   dds_return_t rc;
   struct ddsi_writer_info wrinfo;
   ddsi_make_writer_info (&wrinfo, &wr->e, wr->xqos, payload->statusinfo);
-  rc = ddsi_deliver_locally_allinsync (wr->e.gv, &wr->e, false, &wr->rdary, &wrinfo, &deliver_locally_ops, &sourceinfo);
+  rc = deliver_locally_allinsync (wr->e.gv, &wr->e, false, &wr->rdary, &wrinfo, &deliver_locally_ops, &sourceinfo);
   if (rc == DDS_RETCODE_TIMEOUT)
     DDS_CERROR (&wr->e.gv->logconfig, "The writer could not deliver data on time, probably due to a local reader resources being full\n");
   return rc;
 }
 
-static struct ddsi_serdata_any *convert_serdata (struct ddsi_writer *ddsi_wr, struct ddsi_serdata_any *din, bool require_copy)
-  ddsrt_nonnull_all ddsrt_attribute_warn_unused_result;
+#if DDS_HAS_SHM
+static void deliver_data_via_iceoryx (dds_writer *wr, struct ddsi_serdata_iox *d)
+{
+  iox_chunk_header_t *chunk_header =
+  iox_chunk_header_from_user_payload(d->x.iox_chunk);
+  iceoryx_header_t *ice_hdr = iox_chunk_header_to_user_header(chunk_header);
 
-static struct ddsi_serdata_any *convert_serdata (struct ddsi_writer *ddsi_wr, struct ddsi_serdata_any *din, bool require_copy)
+  // Local readers go through Iceoryx as well (because the Iceoryx support
+  // code doesn't exclude that), which means we should suppress the internal
+  // path
+  ice_hdr->guid = wr->m_wr->e.guid;
+  ice_hdr->tstamp = d->x.timestamp.v;
+  ice_hdr->statusinfo = d->x.statusinfo;
+  ice_hdr->data_kind = (unsigned char)d->x.kind;
+  ddsi_serdata_get_keyhash(&d->x, &ice_hdr->keyhash, false);
+  // iox_pub_publish_chunk takes ownership, storing a null pointer here
+  // doesn't preclude the existence of race conditions on this, but it
+  // certainly improves the chances of detecting them
+  iox_pub_publish_chunk(wr->m_iox_pub, d->x.iox_chunk);
+  d->x.iox_chunk = NULL;
+}
+#endif
+
+static struct ddsi_serdata_any *convert_serdata(struct ddsi_writer *ddsi_wr, struct ddsi_serdata_any *din)
 {
   struct ddsi_serdata_any *dout;
-  if (require_copy)
-  {
-    dout = (struct ddsi_serdata_any *) ddsi_serdata_copy_as_type (ddsi_wr->type, &din->a);
-    // dout refc: must consume 1
-    // din refc: must consume 1 (independent of dact: types are distinct)
-  }
-  else if (ddsi_wr->type == din->a.type)
+  if (ddsi_wr->type == din->a.type)
   {
     dout = din;
     // dout refc: must consume 1
     // din refc: must consume 0 (it is an alias of dact)
   }
-  else
+  else if (din->a.type->ops->version == ddsi_sertype_v0)
   {
-    assert (din->a.type->ops->version == ddsi_sertype_v0);
     // deliberately allowing mismatches between d->type and ddsi_wr->type:
     // that way we can allow transferring data from one domain to another
     dout = (struct ddsi_serdata_any *) ddsi_serdata_ref_as_type (ddsi_wr->type, &din->a);
     // dout refc: must consume 1
     // din refc: must consume 1 (independent of dact: types are distinct)
   }
+  else
+  {
+    // hope for the best (the type checks/conversions were missing in the
+    // sertopic days anyway, so this is simply bug-for-bug compatibility
+    dout = (struct ddsi_serdata_any *) ddsi_sertopic_wrap_serdata (ddsi_wr->type, din->a.kind, &din->a);
+    // dout refc: must consume 1
+    // din refc: must consume 1
+  }
   return dout;
 }
 
-static dds_return_t deliver_data_network (struct ddsi_thread_state * const thrst, struct ddsi_writer *ddsi_wr, struct ddsi_serdata_any *d, struct ddsi_xpack *xp, bool flush, struct ddsi_tkmap_instance *tk)
+static dds_return_t deliver_data_network (struct thread_state * const thrst, struct ddsi_writer *ddsi_wr, struct ddsi_serdata_any *d, struct nn_xpack *xp, bool flush, struct ddsi_tkmap_instance *tk)
 {
-  // ddsi_write_sample_gc always consumes 1 refc from d
-  int ret = ddsi_write_sample_gc (thrst, xp, ddsi_wr, &d->a, tk);
+  // write_sample_gc always consumes 1 refc from d
+  int ret = write_sample_gc (thrst, xp, ddsi_wr, &d->a, tk);
   if (ret >= 0)
   {
     /* Flush out write unless configured to batch */
     if (flush && xp != NULL)
-      ddsi_xpack_send (xp, false);
+      nn_xpack_send (xp, false);
     return DDS_RETCODE_OK;
   }
   else
@@ -311,229 +265,73 @@ static dds_return_t deliver_data_network (struct ddsi_thread_state * const thrst
   }
 }
 
-static dds_return_t deliver_data_any (struct ddsi_thread_state * const thrst, struct dds_writer *wr, struct ddsi_writer *ddsi_wr, struct ddsi_serdata_any *d, struct ddsi_xpack *xp, bool flush)
-  ddsrt_nonnull ((1, 2, 3)) ddsrt_attribute_warn_unused_result;
-
-static dds_return_t deliver_data_any (struct ddsi_thread_state * const thrst, struct dds_writer *wr, struct ddsi_writer *ddsi_wr, struct ddsi_serdata_any *d, struct ddsi_xpack *xp, bool flush)
+static dds_return_t deliver_data_any (struct thread_state * const thrst, struct ddsi_writer *ddsi_wr, dds_writer *wr, struct ddsi_serdata_any *d, struct nn_xpack *xp, bool flush)
 {
   struct ddsi_tkmap_instance * const tk = ddsi_tkmap_lookup_instance_ref (ddsi_wr->e.gv->m_tkmap, &d->a);
   dds_return_t ret;
-  ddsi_serdata_ref (&d->a); // d = din: refc(d) = r + 1, otherwise refc(d) = 2
   if ((ret = deliver_data_network (thrst, ddsi_wr, d, xp, flush, tk)) != DDS_RETCODE_OK)
-    goto done;
-  if ((ret = deliver_locally (ddsi_wr, &d->a, tk)) != DDS_RETCODE_OK)
-    goto done;
-  if (d->a.loan)
   {
-    // Loan metadata and origin assumed valid by now
-    struct dds_loaned_sample * const loan = d->a.loan;
-#ifndef NDEBUG
-    const ddsi_guid_t loan_metadata_ddsi_guid = dds_guid_to_ddsi_guid (loan->metadata->guid);
-    assert (loan->loan_origin.origin_kind == DDS_LOAN_ORIGIN_KIND_PSMX &&
-            loan->metadata->timestamp == d->a.timestamp.v &&
-            loan->metadata->statusinfo == d->a.statusinfo &&
-            memcmp (&loan_metadata_ddsi_guid, &ddsi_wr->e.guid, sizeof (loan_metadata_ddsi_guid)) == 0);
-#endif
-
-    // generate serialized key blob only when really needed
-    struct dds_write_impl_psmx_key key;
-    dds_write_impl_psmx_key_init (&key);
-
-    const struct dds_psmx_endpoint_int *loan_source_ep = NULL;
-    for (uint32_t l = 0; l < wr->m_endpoint.psmx_endpoints.length; l++)
-    {
-      struct dds_psmx_endpoint_int const * const ep = wr->m_endpoint.psmx_endpoints.endpoints[l];
-      if (loan->loan_origin.psmx_endpoint == ep->ext)
-      {
-        // we don't have to copy to ourselves, but we need the internal endpoint for delivering the data
-        loan_source_ep = ep;
-        continue;
-      }
-
-      if (ep->wants_key)
-      {
-        dds_return_t ret2 = dds_write_impl_psmx_get_key_untyped_serdata (&key, wr->m_wr->type, tk->m_sample);
-        if (ret2 != DDS_RETCODE_OK && ret == DDS_RETCODE_OK)
-          ret = ret2;
-        continue;
-      }
-
-      struct dds_loaned_sample *loan_copy = ep->ops.request_loan (ep, loan->metadata->sample_size);
-      if (loan_copy == NULL)
-      {
-        if (ret == DDS_RETCODE_OK)
-          ret = DDS_RETCODE_OUT_OF_RESOURCES;
-        continue;
-      }
-      dds_loaned_sample_copy (loan_copy, loan);
-      dds_return_t ret2 = ep->ops.write_with_key (ep, loan_copy, (uint32_t) key.key_iov.iov_len, key.key_iov.iov_base);
-      if (ret2 != DDS_RETCODE_OK && ret == DDS_RETCODE_OK)
-        ret = ret2;
-    }
-
-    assert (loan_source_ep != NULL);
-    bool do_psmx_write = true;
-    if (loan_source_ep->wants_key)
-    {
-      dds_return_t ret2 = dds_write_impl_psmx_get_key_untyped_serdata (&key, wr->m_wr->type, tk->m_sample);
-      if (ret2 != DDS_RETCODE_OK)
-      {
-        do_psmx_write = false;
-        if (ret == DDS_RETCODE_OK)
-          ret = ret2;
-      }
-    }
-    if (do_psmx_write)
-    {
-      dds_return_t ret2 = loan_source_ep->ops.write_with_key (loan_source_ep, loan, (uint32_t) key.key_iov.iov_len, key.key_iov.iov_base);
-      if (ret2 != DDS_RETCODE_OK && ret == DDS_RETCODE_OK)
-        ret = ret2;
-    }
-    dds_write_impl_psmx_key_fini (&key);
+    ddsi_tkmap_instance_unref (ddsi_wr->e.gv->m_tkmap, tk);
+    return ret;
   }
-done:
+#ifdef DDS_HAS_SHM
+  if (d->a.iox_chunk != NULL)
+  {
+    // delivers to all iceoryx readers, including local ones
+    deliver_data_via_iceoryx (wr, (struct ddsi_serdata_iox *) d);
+  }
+#else
+  (void) wr;
+#endif
+  ret = deliver_locally (ddsi_wr, &d->a, tk);
   ddsi_tkmap_instance_unref (ddsi_wr->e.gv->m_tkmap, tk);
-  ddsi_serdata_unref (&d->a);
   return ret;
 }
 
-static dds_return_t dds_writecdr_impl_validate_loan (const struct dds_writer *wr, const struct ddsi_serdata_any *din)
-  ddsrt_nonnull_all ddsrt_attribute_warn_unused_result;
-
-static dds_return_t dds_writecdr_impl_validate_loan (const struct dds_writer *wr, const struct ddsi_serdata_any *din)
-{
-  assert (din->a.loan != NULL);
-  // Cases 4 and 8: bad parameter because a loan is passed in where none is expected
-  if (wr->m_endpoint.psmx_endpoints.length == 0)
-    return DDS_RETCODE_BAD_PARAMETER;
-  else
-  {
-    // Case 5 with mismatch in loan
-    dds_loaned_sample_t const * const loan = din->a.loan;
-    struct dds_psmx_metadata const * const md = loan->metadata;
-    bool loan_originates_here = false;
-    for (uint32_t e = 0; e < wr->m_endpoint.psmx_endpoints.length && !loan_originates_here; e++) {
-      if (loan->loan_origin.psmx_endpoint == wr->m_endpoint.psmx_endpoints.endpoints[e]->ext)
-        loan_originates_here = true;
-    }
-    const ddsi_guid_t loan_metadata_ddsi_guid = dds_guid_to_ddsi_guid (md->guid);
-    if (loan->loan_origin.origin_kind != DDS_LOAN_ORIGIN_KIND_PSMX ||
-        !loan_originates_here ||
-        md->timestamp != din->a.timestamp.v ||
-        md->statusinfo != din->a.statusinfo ||
-        memcmp (&loan_metadata_ddsi_guid, &wr->m_entity.m_guid, sizeof (loan_metadata_ddsi_guid)) != 0)
-    {
-      return DDS_RETCODE_BAD_PARAMETER;
-    }
-  }
-  return DDS_RETCODE_OK;
-}
-
-static dds_return_t dds_writecdr_impl_ensureloan (struct dds_writer *wr, struct ddsi_serdata_any *din)
-  ddsrt_nonnull_all ddsrt_attribute_warn_unused_result;
-
-static dds_return_t dds_writecdr_impl_ensureloan (struct dds_writer *wr, struct ddsi_serdata_any *din)
-{
-  if (din->a.loan != NULL)
-    return DDS_RETCODE_OK;
-  assert (ddsrt_atomic_ld32 (&din->a.refc) == 1);
-
-  const uint32_t sersize = ddsi_serdata_size (&din->a);
-  dds_loaned_sample_t * const loan = dds_writer_request_psmx_loan (wr, sersize - 4);
-  if (loan == NULL)
-    return DDS_RETCODE_OUT_OF_RESOURCES;
-  if (sersize > 4)
-    ddsi_serdata_to_ser (&din->a, 4, sersize - 4, loan->sample_ptr);
-  struct dds_psmx_metadata * const md = loan->metadata;
-  md->sample_state = (din->a.kind == SDK_KEY) ? DDS_LOANED_SAMPLE_STATE_SERIALIZED_KEY : DDS_LOANED_SAMPLE_STATE_SERIALIZED_DATA;
-  md->guid = dds_guid_from_ddsi_guid (wr->m_entity.m_guid);
-  md->timestamp = din->a.timestamp.v;
-  md->statusinfo = din->a.statusinfo;
-  unsigned char cdr_header[4];
-  ddsi_serdata_to_ser (&din->a, 0, 4, cdr_header);
-  memcpy (&md->cdr_identifier, cdr_header, sizeof (md->cdr_identifier));
-  memcpy (&md->cdr_options, cdr_header + 2, sizeof (md->cdr_options));
-  din->a.loan = loan;
-  return DDS_RETCODE_OK;
-}
-
-static dds_return_t dds_writecdr_impl_common (struct dds_writer *wr, struct ddsi_writer *ddsi_wr, struct ddsi_xpack *xp, struct ddsi_serdata_any *din, bool flush)
-  ddsrt_nonnull((1, 2, 4)) ddsrt_attribute_warn_unused_result;
-
-static dds_return_t dds_writecdr_impl_common (struct dds_writer *wr, struct ddsi_writer *ddsi_wr, struct ddsi_xpack *xp, struct ddsi_serdata_any *din, bool flush)
+static dds_return_t dds_writecdr_impl_common (struct ddsi_writer *ddsi_wr, struct nn_xpack *xp, struct ddsi_serdata_any *din, bool flush, dds_writer *wr)
 {
   // consumes 1 refc from din in all paths (weird, but ... history ...)
   // let refc(din) be r, so upon returning it must be r-1
-  struct ddsi_thread_state * const thrst = ddsi_lookup_thread_state ();
-  dds_return_t ret;
+  struct thread_state * const thrst = lookup_thread_state ();
+  int ret = DDS_RETCODE_OK;
+  assert (wr != NULL);
 
-  if (!dds_source_timestamp_is_valid_ddsi_time (din->a.timestamp.v, wr->protocol_version))
+  struct ddsi_serdata_any * const d = convert_serdata(ddsi_wr, din);
+  if (d == NULL)
   {
-    ddsi_serdata_unref (&din->a);
-    return DDS_RETCODE_BAD_PARAMETER;
-  }
-
-  // Cases:
-  //    din    correct      psmx?   loan?
-  //    refc   sertype?
-  // 1. >=1    yes          no      no        no changes needed: send din
-  // 2. >1     yes          yes     no        add loan to copy, send copy
-  // 3. 1      yes          yes     no        add loan to din, send din
-  // 4. >=1    yes          no      yes       invalid, return BAD_PARAMETER
-  // 5. >=1    yes          yes     yes       send din if loan ok (5a) else return BAD_PARAMETER (5b)
-  // 6. >=1    no           no      no        convert + case 1
-  // 7. >=1    no           yes     no        convert + case 3
-  // 8. >=1    no           no      yes       invalid, return BAD_PARAMETER
-  // 9. >=1    no           yes     yes       convert + case 3
-  //
-  // Case 9 assumes the loan is not included in the conversion.  Cases 6-9 are weird
-  // ones anyway are almost never used, so no point in trying to be smart.  Only case
-  // 3 is worth the optimization of not making a copy if a unique pointer is passed in.
-
-  // Cases 4 and 8 and case 5a (mismatch in loan)
-  if (din->a.loan != NULL && (ret = dds_writecdr_impl_validate_loan (wr, din)) != DDS_RETCODE_OK)
-  {
-    ddsi_serdata_unref (&din->a);
-    return ret;
-  }
-
-  // Do we need a copy because we have to patch in a loan?
-  // This reduces cases 1, 2, 3, 5b, 6, 7, 9 to a simple process:
-  // - if uses_psmx and no loan present yet in `d`: add one
-  // - send d
-  // - if d != din, both need to be unref'd else only one
-  const bool uses_psmx = (wr->m_endpoint.psmx_endpoints.length > 0);
-  const bool require_copy = uses_psmx && din->a.loan == NULL && ddsrt_atomic_ld32 (&din->a.refc) > 1;
-  struct ddsi_serdata_any * const d = convert_serdata (ddsi_wr, din, require_copy);
-  if (d != din)
-  {
-    // Don't need din anymore, drop the reference.  (And if it was an alias, there'd be
-    // no additional refcount, in which case this unref call must not be done.)
-    ddsi_serdata_unref (&din->a);
-    if (d == NULL)
-      return DDS_RETCODE_ERROR;
-  }
-
-  // If we need a loan to be present because of PSMX, but none is, make one.  It could be
-  // that din didn't have one, or it could be that we copied it because of the refcount,
-  // or that we converted it.  Whichever the case may be, we need to make one.
-  if (uses_psmx && (ret = dds_writecdr_impl_ensureloan (wr, d)) != DDS_RETCODE_OK)
-  {
-    ddsi_serdata_unref (&d->a);
-    return ret;
+    ddsi_serdata_unref(&din->a); // refc(din) = r - 1 as required
+    return DDS_RETCODE_ERROR;
   }
 
   // d = din: refc(d) = r, otherwise refc(d) = 1
-  ddsi_thread_state_awake (thrst, ddsi_wr->e.gv);
-  ret = deliver_data_any (thrst, wr, ddsi_wr, d, xp, flush);
-  ddsi_thread_state_asleep (thrst);
+
+  thread_state_awake (thrst, ddsi_wr->e.gv);
+  ddsi_serdata_ref (&d->a); // d = din: refc(d) = r + 1, otherwise refc(d) = 2
+
+#ifdef DDS_HAS_SHM
+  // transfer ownership of an iceoryx chunk if it exists
+  // din and d may alias each other
+  // note: use those assignments instead of if-statement (jump) for efficiency
+  void* iox_chunk = din->a.iox_chunk;
+  din->a.iox_chunk = NULL;
+  d->a.iox_chunk = iox_chunk;
+  assert ((wr->m_iox_pub == NULL) == (d->a.iox_chunk == NULL));
+#endif
+
+  ret = deliver_data_any (thrst, ddsi_wr, wr, d, xp, flush);
+
+  if(d != din)
+    ddsi_serdata_unref(&din->a); // d != din: refc(din) = r - 1 as required, refc(d) unchanged
+  ddsi_serdata_unref(&d->a); // d = din: refc(d) = r - 1, otherwise refc(din) = r-1 and refc(d) = 0
+
+  thread_state_asleep (thrst);
   return ret;
 }
 
-static bool evaluate_topic_filter (const dds_writer *wr, const void *data, enum ddsi_serdata_kind sdkind)
+static bool evalute_topic_filter (const dds_writer *wr, const void *data, bool writekey)
 {
   // false if data rejected by filter
-  if (wr->m_topic->m_filter.mode == DDS_TOPIC_FILTER_NONE || sdkind == SDK_KEY)
+  if (wr->m_topic->m_filter.mode == DDS_TOPIC_FILTER_NONE || writekey)
     return true;
 
   const struct dds_topic_filter *f = &wr->m_topic->m_filter;
@@ -561,417 +359,287 @@ static bool evaluate_topic_filter (const dds_writer *wr, const void *data, enum 
   return true;
 }
 
-ddsrt_nonnull_all
-static dds_return_t dds_write_impl_deliver_via_ddsi (struct ddsi_thread_state * const ts, dds_writer *wr, struct ddsi_serdata *d)
+static void set_statusinfo_timestamp (struct ddsi_serdata_any *d, dds_time_t tstamp, dds_write_action action)
 {
-  struct ddsi_writer *ddsi_wr = wr->m_wr;
-  dds_return_t ret = DDS_RETCODE_OK;
+  d->a.statusinfo = (((action & DDS_WR_DISPOSE_BIT) ? NN_STATUSINFO_DISPOSE : 0) |
+                     ((action & DDS_WR_UNREGISTER_BIT) ? NN_STATUSINFO_UNREGISTER : 0));
+  d->a.timestamp.v = tstamp;
+}
 
-  struct ddsi_tkmap_instance *tk = ddsi_tkmap_lookup_instance_ref (wr->m_entity.m_domain->gv.m_tkmap, d);
-
-  (void) ddsi_serdata_ref(d);
-  ret = ddsi_write_sample_gc (ts, wr->m_xp, ddsi_wr, d, tk);
-  if (ret >= 0) {
-    /* Flush out write unless configured to batch */
-    if (!wr->whc_batch)
-      ddsi_xpack_send (wr->m_xp, false);
-    ret = DDS_RETCODE_OK;
-  } else if (ret != DDS_RETCODE_TIMEOUT) {
-    ret = DDS_RETCODE_ERROR;
+#ifdef DDS_HAS_SHM
+static size_t get_required_buffer_size(struct dds_topic *topic, const void *sample)
+{
+  bool has_fixed_size_type = topic->m_stype->fixed_size;
+  if (has_fixed_size_type) {
+    return topic->m_stype->iox_size;
   }
 
-  if (ret == DDS_RETCODE_OK)
-    ret = deliver_locally (ddsi_wr, d, tk);
+  return ddsi_sertype_get_serialized_size(topic->m_stype, (void*) sample);
+}
 
-  ddsi_tkmap_instance_unref (wr->m_entity.m_domain->gv.m_tkmap, tk);
-
+static bool fill_iox_chunk(dds_writer *wr, const void *sample, void *iox_chunk, size_t sample_size)
+{
+  bool has_fixed_size_type = wr->m_topic->m_stype->fixed_size;
+  bool ret = true;
+  iceoryx_header_t *iox_header = iceoryx_header_from_chunk(iox_chunk);
+  if (has_fixed_size_type) {
+    memcpy(iox_chunk, sample, sample_size);
+    iox_header->shm_data_state = IOX_CHUNK_CONTAINS_RAW_DATA;
+  } else {
+    size_t size = iox_header->data_size;
+    ret = ddsi_sertype_serialize_into(wr->m_wr->type, sample, iox_chunk, size);
+    if(ret) {
+      iox_header->shm_data_state = IOX_CHUNK_CONTAINS_SERIALIZED_DATA;
+    } else {
+       // data is in invalid state
+       iox_header->shm_data_state = IOX_CHUNK_UNINITIALIZED;
+    }
+  }
   return ret;
 }
 
-ddsrt_nonnull_all
-static bool dds_write_impl_use_only_psmx (dds_writer *wr)
+static dds_return_t create_and_fill_chunk (dds_writer *wr, const void *data, void **iox_chunk)
 {
-  // Return false if PSMX is not involved
-  if (wr->m_endpoint.psmx_endpoints.length == 0)
-    return false;
+  const size_t required_size = get_required_buffer_size(wr->m_topic, data);
+  if (required_size == SIZE_MAX)
+    return DDS_RETCODE_OUT_OF_RESOURCES;
+  if ((*iox_chunk = shm_create_chunk (wr->m_iox_pub, required_size)) == NULL)
+    return DDS_RETCODE_OUT_OF_RESOURCES;
+  if (!fill_iox_chunk (wr, data, *iox_chunk, required_size))
+    return DDS_RETCODE_BAD_PARAMETER; // serialization failed
+  return DDS_RETCODE_OK;
+}
 
-  struct ddsi_writer * const ddsi_wr = wr->m_wr;
+static dds_return_t get_iox_chunk (dds_writer *wr, const void *data, void **iox_chunk)
+{
+  //note: whether the data was loaned cannot be determined in the non-iceoryx case currently
+  if (!deregister_pub_loan (wr, data))
+    return create_and_fill_chunk (wr, data, iox_chunk);
+  else
+  {
+    // The user already provided an iceoryx_chunk with data (by using the dds_loan API)
+    // We assume if we got the data from a loan it contains raw data
+    // (i.e. not serialized)
+    // This requires the user to adhere to the contract, we cannot enforce this
+    // with the given API.
+    *iox_chunk = (void *) data;
+    iceoryx_header_t *iox_header = iceoryx_header_from_chunk (*iox_chunk);
+    iox_header->shm_data_state = IOX_CHUNK_CONTAINS_RAW_DATA;
+    return DDS_RETCODE_OK;
+  }
+}
+
+// Synchronizes the current number of fast path readers and returns it.
+// Locking the mutex is needed to synchronize the value.
+// This number may change concurrently any time we do not hold the lock,
+// i.e. become outdated when we return from the function.
+static uint32_t get_num_fast_path_readers(struct ddsi_writer *ddsi_wr) {
+  ddsrt_mutex_lock(&ddsi_wr->rdary.rdary_lock);
+  uint32_t n = ddsi_wr->rdary.n_readers;
+  ddsrt_mutex_unlock(&ddsi_wr->rdary.rdary_lock);
+  return n;
+}
+
+// has to support two cases:
+// 1) data is in an external buffer allocated on the stack or dynamically
+// 2) data is in an iceoryx buffer obtained by dds_loan_sample
+static dds_return_t dds_write_impl_iox (dds_writer *wr, struct ddsi_writer *ddsi_wr, bool writekey, const void *data, dds_time_t tstamp, dds_write_action action)
+{
+  assert (thread_is_awake ());
+  assert (wr != NULL && wr->m_iox_pub != NULL);
+
+  void *iox_chunk = NULL;
+  dds_return_t ret;
+
+  //note: whether the data was loaned cannot be determined in the non-iceoryx case currently
+  if ((ret = get_iox_chunk (wr, data, &iox_chunk)) != 0)
+    return ret;
+  assert (iox_chunk != NULL);
+
+  // The following holds from here
+  // 1) data still points to the original data
+  // 2) iox_chunk is NOT NULL
+  //    a) was created by the write call or
+  //    b) data is an iceoryx chunk and iox_chunk == data
+  // in case 2 a) iox_chunk will contain serialized or raw data
+  //
+  // in case 2 a) and b) we must ensure we publish or release the chunk (failure)
+  // in 2b) we could argue to not release the chunk but the user effectively passed ownership
+  //        by calling write
+
   // ddsi_wr->as can be changed by the matching/unmatching of proxy readers if we don't hold the lock
   // it is rather unfortunate that this then means we have to lock here to check, then lock again to
   // actually distribute the data, so some further refactoring is needed.
   ddsrt_mutex_lock (&ddsi_wr->e.lock);
-  const bool no_network_readers = ddsi_addrset_empty (ddsi_wr->as);
-  // NB: local readers are not in L := ddsi_wr->rdary if they use PSMX.
-  // Furthermore, all readers that ignore local publishers will not use PSMX.
-  // We will never use only(!) PSMX if there is any local reader in L.
-  // We will serialize the data in this case and deliver it mixed, i.e.
-  // partially with PSMX as required by the QoS and type. The readers in L
-  // will get the data via the local delivery mechanism (fast path or slow
-  // path).
-  // Modifications only happen when ddsi_wr->e.lock and ...rdary.lock held,
-  // so only holding the outer lock is fine.  It is possible a reader gets
-  // added or removed once we unlock.
-  const bool no_fast_path_readers = (ddsi_wr->rdary.n_readers == 0);
+  const bool no_network_readers = addrset_empty (ddsi_wr->as);
   ddsrt_mutex_unlock (&ddsi_wr->e.lock);
 
-  // If use_only_psmx is true, there were no fast path readers at the moment
+  // NB: local readers are not in L := ddsi_wr->rdary if they use iceoryx.
+  // Furthermore, all readers that ignore local publishers will not use iceoryx.
+  // We will never use only(!) iceoryx if there is any local reader in L.
+  // We will serialize the data in this case and deliver it mixed, i.e.
+  // partially with iceoryx as required by the QoS and type. The readers in L
+  // will get the data via the local delivery mechanism (fast path or slow
+  // path).
+
+  const uint32_t num_fast_path_readers = get_num_fast_path_readers(ddsi_wr);
+
+  // If use_only_iceoryx is true, there were no fast path readers at the moment
   // we checked.
   // If fast path readers arive later, they may not get data but this
   // is fine as we can consider their connections not fully established
   // and hence they are not considered for data transfer.
   // The alternative is to block new fast path connections entirely (by holding
   // the mutex) until data delivery is complete.
-  return ddsi_wr->xqos->durability.kind == DDS_DURABILITY_VOLATILE && no_network_readers && no_fast_path_readers;
-}
+  const bool use_only_iceoryx =
+      no_network_readers &&
+      ddsi_wr->xqos->durability.kind == DDS_DURABILITY_VOLATILE &&
+      num_fast_path_readers == 0;
 
-ddsrt_attribute_warn_unused_result ddsrt_nonnull_all
-static dds_return_t dds_write_impl_deliver_via_psmx (const struct dds_psmx_endpoint_int *psmx_ep, struct dds_loaned_sample *loan, const ddsrt_iovec_t *key_iov)
-{
-  assert (loan->loan_origin.origin_kind == DDS_LOAN_ORIGIN_KIND_PSMX);
-  assert (loan->metadata->sample_state != DDS_LOANED_SAMPLE_STATE_UNITIALIZED);
-  assert (psmx_ep->ext == loan->loan_origin.psmx_endpoint);
-  dds_return_t ret = psmx_ep->ops.write_with_key (psmx_ep, loan, (uint32_t) key_iov->iov_len, key_iov->iov_base);
-  dds_loaned_sample_unref (loan);
-  return ret;
-}
+  // 4. Prepare serdata
+  // avoid serialization for volatile writers if there are no network readers
 
-ddsrt_attribute_warn_unused_result ddsrt_nonnull_all
-static struct dds_loaned_sample *dds_write_impl_serialize_into_loan (const struct dds_writer *wr, const struct ddsi_sertype *sertype, enum ddsi_serdata_kind sdkind, const void *data, dds_time_t timestamp, uint32_t statusinfo)
-{
-  size_t loan_size_unpadded;
-  uint16_t enc_identifier;
-  if (ddsi_sertype_get_serialized_size (sertype, sdkind, data, &loan_size_unpadded, &enc_identifier) != 0)
-    return NULL;
-  const uint32_t pad_mask = 3u;
-  const uint32_t loan_size_padded = ((uint32_t) loan_size_unpadded + pad_mask) & ~pad_mask;
-  struct dds_loaned_sample * const loan = dds_writer_request_psmx_loan (wr, loan_size_padded);
-  if (loan == NULL)
-    return NULL;
-  struct dds_psmx_metadata * const md = loan->metadata;
-  md->sample_state = (sdkind == SDK_KEY) ? DDS_LOANED_SAMPLE_STATE_SERIALIZED_KEY : DDS_LOANED_SAMPLE_STATE_SERIALIZED_DATA;
-  md->cdr_identifier = enc_identifier;
-  md->cdr_options = ddsrt_toBE2u ((uint16_t) (loan_size_padded - loan_size_unpadded));
-  ddsi_sertype_serialize_into (sertype, sdkind, data, loan->sample_ptr, loan_size_unpadded);
-  dds_psmx_set_loan_writeinfo (loan, &wr->m_entity.m_guid, timestamp, statusinfo);
-  return loan;
-}
-
-ddsrt_attribute_warn_unused_result ddsrt_nonnull ((1, 3))
-static struct ddsi_serdata *dds_write_impl_make_serdata (const struct ddsi_sertype *sertype, enum ddsi_serdata_kind sdkind, const void *data, struct dds_loaned_sample *heap_loan, dds_time_t timestamp, uint32_t statusinfo)
-{
-  assert (heap_loan == NULL || heap_loan->loan_origin.origin_kind == DDS_LOAN_ORIGIN_KIND_HEAP);
-  struct ddsi_serdata *serdata;
-  if (heap_loan == NULL)
-    serdata = ddsi_serdata_from_sample (sertype, sdkind, data);
-  else // claim "cdr required" to keep things simple
-    serdata = ddsi_serdata_from_loaned_sample (sertype, sdkind, data, heap_loan, true);
-  if (serdata == NULL)
-    return NULL;
-  serdata->statusinfo = statusinfo;
-  serdata->timestamp.v = timestamp;
-  return serdata;
-}
-
-ddsrt_attribute_warn_unused_result ddsrt_nonnull_all
-static dds_return_t dds_write_impl_psmxloan_serdata (struct dds_writer *wr, const void *data, enum ddsi_serdata_kind sdkind, dds_time_t timestamp, uint32_t statusinfo, struct dds_loaned_sample **psmx_loan, struct ddsi_serdata **serdata, struct dds_loaned_sample **loan_to_be_freed)
-{
-  const bool use_only_psmx = dds_write_impl_use_only_psmx (wr);
-  struct ddsi_sertype const * const sertype = wr->m_wr->type;
-  struct dds_loaned_sample *loan = dds_loan_pool_find_and_remove_loan (wr->m_loans, data);
-  *loan_to_be_freed = NULL;
-  if (loan)
+  struct ddsi_serdata_iox *d = NULL;
+  if (use_only_iceoryx)
   {
-    // If we have a loan:
-    // - if there is only PSMX involved, we can short-circuit delivery and get out quickly
-    // - if anything is around, construct a regular serdata and derive a PSMX copy of it afterward if needed
-    assert (ddsrt_atomic_ld32 (&loan->refc) == 1);
-    struct dds_psmx_metadata * const md = loan->metadata;
-    assert (md->sample_state == DDS_LOANED_SAMPLE_STATE_UNITIALIZED);
-    md->sample_state = (sdkind == SDK_KEY) ? DDS_LOANED_SAMPLE_STATE_RAW_KEY : DDS_LOANED_SAMPLE_STATE_RAW_DATA;
-    md->cdr_identifier = DDSI_RTPS_SAMPLE_NATIVE;
-    md->cdr_options = 0;
-    dds_psmx_set_loan_writeinfo (loan, &wr->m_entity.m_guid, timestamp, statusinfo);
-    switch (loan->loan_origin.origin_kind)
-    {
-      case DDS_LOAN_ORIGIN_KIND_PSMX:
-        // we never do PSMX loans for complex types
-        assert (sertype->is_memcpy_safe);
-        *psmx_loan = loan;
-        if (use_only_psmx)
-        {
-          // short-circuit possible without requiring a serdata
-          *serdata = NULL;
-        }
-        else if ((*serdata = dds_write_impl_make_serdata (sertype, sdkind, data, NULL, timestamp, statusinfo)) == NULL)
-        {
-          // It is either no memory or invalid data, we've historically gambled on it being invalid
-          // data because being out of memory is exceedingly unlikely on decent platforms
-          dds_loaned_sample_unref (loan);
-          return DDS_RETCODE_BAD_PARAMETER;
-        }
-        return DDS_RETCODE_OK;
-      case DDS_LOAN_ORIGIN_KIND_HEAP:
-        if (use_only_psmx && sertype->ops->get_serialized_size)
-        {
-          // short-circuit possible without requiring a serdata
-          *serdata = NULL;
-          *psmx_loan = dds_write_impl_serialize_into_loan (wr, sertype, sdkind, data, timestamp, statusinfo);
-          if (*psmx_loan != NULL)
-            *loan_to_be_freed = loan;
-          else
-          {
-            // It is either no memory or invalid data, we've historically gambled on it being invalid data
-            dds_loaned_sample_unref (loan);
-            return DDS_RETCODE_BAD_PARAMETER;
-          }
-        }
-        else if (wr->m_endpoint.psmx_endpoints.length == 0)
-        {
-          // no PSMX, so local readers and/or network; keeping the loan makes sense for local readers
-          *psmx_loan = NULL;
-          // claim "cdr required" - it may not be strictly required for volatile data if there are only
-          // local readers, but let's not complicate it too much now
-          if ((*serdata = dds_write_impl_make_serdata (sertype, sdkind, data, loan, timestamp, statusinfo)) == NULL)
-          {
-            // It is either no memory or invalid data, we've historically gambled on it being invalid
-            // data because being out of memory is exceedingly unlikely on decent platforms
-            dds_loaned_sample_unref (loan);
-            return DDS_RETCODE_BAD_PARAMETER;
-          }
-        }
-        else
-        {
-          // PSMX, so CDR in memory.  It seems not so likely that there will be enough local readers not using
-          // PSMX to make it worth the retaining the loan
-          assert (!sertype->is_memcpy_safe);
-          // Make a "standard" serdata and then use that to make a PSMX loan
-          *serdata = dds_write_impl_make_serdata (sertype, sdkind, data, NULL, timestamp, statusinfo);
-          if (*serdata == NULL)
-          {
-            // It is either no memory or invalid data, we've historically gambled on it being invalid
-            // data because being out of memory is exceedingly unlikely on decent platforms
-            dds_loaned_sample_unref (loan);
-            return DDS_RETCODE_BAD_PARAMETER;
-          }
-          *psmx_loan = dds_writer_psmx_loan_from_serdata (wr, *serdata);
-          if (*psmx_loan == NULL)
-          {
-            ddsi_serdata_unref (*serdata);
-            dds_loaned_sample_unref (loan);
-            return DDS_RETCODE_OUT_OF_RESOURCES;
-          }
-          *loan_to_be_freed = loan;
-        }
-        return DDS_RETCODE_OK;
-    }
-    return DDS_RETCODE_ERROR;
-  }
-  else if (use_only_psmx && (sertype->is_memcpy_safe || sertype->ops->get_serialized_size))
-  {
-    *serdata = NULL;
-    if (sertype->is_memcpy_safe)
-      *psmx_loan = dds_writer_psmx_loan_raw (wr, data, sdkind, timestamp, statusinfo);
-    else
-      *psmx_loan = dds_write_impl_serialize_into_loan (wr, sertype, sdkind, data, timestamp, statusinfo);
-    return (*psmx_loan != NULL) ? DDS_RETCODE_OK : DDS_RETCODE_OUT_OF_RESOURCES;
+    // note: If we could keep ownership of the loaned data after iox publish we could implement lazy
+    // serialization (only serializing when sending from writer history cache, i.e. not when storing).
+    // The benefit of this would be minor in most cases though, when we assume a static configuration
+    // where we either have network readers (requiring serialization) or not.
+
+    // do not serialize yet (may not need it if only using iceoryx or no readers)
+    d = (struct ddsi_serdata_iox *) ddsi_serdata_from_loaned_sample (ddsi_wr->type, writekey ? SDK_KEY : SDK_DATA, iox_chunk);
   }
   else
   {
-    // not much room for optimization, so keep things simple: construct a serdata, then take it from
-    // there
-    if ((*serdata = dds_write_impl_make_serdata (sertype, sdkind, data, NULL, timestamp, statusinfo)) == NULL)
-    {
-      // It is either no memory or invalid data, we've historically gambled on it being invalid
-      // data because being out of memory is exceedingly unlikely on decent platforms
-      return DDS_RETCODE_BAD_PARAMETER;
-    }
+    // serialize for network since we will need to send via network anyway
+    // we also need to serialize into an iceoryx chunk
 
-    // If PSMX and no loan, make one using the data/serdata we do have
-    if (wr->m_endpoint.psmx_endpoints.length == 0)
-      *psmx_loan = NULL;
-    else
+    struct ddsi_serdata *dtmp = ddsi_serdata_from_sample (ddsi_wr->type, writekey ? SDK_KEY : SDK_DATA, data);
+    if (dtmp != NULL)
     {
-      if (sertype->is_memcpy_safe)
-        *psmx_loan = dds_writer_psmx_loan_raw (wr, data, sdkind, timestamp, statusinfo);
-      else
-        *psmx_loan = dds_writer_psmx_loan_from_serdata (wr, *serdata);
-      if (*psmx_loan == NULL)
-      {
-        ddsi_serdata_unref (*serdata);
-        return DDS_RETCODE_OUT_OF_RESOURCES;
-      }
+      // Needed for the mixed case where serdata d was created for the network path
+      // but iceoryx can also be used.
+      // In this case d was created by ddsi_serdata_from_sample and we need
+      // to set the iceoryx chunk.
+      dtmp->iox_chunk = iox_chunk;
+      d = (struct ddsi_serdata_iox *) dtmp;
     }
-    return DDS_RETCODE_OK;
   }
+  if (d == NULL)
+  {
+    iox_pub_release_chunk (wr->m_iox_pub, iox_chunk);
+    return DDS_RETCODE_BAD_PARAMETER;
+  }
+  assert (d->x.iox_chunk != NULL);
+
+  // refc(d) = 1 after successful construction
+  set_statusinfo_timestamp ((struct ddsi_serdata_any *) d, tstamp, action);
+
+  // 5. Deliver the data
+  if(use_only_iceoryx) {
+    // deliver via iceoryx only
+    // TODO: can we avoid constructing d in this case?
+    // There are no local non-iceoryx readers in this case.
+    deliver_data_via_iceoryx (wr, d);
+    ddsi_serdata_unref (&d->x); // refc(d) = 0
+  } else {
+    // this may convert the input data if needed (convert_serdata) and then deliver it using
+    // network and/or iceoryx as required
+    // d refc(d) = 1, call will reduce refcount by 1
+    ret = dds_writecdr_impl_common (ddsi_wr, wr->m_xp, (struct ddsi_serdata_any *) d, !wr->whc_batch, wr);
+    if (ret != DDS_RETCODE_OK)
+      iox_pub_release_chunk (wr->m_iox_pub, d->x.iox_chunk);
+  }
+  return ret;
 }
+#endif
 
-dds_return_t dds_write_impl (dds_writer *wr, const void *data, dds_time_t timestamp, dds_write_action action)
+static dds_return_t dds_write_impl_plain (dds_writer *wr, struct ddsi_writer *ddsi_wr, bool writekey, const void *data, dds_time_t tstamp, dds_write_action action)
 {
-  struct ddsi_thread_state * const thrst = ddsi_lookup_thread_state ();
-  const enum ddsi_serdata_kind sdkind = (action & DDS_WR_KEY_BIT) ? SDK_KEY : SDK_DATA;
-  const uint32_t statusinfo =
-    (((action & DDS_WR_DISPOSE_BIT) ? DDSI_STATUSINFO_DISPOSE : 0) |
-     ((action & DDS_WR_UNREGISTER_BIT) ? DDSI_STATUSINFO_UNREGISTER : 0));
+  assert (thread_is_awake ());
+#ifdef DDS_HAS_SHM
+  assert (wr->m_iox_pub == NULL);
+#endif
 
-  if (!dds_source_timestamp_is_valid_ddsi_time (timestamp, wr->protocol_version))
+  struct ddsi_serdata_plain *d = NULL;
+  d = (struct ddsi_serdata_plain *) ddsi_serdata_from_sample (ddsi_wr->type, writekey ? SDK_KEY : SDK_DATA, data);
+  if (d == NULL)
     return DDS_RETCODE_BAD_PARAMETER;
 
-  if (!evaluate_topic_filter (wr, data, sdkind))
+  set_statusinfo_timestamp ((struct ddsi_serdata_any *) d, tstamp, action);
+  return dds_writecdr_impl_common(ddsi_wr, wr->m_xp, (struct ddsi_serdata_any *) d, !wr->whc_batch, wr);
+}
+
+// has to support two cases:
+// 1) data is in an external buffer allocated on the stack or dynamically
+// 2) data is in an iceoryx buffer obtained by dds_loan_sample
+dds_return_t dds_write_impl (dds_writer *wr, const void * data, dds_time_t tstamp, dds_write_action action)
+{
+  // 1. Input validation
+  struct thread_state * const thrst = lookup_thread_state ();
+  const bool writekey = action & DDS_WR_KEY_BIT;
+  struct ddsi_writer *ddsi_wr = wr->m_wr;
+  int ret = DDS_RETCODE_OK;
+
+  if (data == NULL)
+    return DDS_RETCODE_BAD_PARAMETER;
+
+  // 2. Topic filter
+  if (!evalute_topic_filter (wr, data, writekey))
     return DDS_RETCODE_OK;
 
-  // I. psmx loan => assert (psmx && is_memcpy_safe)
-  //   a. psmx only
-  //     - no need for a serdata, so skip everything and deliver loan via PSMX
-  //   b. psmx && others
-  //     - ddsi_serdata_from_sample because we need a "normal one" anyway
-  //     - deliver loan via PSMX (has to wait for from_sample because publishing via PSMX invalidates the data)
-  //     - deliver serdata
-  //
-  // II. heap loan => (note: not necessarily is_memcpy_safe)
-  //   a. psmx only - assert (!is_memcpy_safe); as-if no loan
-  //   b. psmx && others - assert (!is_memcpy_safe); as-if no loan: we typically have PSMX loopback and that makes the loan useless
-  //   c. no psmx
-  //     - ddsi_serdata_from_loaned_sample, deliver serdata
-  //
-  // III. not loan
-  //   a. psmx only
-  //     1. is_memcpy_safe
-  //       - allocate PSMX loan, memcpy, deliver loan via PSMX
-  //     2. not is_memcpy_safe
-  //       - get_serialized_size (key/sample), allocate PSMX loan, serialize_into
-  //       - deliver loan via PSMX
-  //       note: if get_serialized_size is 0, treat as case III.b instead
-  //   b. psmx && others
-  //     1. is_memcpy_safe
-  //       - allocate PSMX loan, memcpy, deliver loan via PSMX
-  //       - ddsi_serdata_from_sample, deliver serdata
-  //     2. not is_memcpy_safe
-  //       - ddsi_serdata_from_sample
-  //       - allocate PSMX loan based on size of CDR in serdata, memcpy, deliver loan via PSMX
-  //       - deliver serdata
-  //   c. no psmx
-  //     - ddsi_serdata_from_sample, deliver serdata
-  ddsi_thread_state_awake (thrst, &wr->m_entity.m_domain->gv);
-  struct ddsi_serdata *serdata;
-  struct dds_loaned_sample *psmx_loan;
-  // If the input is a keyed topic and there's a PSMX endpoint that wants the key value, then we
-  // need to retain access the sample until after the key for the PSMX writes has been generated.
-  //
-  // If the data is not a loan or a PSMX loan, then by construction it remains valid at least
-  // until the last of the PSMX writes.  If it is a heap loan, it may have been copied into some
-  // other form (serialized PSMX loan and/or serdata), but those don't allow for cheap extraction
-  // of the key.  So it can't be freed by "dds_write_impl_psmxloan_serdata".
-  struct dds_loaned_sample *loan_to_be_freed;
-  dds_return_t ret = DDS_RETCODE_OK;
-  if ((ret = dds_write_impl_psmxloan_serdata (wr, data, sdkind, timestamp, statusinfo, &psmx_loan, &serdata, &loan_to_be_freed)) == DDS_RETCODE_OK)
+  thread_state_awake (thrst, &wr->m_entity.m_domain->gv);
+#ifdef DDS_HAS_SHM
+  if (wr->m_iox_pub)
+    ret = dds_write_impl_iox (wr, ddsi_wr, writekey, data, tstamp, action);
+  else
+    ret = dds_write_impl_plain (wr, ddsi_wr, writekey, data, tstamp, action);
+#else
+  ret = dds_write_impl_plain (wr, ddsi_wr, writekey, data, tstamp, action);
+#endif
+  thread_state_asleep (thrst);
+  return ret;
+}
+
+dds_return_t dds_writecdr_impl (dds_writer *wr, struct nn_xpack *xp, struct ddsi_serdata *dinp, bool flush)
+{
+  return dds_writecdr_impl_common (wr->m_wr, xp, (struct ddsi_serdata_any *) dinp, flush, wr);
+}
+
+void dds_write_flush (dds_entity_t writer)
+{
+  dds_writer *wr;
+  if (dds_writer_lock (writer, &wr) == DDS_RETCODE_OK)
   {
-    assert (psmx_loan != NULL || serdata != NULL);
-    assert ((psmx_loan == NULL) == (wr->m_endpoint.psmx_endpoints.length == 0));
-    assert (psmx_loan == NULL || psmx_loan->loan_origin.origin_kind == DDS_LOAN_ORIGIN_KIND_PSMX);
-    assert (loan_to_be_freed == NULL || loan_to_be_freed->loan_origin.origin_kind == DDS_LOAN_ORIGIN_KIND_HEAP);
-    if (psmx_loan != NULL)
-    {
-      // generate serialized key blob only when really needed
-      struct dds_write_impl_psmx_key key;
-      dds_write_impl_psmx_key_init (&key);
-
-      const struct dds_psmx_endpoint_int *loan_source_ep = NULL;
-      for (uint32_t l = 0; l < wr->m_endpoint.psmx_endpoints.length; l++)
-      {
-        struct dds_psmx_endpoint_int const * const ep = wr->m_endpoint.psmx_endpoints.endpoints[l];
-        if (psmx_loan->loan_origin.psmx_endpoint == ep->ext)
-        {
-          // we don't have to copy to ourselves, but we need the internal endpoint for delivering the data
-          loan_source_ep = ep;
-          continue;
-        }
-
-        if (ep->wants_key)
-        {
-          dds_return_t ret2 = dds_write_impl_psmx_get_key (&key, wr->m_wr->type, data);
-          if (ret2 != DDS_RETCODE_OK && ret == DDS_RETCODE_OK)
-            ret = ret2;
-          continue;
-        }
-
-        struct dds_loaned_sample *loan_copy = ep->ops.request_loan (ep, psmx_loan->metadata->sample_size);
-        if (loan_copy == NULL)
-        {
-          if (ret == DDS_RETCODE_OK)
-            ret = DDS_RETCODE_OUT_OF_RESOURCES;
-          continue;
-        }
-        dds_loaned_sample_copy (loan_copy, psmx_loan);
-        dds_return_t ret2 = dds_write_impl_deliver_via_psmx (ep, loan_copy, &key.key_iov);
-        if (ret2 != DDS_RETCODE_OK && ret == DDS_RETCODE_OK)
-          ret = ret2;
-      }
-
-      assert (loan_source_ep != NULL);
-      bool do_psmx_write = true;
-      if (loan_source_ep->wants_key)
-      {
-        dds_return_t ret2 = dds_write_impl_psmx_get_key (&key, wr->m_wr->type, data);
-        if (ret2 != DDS_RETCODE_OK)
-        {
-          dds_loaned_sample_unref (psmx_loan);
-          do_psmx_write = false;
-          if (ret == DDS_RETCODE_OK)
-            ret = ret2;
-        }
-      }
-      if (do_psmx_write)
-      {
-        dds_return_t ret2 = dds_write_impl_deliver_via_psmx (loan_source_ep, psmx_loan, &key.key_iov); // "consumes" the loan
-        if (ret2 != DDS_RETCODE_OK && ret == DDS_RETCODE_OK)
-          ret = ret2;
-      }
-      dds_write_impl_psmx_key_fini (&key);
-    }
-
-    if (serdata != NULL)
-    {
-      if (ret == DDS_RETCODE_OK)
-        ret = dds_write_impl_deliver_via_ddsi (thrst, wr, serdata);
-      ddsi_serdata_unref (serdata);
-    }
-
-    if (loan_to_be_freed)
-      dds_loaned_sample_unref (loan_to_be_freed);
+    struct thread_state * const thrst = lookup_thread_state ();
+    thread_state_awake (thrst, &wr->m_entity.m_domain->gv);
+    nn_xpack_send (wr->m_xp, true);
+    thread_state_asleep (thrst);
+    dds_writer_unlock (wr);
   }
-  ddsi_thread_state_asleep (thrst);
-  return ret;
-}
-
-dds_return_t dds_writecdr_impl (dds_writer *wr, struct ddsi_xpack *xp, struct ddsi_serdata *d, bool flush)
-{
-  dds_return_t ret = dds_writecdr_impl_common (wr, wr->m_wr, xp, (struct ddsi_serdata_any *) d, flush);
-  return ret;
-}
-
-void dds_write_flush_impl (dds_writer *wr)
-{
-  ddsrt_mutex_lock (&wr->m_entity.m_mutex);
-  ddsi_xpack_send (wr->m_xp, true);
-  ddsrt_mutex_unlock (&wr->m_entity.m_mutex);
 }
 
 dds_return_t dds_writecdr_local_orphan_impl (struct ddsi_local_orphan_writer *lowr, struct ddsi_serdata *d)
 {
   // this never sends on the network and xp is only relevant for the network
+#ifdef DDS_HAS_SHM
+  assert (d->iox_chunk == NULL);
+#endif
+
   // consumes 1 refc from din in all paths (weird, but ... history ...)
   // let refc(din) be r, so upon returning it must be r-1
-  struct ddsi_thread_state * const thrst = ddsi_lookup_thread_state ();
+  struct thread_state * const thrst = lookup_thread_state ();
   int ret = DDS_RETCODE_OK;
   assert (lowr->wr.type == d->type);
 
   // d = din: refc(d) = r, otherwise refc(d) = 1
 
-  ddsi_thread_state_awake (thrst, lowr->wr.e.gv);
+  thread_state_awake (thrst, lowr->wr.e.gv);
   struct ddsi_tkmap_instance * const tk = ddsi_tkmap_lookup_instance_ref (lowr->wr.e.gv->m_tkmap, d);
   deliver_locally (&lowr->wr, d, tk);
   ddsi_tkmap_instance_unref (lowr->wr.e.gv->m_tkmap, tk);
   ddsi_serdata_unref(d); // d = din: refc(d) = r - 1
-  ddsi_thread_state_asleep (thrst);
+  thread_state_asleep (thrst);
   return ret;
 }

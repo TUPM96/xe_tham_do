@@ -1,22 +1,24 @@
-// Copyright(c) 2019 to 2020 ZettaScale Technology and others
-//
-// This program and the accompanying materials are made available under the
-// terms of the Eclipse Public License v. 2.0 which is available at
-// http://www.eclipse.org/legal/epl-2.0, or the Eclipse Distribution License
-// v. 1.0 which is available at
-// http://www.eclipse.org/org/documents/edl-v10.php.
-//
-// SPDX-License-Identifier: EPL-2.0 OR BSD-3-Clause
+/*
+ * Copyright(c) 2019 to 2020 ZettaScale Technology and others
+ *
+ * This program and the accompanying materials are made available under the
+ * terms of the Eclipse Public License v. 2.0 which is available at
+ * http://www.eclipse.org/legal/epl-2.0, or the Eclipse Distribution License
+ * v. 1.0 which is available at
+ * http://www.eclipse.org/org/documents/edl-v10.php.
+ *
+ * SPDX-License-Identifier: EPL-2.0 OR BSD-3-Clause
+ */
 
 #include "CUnit/Theory.h"
 #include "dds/ddsrt/heap.h"
 #include "dds/ddsrt/endian.h"
 #include "dds/ddsi/ddsi_xqos.h"
-#include "ddsi__plist_generic.h"
+#include "dds/ddsi/ddsi_plist_generic.h"
 #include "mem_ser.h"
 
 struct desc {
-  const enum ddsi_pserop desc[20];
+  const enum pserop desc[20];
   const void *data;
   size_t exp_sersize;
   const unsigned char *exp_ser;
@@ -27,7 +29,7 @@ struct desc {
 };
 
 struct desc_invalid {
-  const enum ddsi_pserop desc[20];
+  const enum pserop desc[20];
   size_t sersize;
   const unsigned char *ser;
 };
@@ -37,7 +39,7 @@ typedef uint32_t raw32[];
 typedef uint64_t raw64[];
 typedef ddsi_octetseq_t oseq;
 
-static struct desc descs[] = {
+struct desc descs[] = {
   { {XSTOP}, (raw){0}, 0, (raw){0} },
   { {XO,XSTOP}, &(oseq){0, NULL },       4, (raw){SER32(0)} },
   { {XO,XSTOP}, &(oseq){1, (raw){3} },   5, (raw){SER32(1), 3} },
@@ -165,8 +167,9 @@ CU_Test (ddsi_plist_generic, ser_and_deser)
     void *ser;
     size_t sersize;
     dds_return_t ret;
-    ret = ddsi_plist_ser_generic (&ser, &sersize, descs[i].data, descs[i].desc);
-    CU_ASSERT_FATAL (ret == DDS_RETCODE_OK);
+    ret = plist_ser_generic (&ser, &sersize, descs[i].data, descs[i].desc);
+    if (ret != DDS_RETCODE_OK)
+      CU_ASSERT_FATAL (ret == DDS_RETCODE_OK);
     if (sersize != descs[i].exp_sersize)
       CU_ASSERT (sersize == descs[i].exp_sersize);
     /* if sizes don't match, still check prefix */
@@ -179,36 +182,29 @@ CU_Test (ddsi_plist_generic, ser_and_deser)
       CU_ASSERT (!(bool)"memcmp");
     }
     /* check */
-    memsize = ddsi_plist_memsize_generic (descs[i].desc);
+    memsize = plist_memsize_generic (descs[i].desc);
     if (memsize > sizeof (mem))
       CU_ASSERT_FATAL (memsize <= sizeof (mem));
     /* memset to zero for used part so padding is identical to compiler inserted padding,
        but to something unlikely for the remainder */
     memset (mem.buf, 0, memsize);
     memset (mem.buf + memsize, 0xee, sizeof (mem) - memsize);
-
-    /* 0 mod 4 is guaranteed by plist handling code, 0 mod 8 isn't, so be sure to check */
-    ser = ddsrt_realloc (ser, sersize + 4);
-    for (uint32_t shift = 0; shift != 4; shift += 4)
-    {
-      memmove ((char *) ser + shift, ser, sersize);
-      ret = ddsi_plist_deser_generic (&mem, (char *) ser + shift, sersize, false, descs[i].desc);
-      if (ret != DDS_RETCODE_OK)
-        CU_ASSERT_FATAL (ret == DDS_RETCODE_OK);
-      /* the compare function should be happy with it */
-      if (!ddsi_plist_equal_generic (descs[i].exp_data ? descs[i].exp_data : descs[i].data, &mem, descs[i].desc))
-        CU_ASSERT (!(bool)"plist_equal_generic");
-      /* content should be identical except when an XO, XS or XQ is present (because the first two
+    ret = plist_deser_generic (&mem, ser, sersize, false, descs[i].desc);
+    if (ret != DDS_RETCODE_OK)
+      CU_ASSERT_FATAL (ret == DDS_RETCODE_OK);
+    /* the compare function should be happy with it */
+    if (!plist_equal_generic (descs[i].exp_data ? descs[i].exp_data : descs[i].data, &mem, descs[i].desc))
+      CU_ASSERT (!(bool)"plist_equal_generic");
+    /* content should be identical except when an XO, XS or XQ is present (because the first two
        alias the serialised form and XQ to freshly allocated memory), so we do a limited check */
-      bool can_memcmp = true;
-      for (const enum ddsi_pserop *op = descs[i].desc; *op != XSTOP && can_memcmp; op++)
-        if (*op == XS || *op == XO || *op == XQ)
-          can_memcmp = false;
-      if (can_memcmp && memcmp (descs[i].exp_data ? descs[i].exp_data : descs[i].data, &mem, memsize) != 0)
-        CU_ASSERT (!(bool)"memcmp");
-      /* rely on mem checkers to find memory leaks, incorrect free, etc. */
-      ddsi_plist_fini_generic (&mem, descs[i].desc, true);
-    }
+    bool can_memcmp = true;
+    for (const enum pserop *op = descs[i].desc; *op != XSTOP && can_memcmp; op++)
+      if (*op == XS || *op == XO || *op == XQ)
+        can_memcmp = false;
+    if (can_memcmp && memcmp (descs[i].exp_data ? descs[i].exp_data : descs[i].data, &mem, memsize) != 0)
+      CU_ASSERT (!(bool)"memcmp");
+    /* rely on mem checkers to find memory leaks, incorrect free, etc. */
+    plist_fini_generic (&mem, descs[i].desc, true);
     ddsrt_free (ser);
   }
 }
@@ -226,20 +222,20 @@ CU_Test (ddsi_plist_generic, unalias)
     void *ser;
     size_t sersize;
     dds_return_t ret;
-    (void) ddsi_plist_ser_generic (&ser, &sersize, descs[i].data, descs[i].desc);
-    (void) ddsi_plist_deser_generic (&mem, ser, sersize, false, descs[i].desc);
+    (void) plist_ser_generic (&ser, &sersize, descs[i].data, descs[i].desc);
+    (void) plist_deser_generic (&mem, ser, sersize, false, descs[i].desc);
     /* after unaliasing, the data should be valid even when the serialised form has been overwritten or freed */
-    ret = ddsi_plist_unalias_generic (&mem, descs[i].desc);
+    ret = plist_unalias_generic (&mem, descs[i].desc);
     CU_ASSERT_FATAL (ret == DDS_RETCODE_OK);
     memset (ser, 0xee, sersize);
     ddsrt_free (ser);
-    if (!ddsi_plist_equal_generic (descs[i].exp_data ? descs[i].exp_data : descs[i].data, &mem, descs[i].desc))
+    if (!plist_equal_generic (descs[i].exp_data ? descs[i].exp_data : descs[i].data, &mem, descs[i].desc))
       CU_ASSERT (!(bool)"plist_equal_generic");
-    ddsi_plist_fini_generic (&mem, descs[i].desc, false);
+    plist_fini_generic (&mem, descs[i].desc, false);
   }
 }
 
-static struct desc_invalid descs_invalid[] = {
+struct desc_invalid descs_invalid[] = {
   { {Xb,XSTOP},   1, (raw){2} }, // 2 is not a valid boolean
   { {XS,XSTOP},   8, (raw){SER32(5), 'm','e','o','w',0} }, // short input
   { {XS,XSTOP},   8, (raw){SER32(4), 'm','e','o','w',0} }, // not terminated
@@ -281,19 +277,10 @@ CU_Test (ddsi_plist_generic, invalid_input)
 
   for (size_t i = 0; i < sizeof (descs_invalid) / sizeof (descs_invalid[0]); i++)
   {
-    // plist handling guarantees 4-byte alignment, which (unsigned char[]) doesn't
-    // also make sure to test try with 0 mod 8 & 4 mod 8 addresses
-    // + 11: at most + 7 for aligning to 0 mod 8, + 4 for 4 mod 8
-    // obviously one needs at most 7 but this is easier and does no harm
-    char * const serbuf = ddsrt_malloc (descs_invalid[i].sersize + 11);
-    for (size_t a = 0; a <= 4; a += 4)
-    {
-      char * const ser = serbuf + ((8 - ((uintptr_t)serbuf % 8)) % 8) + 4;
-      memcpy (ser, descs_invalid[i].ser, descs_invalid[i].sersize);
-      dds_return_t ret = ddsi_plist_deser_generic (&mem, ser, descs_invalid[i].sersize, false, descs_invalid[i].desc);
+    dds_return_t ret;
+    ret = plist_deser_generic (&mem, descs_invalid[i].ser, descs_invalid[i].sersize, false, descs_invalid[i].desc);
+    if (ret == DDS_RETCODE_OK)
       CU_ASSERT_FATAL (ret != DDS_RETCODE_OK);
-    }
-    ddsrt_free (serbuf);
   }
 }
 
@@ -305,8 +292,8 @@ CU_Test (ddsi_plist_generic, optional)
     char buf[256];
   } mem;
 
-  enum ddsi_pserop ser_desc[] = {Xb,XQ,XbPROP,XS,Xo,XSTOP,XSTOP};
-  enum ddsi_pserop deser_desc[] = {Xb,XQ,XbPROP,XS,Xo,XSTOP, Xopt,XQ,XbPROP,XS,Xo,XSTOP, XSTOP};
+  enum pserop ser_desc[] = {Xb,XQ,XbPROP,XS,Xo,XSTOP,XSTOP};
+  enum pserop deser_desc[] = {Xb,XQ,XbPROP,XS,Xo,XSTOP, Xopt,XQ,XbPROP,XS,Xo,XSTOP, XSTOP};
   const void *data = &(struct{char b; oseq seq;}){
     1, {5, (unsigned char *)(struct{char b;char *s;uint8_t o;}[]){
       {0,"apple",1}, {1,"orange",2}, {0,"cherry",3}, {1,"fig",4}, {1,"prune",5}}}};
@@ -326,7 +313,7 @@ CU_Test (ddsi_plist_generic, optional)
   void *ser;
   size_t sersize;
   dds_return_t ret;
-  ret = ddsi_plist_ser_generic (&ser, &sersize, data, ser_desc);
+  ret = plist_ser_generic (&ser, &sersize, data, ser_desc);
   CU_ASSERT_FATAL (ret == DDS_RETCODE_OK);
   CU_ASSERT (sersize == exp_sersize);
   /* if sizes don't match, still check prefix */
@@ -339,13 +326,13 @@ CU_Test (ddsi_plist_generic, optional)
     CU_ASSERT (!(bool)"memcmp");
   }
   /* check */
-  memsize = ddsi_plist_memsize_generic (deser_desc);
+  memsize = plist_memsize_generic (deser_desc);
   CU_ASSERT_FATAL (memsize <= sizeof (mem));
   memset (&mem, 0xee, sizeof (mem));
-  ret = ddsi_plist_deser_generic (&mem, ser, sersize, false, deser_desc);
+  ret = plist_deser_generic (&mem, ser, sersize, false, deser_desc);
   CU_ASSERT_FATAL (ret == DDS_RETCODE_OK);
   /* the compare function should be happy with it */
-  CU_ASSERT (ddsi_plist_equal_generic (exp_data, &mem, deser_desc));
-  ddsi_plist_fini_generic (&mem, deser_desc, true);
+  CU_ASSERT (plist_equal_generic (exp_data, &mem, deser_desc));
+  plist_fini_generic (&mem, deser_desc, true);
   ddsrt_free (ser);
 }

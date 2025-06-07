@@ -1,13 +1,14 @@
-// Copyright(c) 2006 to 2021 ZettaScale Technology and others
-//
-// This program and the accompanying materials are made available under the
-// terms of the Eclipse Public License v. 2.0 which is available at
-// http://www.eclipse.org/legal/epl-2.0, or the Eclipse Distribution License
-// v. 1.0 which is available at
-// http://www.eclipse.org/org/documents/edl-v10.php.
-//
-// SPDX-License-Identifier: EPL-2.0 OR BSD-3-Clause
-
+/*
+ * Copyright(c) 2006 to 2021 ZettaScale Technology and others
+ *
+ * This program and the accompanying materials are made available under the
+ * terms of the Eclipse Public License v. 2.0 which is available at
+ * http://www.eclipse.org/legal/epl-2.0, or the Eclipse Distribution License
+ * v. 1.0 which is available at
+ * http://www.eclipse.org/org/documents/edl-v10.php.
+ *
+ * SPDX-License-Identifier: EPL-2.0 OR BSD-3-Clause
+ */
 #define ACCESS_CONTROL_USE_ONE_PERMISSION
 
 #include <assert.h>
@@ -2397,7 +2398,7 @@ check_and_create_remote_participant_rights(
     /* use default permissions document (all deny) if there is no permissions file
          *to communicate with access_control=false and comply with previous release */
     struct domain_rule *domainRule = find_domain_rule_in_governance(local_rights->governance_tree->dds->domain_access_rules->domain_rule, local_rights->domain_id);
-    if (domainRule && !domainRule->enable_join_access_control->value)
+    if (!domainRule->enable_join_access_control->value)
     {
       permissions_xml = ddsrt_str_replace(DDS_SECURITY_DEFAULT_PERMISSIONS, "DEFAULT_SUBJECT", identity_subject, 1);
     }

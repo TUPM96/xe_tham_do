@@ -1,13 +1,14 @@
-// Copyright(c) 2006 to 2019 ZettaScale Technology and others
-//
-// This program and the accompanying materials are made available under the
-// terms of the Eclipse Public License v. 2.0 which is available at
-// http://www.eclipse.org/legal/epl-2.0, or the Eclipse Distribution License
-// v. 1.0 which is available at
-// http://www.eclipse.org/org/documents/edl-v10.php.
-//
-// SPDX-License-Identifier: EPL-2.0 OR BSD-3-Clause
-
+/*
+ * Copyright(c) 2006 to 2019 ZettaScale Technology and others
+ *
+ * This program and the accompanying materials are made available under the
+ * terms of the Eclipse Public License v. 2.0 which is available at
+ * http://www.eclipse.org/legal/epl-2.0, or the Eclipse Distribution License
+ * v. 1.0 which is available at
+ * http://www.eclipse.org/org/documents/edl-v10.php.
+ *
+ * SPDX-License-Identifier: EPL-2.0 OR BSD-3-Clause
+ */
 #include <assert.h>
 #include <ctype.h>
 #include <stdint.h>
@@ -64,26 +65,26 @@ ddsrt_strncasecmp(
 }
 
 char *
-ddsrt_strsep(char **stringp, const char *delim)
+ddsrt_strsep(char **str, const char *sep)
 {
   char *ret;
-  if (**stringp == '\0')
+  if (**str == '\0')
     return 0;
-  ret = *stringp;
-  while (**stringp && strchr (delim, **stringp) == 0)
-    (*stringp)++;
-  if (**stringp != '\0')
+  ret = *str;
+  while (**str && strchr (sep, **str) == 0)
+    (*str)++;
+  if (**str != '\0')
   {
-    **stringp = '\0';
-    (*stringp)++;
+    **str = '\0';
+    (*str)++;
   }
   return ret;
 }
 
 size_t
 ddsrt_strlcpy(
-  char *dest,
-  const char *src,
+  char * __restrict dest,
+  const char * __restrict src,
   size_t size)
 {
   size_t srclen = 0;
@@ -112,8 +113,8 @@ ddsrt_strlcpy(
          0 or 1. */
 size_t
 ddsrt_strlcat(
-  char *dest,
-  const char *src,
+  char * __restrict dest,
+  const char * __restrict src,
   size_t size)
 {
   size_t destlen, srclen;
@@ -219,31 +220,3 @@ ddsrt_strndup(const char *str, size_t len)
 
   return s;
 }
-
-char *
-ddsrt_str_trim_ord_space(char *str)
-{
-  char *end;
-
-  if (str != NULL)
-  { 
-    /* trim leading space */
-    while ((*str != '\0') && (*str == ' ')) {
-      ++str;
-    }
-    if (*str == '\0') { /* All spaces? */
-      return str;
-    }
-
-    /* trim trailing space */
-    end = str + strlen(str) - 1;
-    while ((end > str) && (*end == ' ')) {
-      end--;
-    }
-    /* add new null terminator character */
-    end[1] = '\0';
-  }
-
-  return str;
-}
-

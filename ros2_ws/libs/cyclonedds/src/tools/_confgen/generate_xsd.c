@@ -1,13 +1,14 @@
-// Copyright(c) 2020 to 2022 ZettaScale Technology and others
-//
-// This program and the accompanying materials are made available under the
-// terms of the Eclipse Public License v. 2.0 which is available at
-// http://www.eclipse.org/legal/epl-2.0, or the Eclipse Distribution License
-// v. 1.0 which is available at
-// http://www.eclipse.org/org/documents/edl-v10.php.
-//
-// SPDX-License-Identifier: EPL-2.0 OR BSD-3-Clause
-
+/*
+ * Copyright(c) 2020 to 2022 ZettaScale Technology and others
+ *
+ * This program and the accompanying materials are made available under the
+ * terms of the Eclipse Public License v. 2.0 which is available at
+ * http://www.eclipse.org/legal/epl-2.0, or the Eclipse Distribution License
+ * v. 1.0 which is available at
+ * http://www.eclipse.org/org/documents/edl-v10.php.
+ *
+ * SPDX-License-Identifier: EPL-2.0 OR BSD-3-Clause
+ */
 #include <assert.h>
 #include <limits.h>
 #include <stdint.h>
@@ -127,7 +128,7 @@ printattr(
   type[0] = '\0';
   if (elem->meta.unit)
     snprintf(type, sizeof(type), " type=\"config:%s\"", elem->meta.unit);
-  else if (!isstring(elem) && isbuiltintopic(elem))
+  else if (!isstring(elem))
     snprintf(type, sizeof(type), " type=\"xs:%s\"", isbuiltintopic(elem));
 
   required[0] = '\0';
@@ -136,10 +137,6 @@ printattr(
 
   printspc(out, cols, fmt, name(elem), type, required);
   printdesc(out, cols+2, flags, elem, units);
-  if (isenum(elem))
-    printenum(out, cols+2, flags, elem, units);
-  else if (islist(elem))
-    printlist(out, cols+2, flags, elem, units);
   printspc(out, cols, "</xs:attribute>\n");
 }
 

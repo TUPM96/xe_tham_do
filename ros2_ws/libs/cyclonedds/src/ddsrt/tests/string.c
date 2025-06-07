@@ -1,13 +1,14 @@
-// Copyright(c) 2006 to 2021 ZettaScale Technology and others
-//
-// This program and the accompanying materials are made available under the
-// terms of the Eclipse Public License v. 2.0 which is available at
-// http://www.eclipse.org/legal/epl-2.0, or the Eclipse Distribution License
-// v. 1.0 which is available at
-// http://www.eclipse.org/org/documents/edl-v10.php.
-//
-// SPDX-License-Identifier: EPL-2.0 OR BSD-3-Clause
-
+/*
+ * Copyright(c) 2006 to 2021 ZettaScale Technology and others
+ *
+ * This program and the accompanying materials are made available under the
+ * terms of the Eclipse Public License v. 2.0 which is available at
+ * http://www.eclipse.org/legal/epl-2.0, or the Eclipse Distribution License
+ * v. 1.0 which is available at
+ * http://www.eclipse.org/org/documents/edl-v10.php.
+ *
+ * SPDX-License-Identifier: EPL-2.0 OR BSD-3-Clause
+ */
 #include <string.h>
 #include <assert.h>
 
@@ -82,6 +83,7 @@ CU_Theory((const char *str, const char *srch, const char *subst, size_t max, con
   if (exp != NULL)
   {
     CU_ASSERT_FATAL(r != NULL);
+    assert(r != NULL); /* for Clang static analyzer */
     CU_ASSERT(strcmp(r, exp) == 0);
     ddsrt_free(r);
   }
@@ -129,17 +131,3 @@ CU_Theory((const char *s1, const char *s2, size_t n), ddsrt_strndup, too_short)
   CU_ASSERT(s && strcmp(s, s2) == 0);
   ddsrt_free(s);
 }
-
-CU_TheoryDataPoints(ddsrt_str_trim_ord_space, basic) = {
-  CU_DataPoints(const char *, "C=AT", " C=AT", "C=AT ", "C =AT", "C= AT", " C = AT", " C = AT "),
-  CU_DataPoints(const char *, "C=AT", "C=AT", "C=AT", "C =AT", "C= AT", "C = AT", "C = AT")
-};
-
-CU_Theory((const char *s1, const char *s2), ddsrt_str_trim_ord_space, basic)
-{
-  char str[32] = {'\0'};
-  strcpy(str, s1);
-  char *s = ddsrt_str_trim_ord_space(str);
-  CU_ASSERT(s && strcmp(s, s2) == 0);
-}
-

@@ -1,13 +1,14 @@
-// Copyright(c) 2006 to 2021 ZettaScale Technology and others
-//
-// This program and the accompanying materials are made available under the
-// terms of the Eclipse Public License v. 2.0 which is available at
-// http://www.eclipse.org/legal/epl-2.0, or the Eclipse Distribution License
-// v. 1.0 which is available at
-// http://www.eclipse.org/org/documents/edl-v10.php.
-//
-// SPDX-License-Identifier: EPL-2.0 OR BSD-3-Clause
-
+/*
+ * Copyright(c) 2006 to 2021 ZettaScale Technology and others
+ *
+ * This program and the accompanying materials are made available under the
+ * terms of the Eclipse Public License v. 2.0 which is available at
+ * http://www.eclipse.org/legal/epl-2.0, or the Eclipse Distribution License
+ * v. 1.0 which is available at
+ * http://www.eclipse.org/org/documents/edl-v10.php.
+ *
+ * SPDX-License-Identifier: EPL-2.0 OR BSD-3-Clause
+ */
 #include <string.h>
 #include <stdio.h>
 #include "CUnit/Test.h"
@@ -933,7 +934,7 @@ static DDS_Security_boolean encode_rtps_message(
   }
 }
 
-static DDS_Security_boolean decode_rtps_message (
+static DDS_Security_boolean decode_rtps_message(
     dds_security_crypto_transform *instance,
     DDS_Security_OctetSeq *plain_buffer,
     const DDS_Security_OctetSeq *encoded_buffer,

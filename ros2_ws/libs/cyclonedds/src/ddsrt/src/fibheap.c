@@ -1,13 +1,14 @@
-// Copyright(c) 2006 to 2021 ZettaScale Technology and others
-//
-// This program and the accompanying materials are made available under the
-// terms of the Eclipse Public License v. 2.0 which is available at
-// http://www.eclipse.org/legal/epl-2.0, or the Eclipse Distribution License
-// v. 1.0 which is available at
-// http://www.eclipse.org/org/documents/edl-v10.php.
-//
-// SPDX-License-Identifier: EPL-2.0 OR BSD-3-Clause
-
+/*
+ * Copyright(c) 2006 to 2021 ZettaScale Technology and others
+ *
+ * This program and the accompanying materials are made available under the
+ * terms of the Eclipse Public License v. 2.0 which is available at
+ * http://www.eclipse.org/legal/epl-2.0, or the Eclipse Distribution License
+ * v. 1.0 which is available at
+ * http://www.eclipse.org/org/documents/edl-v10.php.
+ *
+ * SPDX-License-Identifier: EPL-2.0 OR BSD-3-Clause
+ */
 #include <stddef.h>
 #include <limits.h>
 #include <assert.h>
@@ -27,10 +28,10 @@ static int cmp (const ddsrt_fibheap_def_t *fhdef, const ddsrt_fibheap_node_t *a,
     return fhdef->cmp ((const char *) a - fhdef->offset, (const char *) b - fhdef->offset);
 }
 
-void ddsrt_fibheap_def_init (ddsrt_fibheap_def_t *fhdef, uintptr_t offset, int (*compare) (const void *va, const void *vb))
+void ddsrt_fibheap_def_init (ddsrt_fibheap_def_t *fhdef, uintptr_t offset, int (*cmp) (const void *va, const void *vb))
 {
     fhdef->offset = offset;
-    fhdef->cmp = compare;
+    fhdef->cmp = cmp;
 }
 
 void ddsrt_fibheap_init (const ddsrt_fibheap_def_t *fhdef, ddsrt_fibheap_t *fh)
@@ -151,7 +152,7 @@ void *ddsrt_fibheap_extract_min (const ddsrt_fibheap_def_t *fhdef, ddsrt_fibheap
     /* FIXME: can speed up by combining a few things & improving
        locality of reference by scanning lists only once */
 
-    /* insert min's children as new roots -- must fix parent pointers,
+    /* insert min'schildren as new roots -- must fix parent pointers,
        and reset marks because roots are always unmarked */
     if (min->children) {
         ddsrt_fibheap_node_t * const mark = min->children;
@@ -175,16 +176,7 @@ void *ddsrt_fibheap_extract_min (const ddsrt_fibheap_def_t *fhdef, ddsrt_fibheap
             ddsrt_fibheap_node_t * const n1 = n->next;
 
             /* if n is first root with this high a degree, there's certainly
-               not going to be another root to merge with yet
-
-               GCC 12 static analyzer warns that roots[n->degree] may be
-               uninitialized, but that is clearly wrong, it is just lazily
-               initialized a few lines down.  Always initializing all of
-               roots[] would take care of that, but high-degree nodes are
-               rather rare and extract_min is called very often. */
-#if __GNUC__ >= 12
-            DDSRT_WARNING_GNUC_OFF(analyzer-use-of-uninitialized-value)
-#endif
+               not going to be another root to merge with yet */
             while (n->degree < min_degree_noninit && roots[n->degree]) {
                 unsigned const degree = n->degree;
                 ddsrt_fibheap_node_t *u, *v;
@@ -198,9 +190,6 @@ void *ddsrt_fibheap_extract_min (const ddsrt_fibheap_def_t *fhdef, ddsrt_fibheap
                 ddsrt_fibheap_add_as_child (u, v);
                 n = u;
             }
-#if __GNUC__ >= 12
-            DDSRT_WARNING_GNUC_ON(analyzer-use-of-uninitialized-value)
-#endif
 
             /* n may have changed, hence need to retest whether or not
                enough of roots has been initialised -- note that

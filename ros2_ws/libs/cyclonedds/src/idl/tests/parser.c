@@ -1,13 +1,14 @@
-// Copyright(c) 2020 to 2022 ZettaScale Technology and others
-//
-// This program and the accompanying materials are made available under the
-// terms of the Eclipse Public License v. 2.0 which is available at
-// http://www.eclipse.org/legal/epl-2.0, or the Eclipse Distribution License
-// v. 1.0 which is available at
-// http://www.eclipse.org/org/documents/edl-v10.php.
-//
-// SPDX-License-Identifier: EPL-2.0 OR BSD-3-Clause
-
+/*
+ * Copyright(c) 2020 to 2022 ZettaScale Technology and others
+ *
+ * This program and the accompanying materials are made available under the
+ * terms of the Eclipse Public License v. 2.0 which is available at
+ * http://www.eclipse.org/legal/epl-2.0, or the Eclipse Distribution License
+ * v. 1.0 which is available at
+ * http://www.eclipse.org/org/documents/edl-v10.php.
+ *
+ * SPDX-License-Identifier: EPL-2.0 OR BSD-3-Clause
+ */
 #include <assert.h>
 #include <stdio.h>
 #include <stdlib.h>
@@ -385,12 +386,12 @@ CU_Test(idl_parser, require_xcdr2)
 #undef BITS_DEF
 #undef UMEM_DEF
 
-typedef struct simple_idl_validity_test {
+typedef struct bit_bound_test {
   const char *str;
   bool is_valid;
-} simple_idl_validity_test_t;
+} bit_bound_test_t;
 
-static void simple_idl_validity_test(simple_idl_validity_test_t test)
+static void test_bit_bound(bit_bound_test_t test)
 {
   idl_pstate_t *pstate = NULL;
   idl_retcode_t ret = idl_create_pstate(IDL_FLAG_ANNOTATIONS, NULL, &pstate);
@@ -412,7 +413,7 @@ static void simple_idl_validity_test(simple_idl_validity_test_t test)
 
 CU_Test(idl_parser, bit_bound_validation)
 {
-  simple_idl_validity_test_t tests[] =
+  bit_bound_test_t tests[] =
     {
       //bitmasks have an implicit bit bound of 32
       {"bitmask bm { @position(32) flag0 };", false},
@@ -435,26 +436,5 @@ CU_Test(idl_parser, bit_bound_validation)
     };
 
   for (size_t i = 0; i < sizeof(tests)/sizeof(tests[0]); i++)
-    simple_idl_validity_test(tests[i]);
-}
-
-CU_Test(idl_parser, array_dim)
-{
-  static const simple_idl_validity_test_t tests[] = {
-    { "struct s { long a[1]; };", true },
-    { "struct s { long a[0]; };", false },
-    { "struct s { long a[-1]; };", false },
-    { "struct s { long a[1][0]; };", false },
-    { "struct s { long a[4294967295]; };", true },
-    { "struct s { long a[4294967296]; };", false },
-    { "typedef long a[1];", true },
-    { "typedef long a[0];", false },
-    { "typedef long a[-1];", false },
-    { "typedef long a[1][0];", false },
-    { "typedef long a[4294967295];", true },
-    { "typedef long a[4294967296];", false },
-  };
-
-  for (size_t i = 0; i < sizeof(tests)/sizeof(tests[0]); i++)
-    simple_idl_validity_test(tests[i]);
+    test_bit_bound(tests[i]);
 }

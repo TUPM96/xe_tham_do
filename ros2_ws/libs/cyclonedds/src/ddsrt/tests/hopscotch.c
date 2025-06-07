@@ -1,13 +1,14 @@
-// Copyright(c) 2019 to 2021 ZettaScale Technology and others
-//
-// This program and the accompanying materials are made available under the
-// terms of the Eclipse Public License v. 2.0 which is available at
-// http://www.eclipse.org/legal/epl-2.0, or the Eclipse Distribution License
-// v. 1.0 which is available at
-// http://www.eclipse.org/org/documents/edl-v10.php.
-//
-// SPDX-License-Identifier: EPL-2.0 OR BSD-3-Clause
-
+/*
+* Copyright(c) 2019 to 2021 ZettaScale Technology and others
+*
+* This program and the accompanying materials are made available under the
+* terms of the Eclipse Public License v. 2.0 which is available at
+* http://www.eclipse.org/legal/epl-2.0, or the Eclipse Distribution License
+* v. 1.0 which is available at
+* http://www.eclipse.org/org/documents/edl-v10.php.
+*
+* SPDX-License-Identifier: EPL-2.0 OR BSD-3-Clause
+*/
 #include <stdio.h>
 #include <stdlib.h>
 #include <stdint.h>
@@ -37,7 +38,7 @@ static uint32_t hash_uint32 (const void *v)
   return h;
 }
 
-static bool equals_uint32 (const void *a, const void *b)
+static int equals_uint32 (const void *a, const void *b)
 {
   return *((uint32_t *) a) == *((uint32_t *) b);
 }
@@ -247,7 +248,7 @@ struct chhtest_thread_arg {
 
 static uint32_t chhtest_thread (void *varg)
 {
-  struct chhtest_thread_arg * const arg = varg;
+  struct chhtest_thread_arg * const __restrict arg = varg;
   uint32_t ** ksptrs;
   uint32_t n = 0;
 
@@ -297,7 +298,7 @@ static uint32_t chhtest_thread (void *varg)
         {
           const uint32_t ix = (raw_oper >> 2) % arg->nkeys;
           bool x = ddsrt_chh_lookup (arg->chh, ksptrs[ix]);
-          if (arg->check && ((ix < n) ? !x : x)) { CU_ASSERT_FATAL (0); }
+          if (arg->check && ((ix < n) ? !x : x)) { CU_ASSERT_FATAL (0) };
           arg->lookups++;
         }
         break;

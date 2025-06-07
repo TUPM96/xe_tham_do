@@ -69,7 +69,7 @@ while True:
     sleep(rng.exponential())
 ```
 
-Today DDS is also popular in robotics and autonomous vehicles because those really depend on high-throughput, low-latency control systems without introducing a single point of failure by having a message broker in the middle.
+Today DDS is also popular in robotics and autonomous vehicles because those really depend on high-throuhgput, low-latency control systems without introducing a single point of failure by having a message broker in the middle.
 Indeed, it is by far the most used and the default middleware choice in ROS 2.
 It is used to transfer commands, sensor data and even video and point clouds between components.
 
@@ -99,7 +99,7 @@ With references to the individual OMG specifications, the following is available
 - [DDS XTypes](https://www.omg.org/spec/DDS-XTypes/1.3/PDF) - the structural type system (some [caveats](docs/dev/xtypes_relnotes.md) here)
 - [DDSI-RTPS](https://www.omg.org/spec/DDSI-RTPS/2.5/PDF) - the interoperable network protocol
 
-The network stack in Cyclone DDS has been around for over a decade in one form or another and has proven itself in many systems, including large, high-availability ones and systems where interoperatibility with other implementations was needed.
+The network stack in Cyclone DDS has been around for over a decade in one form or another and has proven itself in many systems, including large, high-availability ones and systems where interoperation with other implementations was needed.
 
 This repository provides the core of Cyclone DDS including its C API, the [OMG C++](https://github.com/eclipse-cyclonedds/cyclonedds-cxx) and the [Python](https://github.com/eclipse-cyclonedds/cyclonedds-python) language bindings are in sibling repositories.
 
@@ -114,7 +114,7 @@ In order to build Cyclone DDS you need a Linux, Mac or Windows 10 machine (or, w
   * C compiler (most commonly GCC on Linux, Visual Studio on Windows, Xcode on macOS);
   * Optionally GIT version control system;
   * [CMake](https://cmake.org/download/), version 3.16 or later;
-  * Optionally [OpenSSL](https://www.openssl.org/), we recommend a fully patched and supported version but 1.1.1 will still work;
+  * Optionally [OpenSSL](https://www.openssl.org/), preferably version 1.1;
   * Optionally [Eclipse Iceoryx](https://iceoryx.io) version 2.0 for shared memory and zero-copy support;
   * Optionally [Bison](https://www.gnu.org/software/bison/) parser generator. A cached source is checked into the repository.
 
@@ -134,21 +134,18 @@ Depending on whether you want to develop applications using Cyclone DDS or contr
 There are some configuration options specified using CMake defines in addition to the standard options like `CMAKE_BUILD_TYPE`:
 
 * `-DBUILD_EXAMPLES=ON`: to build the included examples
-* `-DBUILD_TESTING=ON`: to build the test suite (forces exporting all symbols from the library)
+* `-DBUILD_TESTING=ON`: to build the test suite (this requires [CUnit](http://cunit.sourceforge.net/), see [Contributing to Eclipse Cyclone DDS](#contributing-to-eclipse-cyclone-dds) below for more information)
 * `-DBUILD_IDLC=NO`: to disable building the IDL compiler (affects building examples, tests and `ddsperf`)
 * `-DBUILD_DDSPERF=NO`: to disable building the [`ddsperf`](https://github.com/eclipse-cyclonedds/cyclonedds/tree/master/src/tools/ddsperf) tool for performance measurement
 * `-DENABLE_SSL=NO`: to not look for OpenSSL, remove TLS/TCP support and avoid building the plugins that implement authentication and encryption (default is `AUTO` to enable them if OpenSSL is found)
-* `-DENABLE_ICEORYX=NO`: do not look for Iceoryx disable building the PSMX Iceoryx plugin (default is `AUTO` to enable it if Iceoryx is found)
+* `-DENABLE_SHM=NO`: to not look for Iceoryx and disabled shared memory support (default is `AUTO` to enable it if Iceoryx is found)
 * `-DENABLE_SECURITY=NO`: to not build the security interfaces and hooks in the core code, nor the plugins (one can enable security without OpenSSL present, you'll just have to find plugins elsewhere in that case)
 * `-DENABLE_LIFESPAN=NO`: to exclude support for finite lifespans QoS
 * `-DENABLE_DEADLINE_MISSED=NO`: to exclude support for finite deadline QoS settings
-* `-DENABLE_TYPELIB=NO`: to exclude support for type library, requires also disabling type and topic discovery using `-DENABLE_TYPE_DISCOVERY=NO` and `-DENABLE_TOPIC_DISCOVERY=NO`
 * `-DENABLE_TYPE_DISCOVERY=NO`: to exclude support for type discovery and checking type compatibility (effectively most of XTypes), requires also disabling topic discovery using `-DENABLE_TOPIC_DISCOVERY=NO`
 * `-DENABLE_TOPIC_DISCOVERY=NO`: to exclude support for topic discovery
 * `-DENABLE_SOURCE_SPECIFIC_MULTICAST=NO`: to disable support for source-specific multicast (disabling this and `-DENABLE_IPV6=NO` may be needed for QNX builds)
 * `-DENABLE_IPV6=NO`: to disable ipv6 support (disabling this and `-DENABLE_SOURCE_SPECIFIC_MULTICAST=NO` may be needed for QNX builds)
-* `-DBUILD_IDLC_XTESTS=NO`: Include a set of tests for the IDL compiler that use the C back-end to compile an idl file at (test) runtime, and use the C compiler to build a test application for the generated types, that is executed to do the actual testing (not supported on Windows)
-* `-DENABLE_QOS_PROVIDER=NO`: to disable support for qos provider
 
 ### For application developers
 
@@ -192,13 +189,24 @@ Note that the default build type is a release build with debug information inclu
 
 We very much welcome all contributions to the project, whether that is questions, examples, bug
 fixes, enhancements or improvements to the documentation, or anything else really.
-When considering contributing code, it might be good to know that build configurations for Azure pipelines are present in the repository and that there is a test suite built using a simple testing framework and CTest that can be built locally if desired.
+When considering contributing code, it might be good to know that build configurations for Azure pipelines are present in the repository and that there is a test suite using CTest and CUnit that can be built locally if desired.
 To build it, set the cmake variable `BUILD_TESTING` to on when configuring, e.g.:
 
     $ cd build
     $ cmake -DCMAKE_BUILD_TYPE=Debug -DBUILD_TESTING=ON ..
     $ cmake --build .
     $ ctest
+
+Such a build requires the presence of [CUnit](http://cunit.sourceforge.net/).
+You can install this yourself, or you can choose to instead rely on the [Conan](https://conan.io) packaging system that the CI build infrastructure also uses.
+In that case, install Conan and do:
+
+    $ conan install .. --build missing
+
+in the build directory prior to running cmake.
+
+For Windows, depending on the generator, you might also need to add switches to select the architecture and build type, e.g., `conan install -s arch=x86_64 -s build_type=Debug ..`
+This will automatically download and/or build CUnit (and, at the moment, OpenSSL).
 
 ## Documentation
 
@@ -298,7 +306,7 @@ This example shows a few things:
   Members are
   * `NetworkInterface[@autodetermine]` tells Cyclone DDS to autoselect the interface it deems best.
   * `NetworkInterface[@name]` specifies the name of an interface to select (not shown above, alternative for autodetermine).
-  * `NetworkInterface[@address]` specifies the ipv4/ipv6 address of an interface to select (not shown above, alternative for autodetermine).
+  * `NetworkInterface[@ip]` specifies the ipv4/ipv6 address of an interface to select (not shown above, alternative for autodetermine).
   * `NetworkInterface[@multicast]` specifies whether multicast should be used on this interface.
     The default value 'default' means Cyclone DDS will check the OS reported flags of the interface and enable multicast if it is supported.
     Use 'true' to ignore what the OS reports and enable it anyway and 'false' to always disable multicast on this interface.
@@ -306,7 +314,7 @@ This example shows a few things:
     The default value (`default`) means priority `0` for normal interfaces and `2` for loopback interfaces.
 * `AllowMulticast` configures the circumstances under which multicast will be used.
   If the selected interface doesn't support it, it obviously won't be used (`false`); but if it does support it, the type of the network adapter determines the default value.
-  For a wired network, it will use multicast for initial discovery as well as for data when there are multiple peers that the data needs to go to (`true`).
+  For a wired network, it will use multicast for initial discovery as well as for data when there are multiple peers that the data needs to go to (`true`). 
   On a WiFi network it will use it only for initial discovery (`spdp`), because multicast on WiFi is very unreliable.
 * `EnableTopicDiscoveryEndpoints` turns on topic discovery (assuming it is enabled at compile time), it is disabled by default because it isn't used in many system and comes with a significant amount of overhead in discovery traffic.
 * `Verbosity` allows control over the tracing, "config" dumps the configuration to the trace output (which defaults to "cyclonedds.log", but here the process id is appended).

@@ -1,13 +1,14 @@
-// Copyright(c) 2006 to 2019 ZettaScale Technology and others
-//
-// This program and the accompanying materials are made available under the
-// terms of the Eclipse Public License v. 2.0 which is available at
-// http://www.eclipse.org/legal/epl-2.0, or the Eclipse Distribution License
-// v. 1.0 which is available at
-// http://www.eclipse.org/org/documents/edl-v10.php.
-//
-// SPDX-License-Identifier: EPL-2.0 OR BSD-3-Clause
-
+/*
+ * Copyright(c) 2006 to 2019 ZettaScale Technology and others
+ *
+ * This program and the accompanying materials are made available under the
+ * terms of the Eclipse Public License v. 2.0 which is available at
+ * http://www.eclipse.org/legal/epl-2.0, or the Eclipse Distribution License
+ * v. 1.0 which is available at
+ * http://www.eclipse.org/org/documents/edl-v10.php.
+ *
+ * SPDX-License-Identifier: EPL-2.0 OR BSD-3-Clause
+ */
 #include <assert.h>
 #include <stdlib.h>
 #include <string.h>
@@ -131,6 +132,7 @@ CU_Test(ddsc_instance_get_key, registered_instance, .init=setup, .fini=teardown)
     ret = dds_instance_get_key(writer, handle, &key_data);
 
     CU_ASSERT_PTR_NOT_NULL_FATAL(key_data.ip);
+    assert (key_data.ip != NULL); /* for the benefit of clang's static analyzer */
     CU_ASSERT_STRING_EQUAL_FATAL(key_data.ip, data.ip);
     CU_ASSERT_EQUAL_FATAL(key_data.port, data.port);
     CU_ASSERT_EQUAL_FATAL(ret, DDS_RETCODE_OK);
@@ -161,6 +163,7 @@ CU_Test(ddsc_instance_get_key, readcondition, .init=setup, .fini=teardown)
     ret = dds_instance_get_key(readcondition, handle, &key_data);
 
     CU_ASSERT_PTR_NOT_NULL_FATAL(key_data.ip);
+    assert (key_data.ip != NULL); /* for the benefit of clang's static analyzer */
     CU_ASSERT_STRING_EQUAL_FATAL(key_data.ip, data.ip);
     CU_ASSERT_EQUAL_FATAL(key_data.port, data.port);
     CU_ASSERT_EQUAL_FATAL(ret, DDS_RETCODE_OK);
@@ -191,6 +194,7 @@ CU_Test(ddsc_instance_get_key, querycondition, .init=setup, .fini=teardown)
     ret = dds_instance_get_key(querycondition, handle, &key_data);
 
     CU_ASSERT_PTR_NOT_NULL_FATAL(key_data.ip);
+    assert (key_data.ip != NULL); /* for the benefit of clang's static analyzer */
     CU_ASSERT_STRING_EQUAL_FATAL(key_data.ip, data.ip);
     CU_ASSERT_EQUAL_FATAL(key_data.port, data.port);
     CU_ASSERT_EQUAL_FATAL(ret, DDS_RETCODE_OK);

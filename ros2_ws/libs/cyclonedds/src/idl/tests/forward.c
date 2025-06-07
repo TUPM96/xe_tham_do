@@ -1,13 +1,14 @@
-// Copyright(c) 2021 ZettaScale Technology and others
-//
-// This program and the accompanying materials are made available under the
-// terms of the Eclipse Public License v. 2.0 which is available at
-// http://www.eclipse.org/legal/epl-2.0, or the Eclipse Distribution License
-// v. 1.0 which is available at
-// http://www.eclipse.org/org/documents/edl-v10.php.
-//
-// SPDX-License-Identifier: EPL-2.0 OR BSD-3-Clause
-
+/*
+ * Copyright(c) 2021 ZettaScale Technology and others
+ *
+ * This program and the accompanying materials are made available under the
+ * terms of the Eclipse Public License v. 2.0 which is available at
+ * http://www.eclipse.org/legal/epl-2.0, or the Eclipse Distribution License
+ * v. 1.0 which is available at
+ * http://www.eclipse.org/org/documents/edl-v10.php.
+ *
+ * SPDX-License-Identifier: EPL-2.0 OR BSD-3-Clause
+ */
 #include <assert.h>
 #include <stdio.h>
 
@@ -148,40 +149,5 @@ CU_Test(idl_forward, backwards_aliases)
     idl_delete_pstate(pstate);
   }
 }
-
-CU_Test(idl_forward, incomplete_type)
-{
-  static const struct {
-    const char *idl;
-    idl_retcode_t retcode;
-  } tests[] = {
-    { "struct a; struct b { a f1; }; struct a { long a1; };", IDL_RETCODE_SEMANTIC_ERROR },
-    { "struct a; typedef a c; struct b { c f1; }; struct a { long a1; };", IDL_RETCODE_SEMANTIC_ERROR },
-    { "struct a; struct b { @external a f1; }; struct a { long a1; };", IDL_RETCODE_OK },
-    { "struct a; typedef a c; struct b { @external c f1; }; struct a { long a1; };", IDL_RETCODE_OK },
-    { "struct a; struct b { sequence<a> f1; }; struct a { long a1; };", IDL_RETCODE_OK },
-    { "struct a; struct b { a f1[2]; }; struct a { long a1; };", IDL_RETCODE_SEMANTIC_ERROR },
-    { "struct a; typedef a b[2]; struct a { long a1; };", IDL_RETCODE_SEMANTIC_ERROR },
-    { "union a; struct b { a f1; }; union a switch(long) { case 1: long a1; };", IDL_RETCODE_SEMANTIC_ERROR },
-    { "union a; struct b { @external a f1; }; union a switch(long) { case 1: long a1; };", IDL_RETCODE_OK },
-    { "struct a; union b switch(long) { case 1: a f1; }; struct a { long a1; };", IDL_RETCODE_SEMANTIC_ERROR },
-    { "struct a; union b switch(long) { case 1: @external a f1; }; struct a { long a1; };", IDL_RETCODE_OK },
-  };
-
-  for (size_t i = 0; i < sizeof(tests) / sizeof(tests[0]); i++) {
-    idl_pstate_t *pstate = NULL;
-    idl_retcode_t ret = idl_create_pstate(IDL_FLAG_ANNOTATIONS, NULL, &pstate);
-    CU_ASSERT_EQUAL_FATAL(ret, IDL_RETCODE_OK);
-    CU_ASSERT_PTR_NOT_NULL_FATAL(pstate);
-    if (!pstate)
-      return;
-    pstate->config.default_extensibility = IDL_FINAL;
-    ret = idl_parse_string(pstate, tests[i].idl);
-    CU_ASSERT_EQUAL(ret, tests[i].retcode);
-    printf("test idl: %s - %s\n", tests[i].idl, ret == tests[i].retcode ? "OK" : "FAIL");
-    idl_delete_pstate(pstate);
-  }
-}
-
 
 // x. provide definition in reopened module

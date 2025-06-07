@@ -1,13 +1,14 @@
-// Copyright(c) 2006 to 2022 ZettaScale Technology and others
-//
-// This program and the accompanying materials are made available under the
-// terms of the Eclipse Public License v. 2.0 which is available at
-// http://www.eclipse.org/legal/epl-2.0, or the Eclipse Distribution License
-// v. 1.0 which is available at
-// http://www.eclipse.org/org/documents/edl-v10.php.
-//
-// SPDX-License-Identifier: EPL-2.0 OR BSD-3-Clause
-
+/*
+ * Copyright(c) 2006 to 2022 ZettaScale Technology and others
+ *
+ * This program and the accompanying materials are made available under the
+ * terms of the Eclipse Public License v. 2.0 which is available at
+ * http://www.eclipse.org/legal/epl-2.0, or the Eclipse Distribution License
+ * v. 1.0 which is available at
+ * http://www.eclipse.org/org/documents/edl-v10.php.
+ *
+ * SPDX-License-Identifier: EPL-2.0 OR BSD-3-Clause
+ */
 #include <stdio.h>
 #include <assert.h>
 #include <dds/ddsrt/dynlib.h>
@@ -20,7 +21,7 @@
 
 static ddsrt_thread_local DWORD dynlib_last_err;
 
-dds_return_t ddsrt_platform_dlopen (const char *name, bool translate, ddsrt_dynlib_t *handle)
+dds_return_t ddsrt_dlopen (const char *name, bool translate, ddsrt_dynlib_t *handle)
 {
   assert (handle);
   *handle = NULL;
@@ -50,7 +51,7 @@ dds_return_t ddsrt_platform_dlopen (const char *name, bool translate, ddsrt_dynl
   return DDS_RETCODE_OK;
 }
 
-dds_return_t ddsrt_platform_dlclose (ddsrt_dynlib_t handle)
+dds_return_t ddsrt_dlclose (ddsrt_dynlib_t handle)
 {
   assert (handle);
   if (FreeLibrary ((HMODULE) handle) == 0)
@@ -62,7 +63,7 @@ dds_return_t ddsrt_platform_dlclose (ddsrt_dynlib_t handle)
   return DDS_RETCODE_OK;
 }
 
-dds_return_t ddsrt_platform_dlsym (ddsrt_dynlib_t handle, const char *symbol, void **address)
+dds_return_t ddsrt_dlsym (ddsrt_dynlib_t handle, const char *symbol, void **address)
 {
   assert (handle);
   assert (address);
@@ -76,7 +77,7 @@ dds_return_t ddsrt_platform_dlsym (ddsrt_dynlib_t handle, const char *symbol, vo
   return DDS_RETCODE_OK;
 }
 
-dds_return_t ddsrt_platform_dlerror (char *buf, size_t buflen)
+dds_return_t ddsrt_dlerror (char *buf, size_t buflen)
 {
   assert (buf);
   assert (buflen);

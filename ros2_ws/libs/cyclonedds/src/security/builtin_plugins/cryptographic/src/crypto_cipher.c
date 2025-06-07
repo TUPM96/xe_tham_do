@@ -1,13 +1,14 @@
-// Copyright(c) 2006 to 2021 ZettaScale Technology and others
-//
-// This program and the accompanying materials are made available under the
-// terms of the Eclipse Public License v. 2.0 which is available at
-// http://www.eclipse.org/legal/epl-2.0, or the Eclipse Distribution License
-// v. 1.0 which is available at
-// http://www.eclipse.org/org/documents/edl-v10.php.
-//
-// SPDX-License-Identifier: EPL-2.0 OR BSD-3-Clause
-
+/*
+ * Copyright(c) 2006 to 2021 ZettaScale Technology and others
+ *
+ * This program and the accompanying materials are made available under the
+ * terms of the Eclipse Public License v. 2.0 which is available at
+ * http://www.eclipse.org/legal/epl-2.0, or the Eclipse Distribution License
+ * v. 1.0 which is available at
+ * http://www.eclipse.org/org/documents/edl-v10.php.
+ *
+ * SPDX-License-Identifier: EPL-2.0 OR BSD-3-Clause
+ */
 #include <assert.h>
 #include <stddef.h>
 
@@ -50,7 +51,7 @@ static bool trusted_check_buffer_sizes (const size_t num, const trusted_crypto_d
   DDSRT_STATIC_ASSERT (sizeof (trusted_crypto_data_t) == sizeof (tainted_crypto_data_t));
   DDSRT_STATIC_ASSERT (offsetof (trusted_crypto_data_t, x.base) == offsetof (tainted_crypto_data_t, base));
   DDSRT_STATIC_ASSERT (offsetof (trusted_crypto_data_t, x.length) == offsetof (tainted_crypto_data_t, length));
-  return check_buffer_sizes (num, (const const_tainted_crypto_data_t *) inp, outp ? &outp->x : NULL);
+  return check_buffer_sizes (num, (const const_tainted_crypto_data_t *) inp, &outp->x);
 }
 #endif
 

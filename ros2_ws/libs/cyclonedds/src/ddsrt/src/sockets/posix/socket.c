@@ -1,13 +1,14 @@
-// Copyright(c) 2006 to 2022 ZettaScale Technology and others
-//
-// This program and the accompanying materials are made available under the
-// terms of the Eclipse Public License v. 2.0 which is available at
-// http://www.eclipse.org/legal/epl-2.0, or the Eclipse Distribution License
-// v. 1.0 which is available at
-// http://www.eclipse.org/org/documents/edl-v10.php.
-//
-// SPDX-License-Identifier: EPL-2.0 OR BSD-3-Clause
-
+/*
+ * Copyright(c) 2006 to 2022 ZettaScale Technology and others
+ *
+ * This program and the accompanying materials are made available under the
+ * terms of the Eclipse Public License v. 2.0 which is available at
+ * http://www.eclipse.org/legal/epl-2.0, or the Eclipse Distribution License
+ * v. 1.0 which is available at
+ * http://www.eclipse.org/org/documents/edl-v10.php.
+ *
+ * SPDX-License-Identifier: EPL-2.0 OR BSD-3-Clause
+ */
 #include <assert.h>
 #include <string.h>
 #include <unistd.h>
@@ -35,10 +36,6 @@
 #include <sys/sockio.h>
 #endif /* __APPLE__ || __FreeBSD__ */
 #endif /* LWIP_SOCKET */
-
-#if defined(__ZEPHYR__) && defined(CONFIG_NET_IPV4_IGMP)
-#include <zephyr/net/igmp.h>
-#endif
 
 dds_return_t
 ddsrt_socket(ddsrt_socket_t *sockptr, int domain, int type, int protocol)
@@ -69,21 +66,6 @@ ddsrt_socket(ddsrt_socket_t *sockptr, int domain, int type, int protocol)
   }
 
   return DDS_RETCODE_ERROR;
-}
-
-void
-ddsrt_socket_ext_init(
-  ddsrt_socket_ext_t *sockext,
-  ddsrt_socket_t sock)
-{
-  sockext->sock = sock;
-}
-
-void
-ddsrt_socket_ext_fini(
-  ddsrt_socket_ext_t *sockext)
-{
-  (void)sockext;
 }
 
 dds_return_t
@@ -274,14 +256,6 @@ ddsrt_getsockopt(
   void *optval,
   socklen_t *optlen)
 {
-#if defined(__ZEPHYR__)
-  if (optname == IP_ADD_MEMBERSHIP || optname == IP_DROP_MEMBERSHIP)
-  {
-    /* note ddsrt_getsockopt never called with this optname */
-    return DDS_RETCODE_UNSUPPORTED;
-  }
-#endif
-
   if (getsockopt(sock, level, optname, optval, optlen) == 0)
     return DDS_RETCODE_OK;
 
@@ -320,31 +294,6 @@ ddsrt_setsockopt(
       /* SO_DONTROUTE causes problems on macOS (e.g. no multicasting). */
       return DDS_RETCODE_OK;
   }
-
-#if defined(__ZEPHYR__)
-  switch (optname) {
-#if defined(DDSRT_HAVE_IPV6)
-    case IPV6_MULTICAST_IF:
-    case IPV6_MULTICAST_HOPS:
-    case IPV6_MULTICAST_LOOP:
-    case IPV6_UNICAST_HOPS:
-      /* ignored */
-      return DDS_RETCODE_OK;
-    case IPV6_JOIN_GROUP:
-      optname = IPV6_ADD_MEMBERSHIP;
-      break;
-    case IPV6_LEAVE_GROUP:
-      optname = IPV6_DROP_MEMBERSHIP;
-      break;
-#endif /* DDSRT_HAVE_IPV6 */
-    case IP_PKTINFO:
-    case IP_MULTICAST_IF:
-    case IP_MULTICAST_TTL:
-    case IP_MULTICAST_LOOP:
-      /* ignored */
-      return DDS_RETCODE_OK;
-  }
-#endif /* __ZEPHYR__ */
 
   if (setsockopt(sock, level, optname, optval, optlen) == 0)
     return DDS_RETCODE_OK;
@@ -449,7 +398,7 @@ ddsrt_recv(
   return recv_error_to_retcode(errno);
 }
 
-#if (LWIP_SOCKET && !defined(recvmsg)) || defined(__ZEPHYR__)
+#if LWIP_SOCKET && !defined(recvmsg)
 static ssize_t recvmsg(int sockfd, struct msghdr *msg, int flags)
 {
   assert(msg->msg_iovlen == 1);
@@ -469,14 +418,14 @@ static ssize_t recvmsg(int sockfd, struct msghdr *msg, int flags)
 
 dds_return_t
 ddsrt_recvmsg(
-  const ddsrt_socket_ext_t *sockext,
+  ddsrt_socket_t sock,
   ddsrt_msghdr_t *msg,
   int flags,
   ssize_t *rcvd)
 {
   ssize_t n;
 
-  if ((n = recvmsg(sockext->sock, msg, flags)) != -1) {
+  if ((n = recvmsg(sock, msg, flags)) != -1) {
     assert(n >= 0);
     *rcvd = n;
     return DDS_RETCODE_OK;
@@ -520,7 +469,6 @@ send_error_to_retcode(int errnum)
       return DDS_RETCODE_OUT_OF_RESOURCES;
     case EHOSTUNREACH:
     case EHOSTDOWN:
-    case EADDRNOTAVAIL:
       return DDS_RETCODE_NO_CONNECTION;
     default:
       break;
@@ -594,28 +542,4 @@ ddsrt_select(
   }
 
   return DDS_RETCODE_ERROR;
-}
-
-dds_return_t
-ddsrt_shutdown(
-  ddsrt_socket_t sock,
-  enum ddsrt_shutdown_how how)
-{
-  int how1 = -1;
-  switch (how)
-  {
-    case DDSRT_SHUTDOWN_READ:
-      how1 = SHUT_RD;
-      break;
-    case DDSRT_SHUTDOWN_WRITE:
-      how1 = SHUT_WR;
-      break;
-    case DDSRT_SHUTDOWN_READ_WRITE:
-      how1 = SHUT_RDWR;
-  }
-  int ret = shutdown (sock, how1);
-  if (ret == 0)
-    return DDS_RETCODE_OK;
-  else
-    return DDS_RETCODE_BAD_PARAMETER;
 }

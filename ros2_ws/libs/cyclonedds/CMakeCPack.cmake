@@ -32,6 +32,7 @@ set(CPACK_PACKAGE_DESCRIPTION_SUMMARY "Eclipse Cyclone DDS")
 
 file(COPY "${PROJECT_SOURCE_DIR}/LICENSE" DESTINATION "${CMAKE_BINARY_DIR}")
 set(CPACK_RESOURCE_FILE_LICENSE "${CMAKE_BINARY_DIR}/LICENSE")
+set(CPACK_WIX_LICENSE_RTF "${CMAKE_BINARY_DIR}/LICENSE")
 
 # Packages could be generated on alien systems. e.g. Debian packages could be
 # created on Red Hat Enterprise Linux, but since packages also need to be
@@ -52,8 +53,7 @@ set(CPACK_COMPONENT_DEV_DISPLAY_NAME "${PROJECT_NAME_FULL} development")
 set(CPACK_COMPONENT_DEV_DESCRIPTION  "Development files for use with ${PROJECT_NAME_FULL}")
 
 if(WIN32 AND NOT UNIX)
-  file(COPY "${PROJECT_SOURCE_DIR}/WiX/LICENSE.rtf" DESTINATION "${CMAKE_BINARY_DIR}")
-  set(CPACK_WIX_LICENSE_RTF "${CMAKE_BINARY_DIR}/LICENSE.rtf")
+  
   if(CMAKE_SIZEOF_VOID_P EQUAL 8)
     set(__arch "win64")
   else()
@@ -101,20 +101,11 @@ elseif(CMAKE_SYSTEM_NAME MATCHES "Linux")
     set(CPACK_RPM_DEV_PACKAGE_REQUIRES "${CPACK_RPM_LIB_PACKAGE_NAME} = ${CPACK_PACKAGE_VERSION}")
   elseif(EXISTS "/etc/debian_version")
     set(CPACK_DEB_COMPONENT_INSTALL ON)
-    find_program(DPKG_CMD dpkg)
-    if(NOT DPKG_CMD)
-      if(CMAKE_SIZEOF_VOID_P EQUAL 8)
-        set(__arch "amd64")
-      else()
-        set(__arch "i386")
-      endif()
-    else ()
-      execute_process(COMMAND "${DPKG_CMD}" --print-architecture
-              OUTPUT_VARIABLE __arch
-              OUTPUT_STRIP_TRAILING_WHITESPACE
-      )
-    endif ()
-
+    if(CMAKE_SIZEOF_VOID_P EQUAL 8)
+      set(__arch "amd64")
+    else()
+      set(__arch "i386")
+    endif()
 
     set(CPACK_GENERATOR "DEB;TGZ;${CPACK_GENERATOR}" CACHE STRING "List of package generators")
 

@@ -1,12 +1,14 @@
-// Copyright(c) 2006 to 2021 ZettaScale Technology and others
-//
-// This program and the accompanying materials are made available under the
-// terms of the Eclipse Public License v. 2.0 which is available at
-// http://www.eclipse.org/legal/epl-2.0, or the Eclipse Distribution License
-// v. 1.0 which is available at
-// http://www.eclipse.org/org/documents/edl-v10.php.
-//
-// SPDX-License-Identifier: EPL-2.0 OR BSD-3-Clause
+/*
+ * Copyright(c) 2006 to 2021 ZettaScale Technology and others
+ *
+ * This program and the accompanying materials are made available under the
+ * terms of the Eclipse Public License v. 2.0 which is available at
+ * http://www.eclipse.org/legal/epl-2.0, or the Eclipse Distribution License
+ * v. 1.0 which is available at
+ * http://www.eclipse.org/org/documents/edl-v10.php.
+ *
+ * SPDX-License-Identifier: EPL-2.0 OR BSD-3-Clause
+ */
 
 #include <stdio.h>
 #include <string.h>
@@ -47,6 +49,11 @@ typedef enum {
     HANDSHAKE_FINAL
 } HandshakeStep_t;
 
+
+struct octet_seq {
+    unsigned char  *data;
+    uint32_t  length;
+};
 
 static const char * AUTH_DSIGN_ALGO_RSA_NAME   = "RSASSA-PSS-SHA256";
 static const char * AUTH_KAGREE_ALGO_RSA_NAME  = "DH+MODP-2048-256";
@@ -213,6 +220,25 @@ static EVP_PKEY *g_dh_modp_key = NULL;
 static EVP_PKEY *g_dh_ecdh_key = NULL;
 static struct octet_seq g_dh_modp_pub_key = {NULL, 0};
 static struct octet_seq g_dh_ecdh_pub_key = {NULL, 0};
+
+
+static void
+octet_seq_init(
+    struct octet_seq *seq,
+    unsigned char *data,
+    uint32_t size)
+{
+    seq->data = ddsrt_malloc(size);
+    memcpy(seq->data, data, size);
+    seq->length = size;
+}
+
+static void
+octet_seq_deinit(
+    struct octet_seq *seq)
+{
+    ddsrt_free(seq->data);
+}
 
 static void
 serializer_participant_data(
@@ -517,9 +543,199 @@ get_adjusted_participant_guid(
     return result;
 }
 
+static int
+create_dh_key_modp_2048(
+    EVP_PKEY **pkey)
+{
+    int r = 0;
+    EVP_PKEY *params = NULL;
+    EVP_PKEY_CTX *kctx = NULL;
+    DH *dh = NULL;
 
+    *pkey = NULL;
 
+    if ((params = EVP_PKEY_new()) == NULL) {
+        char *msg = get_openssl_error_message_for_test();
+        printf("Failed to allocate EVP_PKEY: %s", msg);
+        ddsrt_free(msg);
+        r = -1;
+    } else if ((dh = DH_get_2048_256()) == NULL) {
+        char *msg = get_openssl_error_message_for_test();
+        printf("Failed to allocate DH parameter: %s", msg);
+        ddsrt_free(msg);
+        r = -1;
+    } else if (EVP_PKEY_set1_DH(params, dh) <= 0) {
+        char *msg = get_openssl_error_message_for_test();
+        printf("Failed to set DH parameter to MODP_2048_256: %s", msg);
+        ddsrt_free(msg);
+        r = -1;
+    } else if ((kctx = EVP_PKEY_CTX_new(params, NULL)) == NULL) {
+        char *msg = get_openssl_error_message_for_test();
+        printf("Failed to allocate KEY context %s", msg);
+        ddsrt_free(msg);
+        r = -1;
+    } else if (EVP_PKEY_keygen_init(kctx) <= 0) {
+        char *msg = get_openssl_error_message_for_test();
+        printf("Failed to initialize KEY context: %s", msg);
+        ddsrt_free(msg);
+        r = -1;
+    } else if (EVP_PKEY_keygen(kctx, pkey) <= 0) {
+        char *msg = get_openssl_error_message_for_test();
+        printf("Failed to generate :MODP_2048_256 keys %s", msg);
+        ddsrt_free(msg);
+        r = -1;
+    }
 
+    if (params) EVP_PKEY_free(params);
+    if (kctx) EVP_PKEY_CTX_free(kctx);
+    if (dh) DH_free(dh);
+
+    return r;
+}
+
+static int
+get_dh_public_key_modp_2048(
+    EVP_PKEY *pkey,
+    struct octet_seq *pubkey)
+{
+    int r = 0;
+    DH *dhkey;
+    unsigned char *buffer = NULL;
+    uint32_t size;
+    ASN1_INTEGER *asn1int;
+
+    dhkey = EVP_PKEY_get1_DH(pkey);
+    if (!dhkey) {
+        char *msg = get_openssl_error_message_for_test();
+        printf("Failed to get DH key from PKEY: %s", msg);
+        ddsrt_free(msg);
+        r = -1;
+        goto fail_get_dhkey;
+    }
+
+    asn1int = BN_to_ASN1_INTEGER( dh_get_public_key(dhkey) , NULL);
+    if (!asn1int) {
+        char *msg = get_openssl_error_message_for_test();
+        printf("Failed to convert DH key to ASN1 integer: %s", msg);
+        ddsrt_free(msg);
+        r = -1;
+        goto fail_get_pubkey;
+    }
+
+    size = (uint32_t)i2d_ASN1_INTEGER(asn1int, &buffer);
+    octet_seq_init(pubkey, buffer, size);
+
+    ASN1_INTEGER_free(asn1int);
+    OPENSSL_free(buffer);
+
+fail_get_pubkey:
+    DH_free(dhkey);
+fail_get_dhkey:
+    return r;
+}
+
+static int
+create_dh_key_ecdh(
+    EVP_PKEY **pkey)
+{
+    int r = 0;
+    EVP_PKEY *params = NULL;
+    EVP_PKEY_CTX *pctx = NULL;
+    EVP_PKEY_CTX *kctx = NULL;
+
+    *pkey = NULL;
+
+    if ((pctx = EVP_PKEY_CTX_new_id(EVP_PKEY_EC, NULL)) == NULL) {
+        char *msg = get_openssl_error_message_for_test();
+        printf("Failed to allocate DH parameter context: %s", msg);
+        ddsrt_free(msg);
+        r = -1;
+    } else if (EVP_PKEY_paramgen_init(pctx) <= 0) {
+        char *msg = get_openssl_error_message_for_test();
+        printf("Failed to initialize DH generation context: %s", msg);
+        ddsrt_free(msg);
+        r = -1;
+    } else if (EVP_PKEY_CTX_set_ec_paramgen_curve_nid(pctx, NID_X9_62_prime256v1) <= 0) {
+        char *msg = get_openssl_error_message_for_test();
+        printf("Failed to set DH generation parameter generation method: %s", msg);
+        ddsrt_free(msg);
+        r = -1;
+    } else if (EVP_PKEY_paramgen(pctx, &params) <= 0) {
+        char *msg = get_openssl_error_message_for_test();
+        printf("Failed to generate DH parameters: %s", msg);
+        ddsrt_free(msg);
+        r = -1;
+    } else if ((kctx = EVP_PKEY_CTX_new(params, NULL)) == NULL) {
+        char *msg = get_openssl_error_message_for_test();
+        printf("Failed to allocate KEY context %s", msg);
+        ddsrt_free(msg);
+        r = -1;
+    } else if (EVP_PKEY_keygen_init(kctx) <= 0) {
+        char *msg = get_openssl_error_message_for_test();
+        printf("Failed to initialize KEY context: %s", msg);
+        ddsrt_free(msg);
+        r = -1;
+    } else if (EVP_PKEY_keygen(kctx, pkey) <= 0) {
+        char *msg = get_openssl_error_message_for_test();
+        printf("Failed to generate :MODP_2048_256 keys %s", msg);
+        ddsrt_free(msg);
+        r = -1;
+    }
+
+    if (kctx) EVP_PKEY_CTX_free(kctx);
+    if (params) EVP_PKEY_free(params);
+    if (pctx) EVP_PKEY_CTX_free(pctx);
+
+    return r;
+}
+
+static int
+get_dh_public_key_ecdh(
+    EVP_PKEY *pkey,
+    struct octet_seq *pubkey)
+{
+    int r = 0;
+    EC_KEY *eckey = NULL;
+    const EC_GROUP *group = NULL;
+    const EC_POINT *point = NULL;
+    size_t sz;
+
+    if (!(eckey = EVP_PKEY_get1_EC_KEY(pkey))) {
+        char *msg = get_openssl_error_message_for_test();
+        printf("Failed to get EC key from PKEY: %s", msg);
+        ddsrt_free(msg);
+        r = -1;
+    } else if (!(point = EC_KEY_get0_public_key(eckey))) {
+        char *msg = get_openssl_error_message_for_test();
+        printf("Failed to get public key from ECKEY: %s", msg);
+        ddsrt_free(msg);
+        r = -1;
+    } else if (!(group = EC_KEY_get0_group(eckey))) {
+        char *msg = get_openssl_error_message_for_test();
+        printf("Failed to get group from ECKEY: %s", msg);
+        ddsrt_free(msg);
+        r = -1;
+    } else if ((sz = EC_POINT_point2oct(group, point, POINT_CONVERSION_COMPRESSED, NULL, 0, NULL)) != 0) {
+        pubkey->data = ddsrt_malloc(sz);
+        pubkey->length = (uint32_t) EC_POINT_point2oct(group, point, POINT_CONVERSION_COMPRESSED, pubkey->data, sz, NULL);
+        if (pubkey->length == 0) {
+            char *msg = get_openssl_error_message_for_test();
+            printf("Failed to serialize public EC key: %s", msg);
+            ddsrt_free(msg);
+            octet_seq_deinit(pubkey);
+            r = -1;
+        }
+    } else {
+        char *msg = get_openssl_error_message_for_test();
+        printf("Failed to serialize public EC key: %s", msg);
+        ddsrt_free(msg);
+        r = -1;
+    }
+
+    if (eckey) EC_KEY_free(eckey);
+
+    return r;
+}
 
 static int
 validate_remote_identities (const char *remote_id_certificate)
@@ -1016,8 +1232,9 @@ fill_handshake_message_token(
         dh2 = &tokens[idx++];
         hash_c2 = &tokens[idx++];
 
-        CU_ASSERT_FATAL(hash1_from_request != NULL);
-        CU_ASSERT_FATAL(hash2_from_reply != NULL);
+        CU_ASSERT(hash1_from_request != NULL);
+        CU_ASSERT(hash2_from_reply != NULL);
+        assert(hash1_from_request && hash2_from_reply); // for Clang's static analyzer
 
         set_binary_property_value(hash_c1, DDS_AUTHTOKEN_PROP_HASH_C1, hash1_from_request->value._buffer, hash1_from_request->value._length);
         set_binary_property_value(hash_c2, DDS_AUTHTOKEN_PROP_HASH_C2, hash2_from_reply->value._buffer, hash2_from_reply->value._length);
@@ -1144,6 +1361,7 @@ CU_Test(ddssec_builtin_get_authenticated_peer_credential,token_after_request )
                     &exception);
 
     CU_ASSERT_FATAL(result == DDS_SECURITY_VALIDATION_PENDING_HANDSHAKE_MESSAGE);
+    assert(result == DDS_SECURITY_VALIDATION_PENDING_HANDSHAKE_MESSAGE); // for Clang's static analyzer
 
     /* mock reply */
     dh1 = find_binary_property(&handshake_token_out, DDS_AUTHTOKEN_PROP_DH1);
@@ -1176,6 +1394,7 @@ CU_Test(ddssec_builtin_get_authenticated_peer_credential,token_after_request )
                         handshake_handle,
                         &exception);
     CU_ASSERT_FATAL(result == DDS_SECURITY_VALIDATION_OK_FINAL_MESSAGE);
+    assert(result == DDS_SECURITY_VALIDATION_OK_FINAL_MESSAGE); // for Clang's static analyzer
 
     /*
      * Actual test.
@@ -1186,22 +1405,27 @@ CU_Test(ddssec_builtin_get_authenticated_peer_credential,token_after_request )
                         handshake_handle,
                         &exception);
 
-    CU_ASSERT_TRUE_FATAL (success);
+    CU_ASSERT_TRUE (success);
+    assert(success); // for Clang's static analyzer
 
     CU_ASSERT_FATAL(credential_token.class_id != NULL);
+    assert(credential_token.class_id); // for Clang's static analyzer
     CU_ASSERT(strcmp(credential_token.class_id, DDS_AUTHTOKEN_CLASS_ID) == 0);
     CU_ASSERT(credential_token.properties._length == 2);
     CU_ASSERT(credential_token.binary_properties._length == 0);
 
     c_id = find_property(&credential_token, DDS_AUTHTOKEN_PROP_C_ID);
     CU_ASSERT_FATAL(c_id != NULL);
+    assert(c_id); // for GCC's static analyzer
     CU_ASSERT_FATAL(c_id->value != NULL);
+    assert(c_id && c_id->value); // for Clang's static analyzer
     //printf("c_id->value: %s\n", c_id->value);
     CU_ASSERT(strcmp(c_id->value, REMOTE_IDENTITY_CERTIFICATE) == 0);
 
     c_perm = find_property(&credential_token, DDS_AUTHTOKEN_PROP_C_PERM);
     CU_ASSERT_FATAL(c_perm != NULL);
     CU_ASSERT_FATAL(c_perm->value != NULL);
+    assert(c_perm && c_perm->value); // for Clang's static analyzer
     //printf("c_perm->value: %s\n", c_perm->value);
     CU_ASSERT(strcmp(c_perm->value, PERMISSIONS_DOCUMENT) == 0);
 
@@ -1268,6 +1492,7 @@ CU_Test(ddssec_builtin_get_authenticated_peer_credential,token_after_reply )
                     &exception);
 
     CU_ASSERT_FATAL(result == DDS_SECURITY_VALIDATION_PENDING_HANDSHAKE_MESSAGE);
+    assert(result == DDS_SECURITY_VALIDATION_PENDING_HANDSHAKE_MESSAGE); // for Clang's static analyzer
 
     /* mock final */
     dh2 = find_binary_property(&handshake_token_out, DDS_AUTHTOKEN_PROP_DH2);
@@ -1301,6 +1526,7 @@ CU_Test(ddssec_builtin_get_authenticated_peer_credential,token_after_reply )
                         &exception);
 
     CU_ASSERT_FATAL(result == DDS_SECURITY_VALIDATION_OK);
+    assert(result == DDS_SECURITY_VALIDATION_OK); // for Clang's static analyzer
 
     /*
      * Actual test.
@@ -1311,7 +1537,8 @@ CU_Test(ddssec_builtin_get_authenticated_peer_credential,token_after_reply )
                         handshake_handle,
                         &exception);
 
-    CU_ASSERT_TRUE_FATAL (success);
+    CU_ASSERT_TRUE (success);
+    assert(success); // for Clang's static analyzer
 
     CU_ASSERT_FATAL(credential_token.class_id != NULL);
     CU_ASSERT(strcmp(credential_token.class_id, DDS_AUTHTOKEN_CLASS_ID) == 0);
@@ -1320,13 +1547,16 @@ CU_Test(ddssec_builtin_get_authenticated_peer_credential,token_after_reply )
 
     c_id = find_property(&credential_token, DDS_AUTHTOKEN_PROP_C_ID);
     CU_ASSERT_FATAL(c_id != NULL);
+    assert(c_id); // for GCC's static analyzer
     CU_ASSERT_FATAL(c_id->value != NULL);
+    assert(c_id && c_id->value); // for Clang's static analyzer
     //printf("c_id->value: %s\n", c_id->value);
     CU_ASSERT(strcmp(c_id->value, REMOTE_IDENTITY_CERTIFICATE) == 0);
 
     c_perm = find_property(&credential_token, DDS_AUTHTOKEN_PROP_C_PERM);
     CU_ASSERT_FATAL(c_perm != NULL);
     CU_ASSERT_FATAL(c_perm->value != NULL);
+    assert(c_perm && c_perm->value); // for Clang's static analyzer
     //printf("c_perm->value: %s\n", c_perm->value);
     CU_ASSERT(strcmp(c_perm->value, PERMISSIONS_DOCUMENT) == 0);
 
@@ -1342,7 +1572,8 @@ CU_Test(ddssec_builtin_get_authenticated_peer_credential,token_after_reply )
     CU_ASSERT(credential_token.binary_properties._length == 0);
 
     success = g_auth->return_handshake_handle(g_auth, handshake_handle, &exception);
-    CU_ASSERT_TRUE_FATAL (success);
+    CU_ASSERT_TRUE (success);
+    assert(success); // for Clang's static analyzer
 
     reset_exception(&exception);
 

@@ -1,13 +1,14 @@
-// Copyright(c) 2006 to 2022 ZettaScale Technology and others
-//
-// This program and the accompanying materials are made available under the
-// terms of the Eclipse Public License v. 2.0 which is available at
-// http://www.eclipse.org/legal/epl-2.0, or the Eclipse Distribution License
-// v. 1.0 which is available at
-// http://www.eclipse.org/org/documents/edl-v10.php.
-//
-// SPDX-License-Identifier: EPL-2.0 OR BSD-3-Clause
-
+/*
+ * Copyright(c) 2006 to 2022 ZettaScale Technology and others
+ *
+ * This program and the accompanying materials are made available under the
+ * terms of the Eclipse Public License v. 2.0 which is available at
+ * http://www.eclipse.org/legal/epl-2.0, or the Eclipse Distribution License
+ * v. 1.0 which is available at
+ * http://www.eclipse.org/org/documents/edl-v10.php.
+ *
+ * SPDX-License-Identifier: EPL-2.0 OR BSD-3-Clause
+ */
 #include <assert.h>
 #include <string.h>
 #include <stdbool.h>
@@ -17,13 +18,9 @@
 #include "dds/ddsrt/string.h"
 #include "dds/ddsi/ddsi_plist.h"
 #include "dds/ddsi/ddsi_domaingv.h"
-#include "dds/ddsi/ddsi_serdata.h"
-#include "dds/ddsi/ddsi_sertype.h"
 #include "dds__qos.h"
-#include "dds__topic.h"
-#include "dds__psmx.h"
 
-static void dds_qos_data_copy_in (ddsi_octetseq_t *data, const void *value, size_t sz, bool overwrite)
+static void dds_qos_data_copy_in (ddsi_octetseq_t *data, const void * __restrict value, size_t sz, bool overwrite)
 {
   if (overwrite && data->value)
     ddsrt_free (data->value);
@@ -61,7 +58,12 @@ dds_qos_t *dds_create_qos (void)
   return qos;
 }
 
-void dds_reset_qos (dds_qos_t *qos)
+dds_qos_t *dds_qos_create (void)
+{
+  return dds_create_qos ();
+}
+
+void dds_reset_qos (dds_qos_t * __restrict qos)
 {
   if (qos)
   {
@@ -70,7 +72,12 @@ void dds_reset_qos (dds_qos_t *qos)
   }
 }
 
-void dds_delete_qos (dds_qos_t *qos)
+void dds_qos_reset (dds_qos_t * __restrict qos)
+{
+  dds_reset_qos (qos);
+}
+
+void dds_delete_qos (dds_qos_t * __restrict qos)
 {
   if (qos)
   {
@@ -79,7 +86,12 @@ void dds_delete_qos (dds_qos_t *qos)
   }
 }
 
-dds_return_t dds_copy_qos (dds_qos_t *dst, const dds_qos_t *src)
+void dds_qos_delete (dds_qos_t * __restrict qos)
+{
+  dds_delete_qos (qos);
+}
+
+dds_return_t dds_copy_qos (dds_qos_t * __restrict dst, const dds_qos_t * __restrict src)
 {
   if (src == NULL || dst == NULL)
     return DDS_RETCODE_BAD_PARAMETER;
@@ -87,14 +99,24 @@ dds_return_t dds_copy_qos (dds_qos_t *dst, const dds_qos_t *src)
   return DDS_RETCODE_OK;
 }
 
-void dds_merge_qos (dds_qos_t *dst, const dds_qos_t *src)
+dds_return_t dds_qos_copy (dds_qos_t * __restrict dst, const dds_qos_t * __restrict src)
+{
+  return dds_copy_qos (dst, src);
+}
+
+void dds_merge_qos (dds_qos_t * __restrict dst, const dds_qos_t * __restrict src)
 {
   /* Copy qos from source to destination unless already set */
   if (src != NULL && dst != NULL)
     ddsi_xqos_mergein_missing (dst, src, ~(uint64_t)0);
 }
 
-bool dds_qos_equal (const dds_qos_t *a, const dds_qos_t *b)
+void dds_qos_merge (dds_qos_t * __restrict dst, const dds_qos_t * __restrict src)
+{
+  dds_merge_qos (dst, src);
+}
+
+bool dds_qos_equal (const dds_qos_t * __restrict a, const dds_qos_t * __restrict b)
 {
   /* FIXME: a bit of a hack - and I am not so sure I like accepting null pointers here anyway */
   if (a == NULL && b == NULL)
@@ -102,132 +124,132 @@ bool dds_qos_equal (const dds_qos_t *a, const dds_qos_t *b)
   else if (a == NULL || b == NULL)
     return false;
   else
-    return ddsi_xqos_delta (a, b, ~(DDSI_QP_TYPE_INFORMATION)) == 0;
+    return ddsi_xqos_delta (a, b, ~(QP_TYPE_INFORMATION)) == 0;
 }
 
-void dds_qset_userdata (dds_qos_t *qos, const void *value, size_t sz)
+void dds_qset_userdata (dds_qos_t * __restrict qos, const void * __restrict value, size_t sz)
 {
   if (qos == NULL || (sz > 0 && value == NULL))
     return;
-  dds_qos_data_copy_in (&qos->user_data, value, sz, qos->present & DDSI_QP_USER_DATA);
-  qos->present |= DDSI_QP_USER_DATA;
+  dds_qos_data_copy_in (&qos->user_data, value, sz, qos->present & QP_USER_DATA);
+  qos->present |= QP_USER_DATA;
 }
 
-void dds_qset_topicdata (dds_qos_t *qos, const void *value, size_t sz)
+void dds_qset_topicdata (dds_qos_t * __restrict qos, const void * __restrict value, size_t sz)
 {
   if (qos == NULL || (sz > 0 && value == NULL))
     return;
-  dds_qos_data_copy_in (&qos->topic_data, value, sz, qos->present & DDSI_QP_TOPIC_DATA);
-  qos->present |= DDSI_QP_TOPIC_DATA;
+  dds_qos_data_copy_in (&qos->topic_data, value, sz, qos->present & QP_TOPIC_DATA);
+  qos->present |= QP_TOPIC_DATA;
 }
 
-void dds_qset_groupdata (dds_qos_t *qos, const void *value, size_t sz)
+void dds_qset_groupdata (dds_qos_t * __restrict qos, const void * __restrict value, size_t sz)
 {
   if (qos == NULL || (sz > 0 && value == NULL))
     return;
-  dds_qos_data_copy_in (&qos->group_data, value, sz, qos->present & DDSI_QP_GROUP_DATA);
-  qos->present |= DDSI_QP_GROUP_DATA;
+  dds_qos_data_copy_in (&qos->group_data, value, sz, qos->present & QP_GROUP_DATA);
+  qos->present |= QP_GROUP_DATA;
 }
 
-void dds_qset_durability (dds_qos_t *qos, dds_durability_kind_t kind)
+void dds_qset_durability (dds_qos_t * __restrict qos, dds_durability_kind_t kind)
 {
   if (qos == NULL)
     return;
   qos->durability.kind = kind;
-  qos->present |= DDSI_QP_DURABILITY;
+  qos->present |= QP_DURABILITY;
 }
 
-void dds_qset_history (dds_qos_t *qos, dds_history_kind_t kind, int32_t depth)
+void dds_qset_history (dds_qos_t * __restrict qos, dds_history_kind_t kind, int32_t depth)
 {
   if (qos == NULL)
     return;
   qos->history.kind = kind;
   qos->history.depth = depth;
-  qos->present |= DDSI_QP_HISTORY;
+  qos->present |= QP_HISTORY;
 }
 
-void dds_qset_resource_limits (dds_qos_t *qos, int32_t max_samples, int32_t max_instances, int32_t max_samples_per_instance)
+void dds_qset_resource_limits (dds_qos_t * __restrict qos, int32_t max_samples, int32_t max_instances, int32_t max_samples_per_instance)
 {
   if (qos == NULL)
     return;
   qos->resource_limits.max_samples = max_samples;
   qos->resource_limits.max_instances = max_instances;
   qos->resource_limits.max_samples_per_instance = max_samples_per_instance;
-  qos->present |= DDSI_QP_RESOURCE_LIMITS;
+  qos->present |= QP_RESOURCE_LIMITS;
 }
 
-void dds_qset_presentation (dds_qos_t *qos, dds_presentation_access_scope_kind_t access_scope, bool coherent_access, bool ordered_access)
+void dds_qset_presentation (dds_qos_t * __restrict qos, dds_presentation_access_scope_kind_t access_scope, bool coherent_access, bool ordered_access)
 {
   if (qos == NULL)
     return;
   qos->presentation.access_scope = access_scope;
   qos->presentation.coherent_access = coherent_access;
   qos->presentation.ordered_access = ordered_access;
-  qos->present |= DDSI_QP_PRESENTATION;
+  qos->present |= QP_PRESENTATION;
 }
 
-void dds_qset_lifespan (dds_qos_t *qos, dds_duration_t lifespan)
+void dds_qset_lifespan (dds_qos_t * __restrict qos, dds_duration_t lifespan)
 {
   if (qos == NULL)
     return;
   qos->lifespan.duration = lifespan;
-  qos->present |= DDSI_QP_LIFESPAN;
+  qos->present |= QP_LIFESPAN;
 }
 
-void dds_qset_deadline (dds_qos_t *qos, dds_duration_t deadline)
+void dds_qset_deadline (dds_qos_t * __restrict qos, dds_duration_t deadline)
 {
   if (qos == NULL)
     return;
   qos->deadline.deadline = deadline;
-  qos->present |= DDSI_QP_DEADLINE;
+  qos->present |= QP_DEADLINE;
 }
 
-void dds_qset_latency_budget (dds_qos_t *qos, dds_duration_t duration)
+void dds_qset_latency_budget (dds_qos_t * __restrict qos, dds_duration_t duration)
 {
   if (qos == NULL)
     return;
   qos->latency_budget.duration = duration;
-  qos->present |= DDSI_QP_LATENCY_BUDGET;
+  qos->present |= QP_LATENCY_BUDGET;
 }
 
-void dds_qset_ownership (dds_qos_t *qos, dds_ownership_kind_t kind)
+void dds_qset_ownership (dds_qos_t * __restrict qos, dds_ownership_kind_t kind)
 {
   if (qos == NULL)
     return;
   qos->ownership.kind = kind;
-  qos->present |= DDSI_QP_OWNERSHIP;
+  qos->present |= QP_OWNERSHIP;
 }
 
-void dds_qset_ownership_strength (dds_qos_t *qos, int32_t value)
+void dds_qset_ownership_strength (dds_qos_t * __restrict qos, int32_t value)
 {
   if (qos == NULL)
     return;
   qos->ownership_strength.value = value;
-  qos->present |= DDSI_QP_OWNERSHIP_STRENGTH;
+  qos->present |= QP_OWNERSHIP_STRENGTH;
 }
 
-void dds_qset_liveliness (dds_qos_t *qos, dds_liveliness_kind_t kind, dds_duration_t lease_duration)
+void dds_qset_liveliness (dds_qos_t * __restrict qos, dds_liveliness_kind_t kind, dds_duration_t lease_duration)
 {
   if (qos == NULL)
     return;
   qos->liveliness.kind = kind;
   qos->liveliness.lease_duration = lease_duration;
-  qos->present |= DDSI_QP_LIVELINESS;
+  qos->present |= QP_LIVELINESS;
 }
 
-void dds_qset_time_based_filter (dds_qos_t *qos, dds_duration_t minimum_separation)
+void dds_qset_time_based_filter (dds_qos_t * __restrict qos, dds_duration_t minimum_separation)
 {
   if (qos == NULL)
     return;
   qos->time_based_filter.minimum_separation = minimum_separation;
-  qos->present |= DDSI_QP_TIME_BASED_FILTER;
+  qos->present |= QP_TIME_BASED_FILTER;
 }
 
-void dds_qset_partition (dds_qos_t *qos, uint32_t n, const char **ps)
+void dds_qset_partition (dds_qos_t * __restrict qos, uint32_t n, const char ** __restrict ps)
 {
   if (qos == NULL || (n > 0 && ps == NULL))
     return;
-  if (qos->present & DDSI_QP_PARTITION)
+  if (qos->present & QP_PARTITION)
   {
     for (uint32_t i = 0; i < qos->partition.n; i++)
       ddsrt_free (qos->partition.strs[i]);
@@ -242,10 +264,10 @@ void dds_qset_partition (dds_qos_t *qos, uint32_t n, const char **ps)
     for (uint32_t i = 0; i < n; i++)
       qos->partition.strs[i] = ddsrt_strdup (ps[i]);
   }
-  qos->present |= DDSI_QP_PARTITION;
+  qos->present |= QP_PARTITION;
 }
 
-void dds_qset_partition1 (dds_qos_t *qos, const char *name)
+void dds_qset_partition1 (dds_qos_t * __restrict qos, const char * __restrict name)
 {
   if (name == NULL)
     dds_qset_partition (qos, 0, NULL);
@@ -253,57 +275,49 @@ void dds_qset_partition1 (dds_qos_t *qos, const char *name)
     dds_qset_partition (qos, 1, (const char **) &name);
 }
 
-void dds_qset_reliability (dds_qos_t *qos, dds_reliability_kind_t kind, dds_duration_t max_blocking_time)
+void dds_qset_reliability (dds_qos_t * __restrict qos, dds_reliability_kind_t kind, dds_duration_t max_blocking_time)
 {
   if (qos == NULL)
     return;
   qos->reliability.kind = kind;
   qos->reliability.max_blocking_time = max_blocking_time;
-  qos->present |= DDSI_QP_RELIABILITY;
+  qos->present |= QP_RELIABILITY;
 }
 
-void dds_qset_transport_priority (dds_qos_t *qos, int32_t value)
+void dds_qset_transport_priority (dds_qos_t * __restrict qos, int32_t value)
 {
   if (qos == NULL)
     return;
   qos->transport_priority.value = value;
-  qos->present |= DDSI_QP_TRANSPORT_PRIORITY;
+  qos->present |= QP_TRANSPORT_PRIORITY;
 }
 
-void dds_qset_destination_order (dds_qos_t *qos, dds_destination_order_kind_t kind)
+void dds_qset_destination_order (dds_qos_t * __restrict qos, dds_destination_order_kind_t kind)
 {
   if (qos == NULL)
     return;
   qos->destination_order.kind = kind;
-  qos->present |= DDSI_QP_DESTINATION_ORDER;
+  qos->present |= QP_DESTINATION_ORDER;
 }
 
-void dds_qset_writer_data_lifecycle (dds_qos_t *qos, bool autodispose)
+void dds_qset_writer_data_lifecycle (dds_qos_t * __restrict qos, bool autodispose)
 {
   if (qos == NULL)
     return;
   qos->writer_data_lifecycle.autodispose_unregistered_instances = autodispose;
-  qos->present |= DDSI_QP_ADLINK_WRITER_DATA_LIFECYCLE;
+  qos->present |= QP_ADLINK_WRITER_DATA_LIFECYCLE;
 }
 
-void dds_qset_reader_data_lifecycle (dds_qos_t *qos, dds_duration_t autopurge_nowriter_samples_delay, dds_duration_t autopurge_disposed_samples_delay)
+void dds_qset_reader_data_lifecycle (dds_qos_t * __restrict qos, dds_duration_t autopurge_nowriter_samples_delay, dds_duration_t autopurge_disposed_samples_delay)
 {
   if (qos == NULL)
     return;
   qos->reader_data_lifecycle.autopurge_nowriter_samples_delay = autopurge_nowriter_samples_delay;
   qos->reader_data_lifecycle.autopurge_disposed_samples_delay = autopurge_disposed_samples_delay;
-  qos->present |= DDSI_QP_ADLINK_READER_DATA_LIFECYCLE;
+  qos->present |= QP_ADLINK_READER_DATA_LIFECYCLE;
 }
 
-void dds_qset_writer_batching (dds_qos_t *qos, bool batch_updates)
-{
-  if (qos == NULL)
-    return;
-  qos->writer_batching.batch_updates = batch_updates;
-  qos->present |= DDSI_QP_CYCLONE_WRITER_BATCHING;
-}
-
-void dds_qset_durability_service (dds_qos_t *qos, dds_duration_t service_cleanup_delay, dds_history_kind_t history_kind, int32_t history_depth, int32_t max_samples, int32_t max_instances, int32_t max_samples_per_instance)
+void dds_qset_durability_service (dds_qos_t * __restrict qos, dds_duration_t service_cleanup_delay, dds_history_kind_t history_kind, int32_t history_depth, int32_t max_samples, int32_t max_instances, int32_t max_samples_per_instance)
 {
   if (qos == NULL)
     return;
@@ -313,33 +327,33 @@ void dds_qset_durability_service (dds_qos_t *qos, dds_duration_t service_cleanup
   qos->durability_service.resource_limits.max_samples = max_samples;
   qos->durability_service.resource_limits.max_instances = max_instances;
   qos->durability_service.resource_limits.max_samples_per_instance = max_samples_per_instance;
-  qos->present |= DDSI_QP_DURABILITY_SERVICE;
+  qos->present |= QP_DURABILITY_SERVICE;
 }
 
-void dds_qset_ignorelocal (dds_qos_t *qos, dds_ignorelocal_kind_t ignore)
+void dds_qset_ignorelocal (dds_qos_t * __restrict qos, dds_ignorelocal_kind_t ignore)
 {
   if (qos == NULL)
     return;
   qos->ignorelocal.value = ignore;
-  qos->present |= DDSI_QP_CYCLONE_IGNORELOCAL;
+  qos->present |= QP_CYCLONE_IGNORELOCAL;
 }
 
 static void dds_qprop_init (dds_qos_t * qos)
 {
-  if (!(qos->present & DDSI_QP_PROPERTY_LIST))
+  if (!(qos->present & QP_PROPERTY_LIST))
   {
     qos->property.value.n = 0;
     qos->property.value.props = NULL;
     qos->property.binary_value.n = 0;
     qos->property.binary_value.props = NULL;
-    qos->present |= DDSI_QP_PROPERTY_LIST;
+    qos->present |= QP_PROPERTY_LIST;
   }
 }
 
 #define DDS_QPROP_GET_INDEX(prop_type_, prop_field_) \
 static bool dds_q##prop_type_##_get_index (const dds_qos_t * qos, const char * name, uint32_t * index) \
 { \
-  if (qos == NULL || name == NULL || index == NULL || !(qos->present & DDSI_QP_PROPERTY_LIST)) \
+  if (qos == NULL || name == NULL || index == NULL || !(qos->present & QP_PROPERTY_LIST)) \
     return false; \
   for (uint32_t i = 0; i < qos->property.prop_field_.n; i++) \
   { \
@@ -355,10 +369,10 @@ DDS_QPROP_GET_INDEX (prop, value)
 DDS_QPROP_GET_INDEX (bprop, binary_value)
 
 #define DDS_QUNSET_PROP(prop_type_, prop_field_, value_field_) \
-void dds_qunset_##prop_type_ (dds_qos_t *qos, const char * name) \
+void dds_qunset_##prop_type_ (dds_qos_t * __restrict qos, const char * name) \
 { \
   uint32_t i; \
-  if (qos == NULL || !(qos->present & DDSI_QP_PROPERTY_LIST) || qos->property.prop_field_.n == 0 || name == NULL) \
+  if (qos == NULL || !(qos->present & QP_PROPERTY_LIST) || qos->property.prop_field_.n == 0 || name == NULL) \
     return; \
   if (dds_q##prop_type_##_get_index (qos, name, &i)) \
   { \
@@ -383,7 +397,7 @@ void dds_qunset_##prop_type_ (dds_qos_t *qos, const char * name) \
 DDS_QUNSET_PROP (prop, value, value)
 DDS_QUNSET_PROP (bprop, binary_value, value.value)
 
-void dds_qset_prop (dds_qos_t *qos, const char * name, const char * value)
+void dds_qset_prop (dds_qos_t * __restrict qos, const char * name, const char * value)
 {
   uint32_t i;
   if (qos == NULL || name == NULL || value == NULL)
@@ -407,7 +421,7 @@ void dds_qset_prop (dds_qos_t *qos, const char * name, const char * value)
   }
 }
 
-void dds_qset_bprop (dds_qos_t *qos, const char * name, const void * value, const size_t sz)
+void dds_qset_bprop (dds_qos_t * __restrict qos, const char * name, const void * value, const size_t sz)
 {
   uint32_t i;
   if (qos == NULL || name == NULL || (value == NULL && sz > 0))
@@ -430,17 +444,15 @@ void dds_qset_bprop (dds_qos_t *qos, const char * name, const void * value, cons
   }
 }
 
-void dds_qset_entity_name (dds_qos_t *qos, const char * name)
+void dds_qset_entity_name (dds_qos_t * __restrict qos, const char * name)
 {
   if (qos == NULL || name == NULL)
     return;
-  if (qos->present & DDSI_QP_ENTITY_NAME)
-    dds_free (qos->entity_name);
-  qos->entity_name = dds_string_dup (name);
-  qos->present |= DDSI_QP_ENTITY_NAME;
+  qos->entity_name = dds_string_dup(name);
+  qos->present |= QP_ENTITY_NAME;
 }
 
-void dds_qset_type_consistency (dds_qos_t *qos, dds_type_consistency_kind_t kind,
+void dds_qset_type_consistency (dds_qos_t * __restrict qos, dds_type_consistency_kind_t kind,
   bool ignore_sequence_bounds, bool ignore_string_bounds, bool ignore_member_names, bool prevent_type_widening, bool force_type_validation)
 {
   if (qos == NULL)
@@ -451,14 +463,14 @@ void dds_qset_type_consistency (dds_qos_t *qos, dds_type_consistency_kind_t kind
   qos->type_consistency.ignore_member_names = ignore_member_names;
   qos->type_consistency.prevent_type_widening = prevent_type_widening;
   qos->type_consistency.force_type_validation = force_type_validation;
-  qos->present |= DDSI_QP_TYPE_CONSISTENCY_ENFORCEMENT;
+  qos->present |= QP_TYPE_CONSISTENCY_ENFORCEMENT;
 }
 
-void dds_qset_data_representation (dds_qos_t *qos, uint32_t n, const dds_data_representation_id_t *values)
+void dds_qset_data_representation (dds_qos_t * __restrict qos, uint32_t n, const dds_data_representation_id_t *values)
 {
   if (qos == NULL || (n && !values))
     return;
-  if ((qos->present & DDSI_QP_DATA_REPRESENTATION) && qos->data_representation.value.ids != NULL)
+  if ((qos->present & QP_DATA_REPRESENTATION) && qos->data_representation.value.ids != NULL)
     ddsrt_free (qos->data_representation.value.ids);
   qos->data_representation.value.n = 0;
   qos->data_representation.value.ids = NULL;
@@ -479,78 +491,42 @@ void dds_qset_data_representation (dds_qos_t *qos, uint32_t n, const dds_data_re
       qos->data_representation.value.ids[qos->data_representation.value.n - 1] = values[x];
     }
   }
-  qos->present |= DDSI_QP_DATA_REPRESENTATION;
+  qos->present |= QP_DATA_REPRESENTATION;
 }
 
-void dds_qset_psmx_instances (dds_qos_t *qos, uint32_t n, const char **values)
+bool dds_qget_userdata (const dds_qos_t * __restrict qos, void **value, size_t *sz)
 {
-  if (qos == NULL || (n > 0 && values == NULL) || n > DDS_MAX_PSMX_INSTANCES)
-    return;
-
-  // check that names are set
-  for (uint32_t i = 0; i < n; i++)
-  {
-    if (strlen (values[i]) == 0)
-      return;
-  }
-
-  // cleanup old data
-  if ((qos->present & DDSI_QP_PSMX) && qos->psmx.n > 0)
-  {
-    assert (qos->psmx.strs != NULL);
-    for (uint32_t i = 0; i < qos->psmx.n; i++)
-      dds_free (qos->psmx.strs[i]);
-    dds_free (qos->psmx.strs);
-    qos->psmx.strs = NULL;
-  }
-
-  // copy in new data
-  qos->psmx.n = n;
-  if (n > 0)
-  {
-    qos->psmx.strs = dds_alloc (n * sizeof (*qos->psmx.strs));
-    for (uint32_t i = 0; i < n; i++)
-      qos->psmx.strs[i] = dds_string_dup (values[i]);
-  }
-  else
-    qos->psmx.strs = NULL;
-
-  qos->present |= DDSI_QP_PSMX;
-}
-
-bool dds_qget_userdata (const dds_qos_t *qos, void **value, size_t *sz)
-{
-  if (qos == NULL || !(qos->present & DDSI_QP_USER_DATA))
+  if (qos == NULL || !(qos->present & QP_USER_DATA))
     return false;
   return dds_qos_data_copy_out (&qos->user_data, value, sz);
 }
 
-bool dds_qget_topicdata (const dds_qos_t *qos, void **value, size_t *sz)
+bool dds_qget_topicdata (const dds_qos_t * __restrict qos, void **value, size_t *sz)
 {
-  if (qos == NULL || !(qos->present & DDSI_QP_TOPIC_DATA))
+  if (qos == NULL || !(qos->present & QP_TOPIC_DATA))
     return false;
   return dds_qos_data_copy_out (&qos->topic_data, value, sz);
 }
 
-bool dds_qget_groupdata (const dds_qos_t *qos, void **value, size_t *sz)
+bool dds_qget_groupdata (const dds_qos_t * __restrict qos, void **value, size_t *sz)
 {
-  if (qos == NULL || !(qos->present & DDSI_QP_GROUP_DATA))
+  if (qos == NULL || !(qos->present & QP_GROUP_DATA))
     return false;
   return dds_qos_data_copy_out (&qos->group_data, value, sz);
 }
 
-bool dds_qget_durability (const dds_qos_t *qos, dds_durability_kind_t *kind)
+bool dds_qget_durability (const dds_qos_t * __restrict qos, dds_durability_kind_t *kind)
 {
-  if (qos == NULL || !(qos->present & DDSI_QP_DURABILITY))
+  if (qos == NULL || !(qos->present & QP_DURABILITY))
     return false;
   if (kind)
     *kind = qos->durability.kind;
   return true;
 }
 
-bool dds_qget_history (const dds_qos_t *qos, dds_history_kind_t *kind, int32_t *depth)
+bool dds_qget_history (const dds_qos_t * __restrict qos, dds_history_kind_t *kind, int32_t *depth)
 {
-  if (qos == NULL || !(qos->present & DDSI_QP_HISTORY))
+  if (qos == NULL || !(qos->present & QP_HISTORY))
     return false;
   if (kind)
     *kind = qos->history.kind;
@@ -559,9 +535,9 @@ bool dds_qget_history (const dds_qos_t *qos, dds_history_kind_t *kind, int32_t *
   return true;
 }
 
-bool dds_qget_resource_limits (const dds_qos_t *qos, int32_t *max_samples, int32_t *max_instances, int32_t *max_samples_per_instance)
+bool dds_qget_resource_limits (const dds_qos_t * __restrict qos, int32_t *max_samples, int32_t *max_instances, int32_t *max_samples_per_instance)
 {
-  if (qos == NULL || !(qos->present & DDSI_QP_RESOURCE_LIMITS))
+  if (qos == NULL || !(qos->present & QP_RESOURCE_LIMITS))
     return false;
   if (max_samples)
     *max_samples = qos->resource_limits.max_samples;
@@ -572,9 +548,9 @@ bool dds_qget_resource_limits (const dds_qos_t *qos, int32_t *max_samples, int32
   return true;
 }
 
-bool dds_qget_presentation (const dds_qos_t *qos, dds_presentation_access_scope_kind_t *access_scope, bool *coherent_access, bool *ordered_access)
+bool dds_qget_presentation (const dds_qos_t * __restrict qos, dds_presentation_access_scope_kind_t *access_scope, bool *coherent_access, bool *ordered_access)
 {
-  if (qos == NULL || !(qos->present & DDSI_QP_PRESENTATION))
+  if (qos == NULL || !(qos->present & QP_PRESENTATION))
     return false;
   if (access_scope)
     *access_scope = qos->presentation.access_scope;
@@ -585,54 +561,54 @@ bool dds_qget_presentation (const dds_qos_t *qos, dds_presentation_access_scope_
   return true;
 }
 
-bool dds_qget_lifespan (const dds_qos_t *qos, dds_duration_t *lifespan)
+bool dds_qget_lifespan (const dds_qos_t * __restrict qos, dds_duration_t *lifespan)
 {
-  if (qos == NULL || !(qos->present & DDSI_QP_LIFESPAN))
+  if (qos == NULL || !(qos->present & QP_LIFESPAN))
     return false;
   if (lifespan)
     *lifespan = qos->lifespan.duration;
   return true;
 }
 
-bool dds_qget_deadline (const dds_qos_t *qos, dds_duration_t *deadline)
+bool dds_qget_deadline (const dds_qos_t * __restrict qos, dds_duration_t *deadline)
 {
-  if (qos == NULL || !(qos->present & DDSI_QP_DEADLINE))
+  if (qos == NULL || !(qos->present & QP_DEADLINE))
     return false;
   if (deadline)
     *deadline = qos->deadline.deadline;
   return true;
 }
 
-bool dds_qget_latency_budget (const dds_qos_t *qos, dds_duration_t *duration)
+bool dds_qget_latency_budget (const dds_qos_t * __restrict qos, dds_duration_t *duration)
 {
-  if (qos == NULL || !(qos->present & DDSI_QP_LATENCY_BUDGET))
+  if (qos == NULL || !(qos->present & QP_LATENCY_BUDGET))
     return false;
   if (duration)
     *duration = qos->latency_budget.duration;
   return true;
 }
 
-bool dds_qget_ownership (const dds_qos_t *qos, dds_ownership_kind_t *kind)
+bool dds_qget_ownership (const dds_qos_t * __restrict qos, dds_ownership_kind_t *kind)
 {
-  if (qos == NULL || !(qos->present & DDSI_QP_OWNERSHIP))
+  if (qos == NULL || !(qos->present & QP_OWNERSHIP))
     return false;
   if (kind)
     *kind = qos->ownership.kind;
   return true;
 }
 
-bool dds_qget_ownership_strength (const dds_qos_t *qos, int32_t *value)
+bool dds_qget_ownership_strength (const dds_qos_t * __restrict qos, int32_t *value)
 {
-  if (qos == NULL || !(qos->present & DDSI_QP_OWNERSHIP_STRENGTH))
+  if (qos == NULL || !(qos->present & QP_OWNERSHIP_STRENGTH))
     return false;
   if (value)
     *value = qos->ownership_strength.value;
   return true;
 }
 
-bool dds_qget_liveliness (const dds_qos_t *qos, dds_liveliness_kind_t *kind, dds_duration_t *lease_duration)
+bool dds_qget_liveliness (const dds_qos_t * __restrict qos, dds_liveliness_kind_t *kind, dds_duration_t *lease_duration)
 {
-  if (qos == NULL || !(qos->present & DDSI_QP_LIVELINESS))
+  if (qos == NULL || !(qos->present & QP_LIVELINESS))
     return false;
   if (kind)
     *kind = qos->liveliness.kind;
@@ -641,18 +617,18 @@ bool dds_qget_liveliness (const dds_qos_t *qos, dds_liveliness_kind_t *kind, dds
   return true;
 }
 
-bool dds_qget_time_based_filter (const dds_qos_t *qos, dds_duration_t *minimum_separation)
+bool dds_qget_time_based_filter (const dds_qos_t * __restrict qos, dds_duration_t *minimum_separation)
 {
-  if (qos == NULL || !(qos->present & DDSI_QP_TIME_BASED_FILTER))
+  if (qos == NULL || !(qos->present & QP_TIME_BASED_FILTER))
     return false;
   if (minimum_separation)
     *minimum_separation = qos->time_based_filter.minimum_separation;
   return true;
 }
 
-bool dds_qget_partition (const dds_qos_t *qos, uint32_t *n, char ***ps)
+bool dds_qget_partition (const dds_qos_t * __restrict qos, uint32_t *n, char ***ps)
 {
-  if (qos == NULL || !(qos->present & DDSI_QP_PARTITION))
+  if (qos == NULL || !(qos->present & QP_PARTITION))
     return false;
   if (n == NULL && ps != NULL)
     return false;
@@ -672,9 +648,9 @@ bool dds_qget_partition (const dds_qos_t *qos, uint32_t *n, char ***ps)
   return true;
 }
 
-bool dds_qget_reliability (const dds_qos_t *qos, dds_reliability_kind_t *kind, dds_duration_t *max_blocking_time)
+bool dds_qget_reliability (const dds_qos_t * __restrict qos, dds_reliability_kind_t *kind, dds_duration_t *max_blocking_time)
 {
-  if (qos == NULL || !(qos->present & DDSI_QP_RELIABILITY))
+  if (qos == NULL || !(qos->present & QP_RELIABILITY))
     return false;
   if (kind)
     *kind = qos->reliability.kind;
@@ -683,36 +659,36 @@ bool dds_qget_reliability (const dds_qos_t *qos, dds_reliability_kind_t *kind, d
   return true;
 }
 
-bool dds_qget_transport_priority (const dds_qos_t *qos, int32_t *value)
+bool dds_qget_transport_priority (const dds_qos_t * __restrict qos, int32_t *value)
 {
-  if (qos == NULL || !(qos->present & DDSI_QP_TRANSPORT_PRIORITY))
+  if (qos == NULL || !(qos->present & QP_TRANSPORT_PRIORITY))
     return false;
   if (value)
     *value = qos->transport_priority.value;
   return true;
 }
 
-bool dds_qget_destination_order (const dds_qos_t *qos, dds_destination_order_kind_t *kind)
+bool dds_qget_destination_order (const dds_qos_t * __restrict qos, dds_destination_order_kind_t *kind)
 {
-  if (qos == NULL || !(qos->present & DDSI_QP_DESTINATION_ORDER))
+  if (qos == NULL || !(qos->present & QP_DESTINATION_ORDER))
     return false;
   if (kind)
     *kind = qos->destination_order.kind;
   return true;
 }
 
-bool dds_qget_writer_data_lifecycle (const dds_qos_t *qos, bool *autodispose)
+bool dds_qget_writer_data_lifecycle (const dds_qos_t * __restrict qos, bool *autodispose)
 {
-  if (qos == NULL || !(qos->present & DDSI_QP_ADLINK_WRITER_DATA_LIFECYCLE))
+  if (qos == NULL || !(qos->present & QP_ADLINK_WRITER_DATA_LIFECYCLE))
     return false;
   if (autodispose)
     *autodispose = qos->writer_data_lifecycle.autodispose_unregistered_instances;
   return true;
 }
 
-bool dds_qget_reader_data_lifecycle (const dds_qos_t *qos, dds_duration_t *autopurge_nowriter_samples_delay, dds_duration_t *autopurge_disposed_samples_delay)
+bool dds_qget_reader_data_lifecycle (const dds_qos_t * __restrict qos, dds_duration_t *autopurge_nowriter_samples_delay, dds_duration_t *autopurge_disposed_samples_delay)
 {
-  if (qos == NULL || !(qos->present & DDSI_QP_ADLINK_READER_DATA_LIFECYCLE))
+  if (qos == NULL || !(qos->present & QP_ADLINK_READER_DATA_LIFECYCLE))
     return false;
   if (autopurge_nowriter_samples_delay)
     *autopurge_nowriter_samples_delay = qos->reader_data_lifecycle.autopurge_nowriter_samples_delay;
@@ -721,18 +697,9 @@ bool dds_qget_reader_data_lifecycle (const dds_qos_t *qos, dds_duration_t *autop
   return true;
 }
 
-bool dds_qget_writer_batching (const dds_qos_t *qos, bool *batch_updates)
+bool dds_qget_durability_service (const dds_qos_t * __restrict qos, dds_duration_t *service_cleanup_delay, dds_history_kind_t *history_kind, int32_t *history_depth, int32_t *max_samples, int32_t *max_instances, int32_t *max_samples_per_instance)
 {
-  if (qos == NULL || !(qos->present & DDSI_QP_CYCLONE_WRITER_BATCHING))
-    return false;
-  if (batch_updates)
-    *batch_updates = qos->writer_batching.batch_updates;
-  return true;
-}
-
-bool dds_qget_durability_service (const dds_qos_t *qos, dds_duration_t *service_cleanup_delay, dds_history_kind_t *history_kind, int32_t *history_depth, int32_t *max_samples, int32_t *max_instances, int32_t *max_samples_per_instance)
-{
-  if (qos == NULL || !(qos->present & DDSI_QP_DURABILITY_SERVICE))
+  if (qos == NULL || !(qos->present & QP_DURABILITY_SERVICE))
     return false;
   if (service_cleanup_delay)
     *service_cleanup_delay = qos->durability_service.service_cleanup_delay;
@@ -749,9 +716,9 @@ bool dds_qget_durability_service (const dds_qos_t *qos, dds_duration_t *service_
   return true;
 }
 
-bool dds_qget_ignorelocal (const dds_qos_t *qos, dds_ignorelocal_kind_t *ignore)
+bool dds_qget_ignorelocal (const dds_qos_t * __restrict qos, dds_ignorelocal_kind_t *ignore)
 {
-  if (qos == NULL || !(qos->present & DDSI_QP_CYCLONE_IGNORELOCAL))
+  if (qos == NULL || !(qos->present & QP_CYCLONE_IGNORELOCAL))
     return false;
   if (ignore)
     *ignore = qos->ignorelocal.value;
@@ -759,12 +726,12 @@ bool dds_qget_ignorelocal (const dds_qos_t *qos, dds_ignorelocal_kind_t *ignore)
 }
 
 #define DDS_QGET_PROPNAMES(prop_type_, prop_field_) \
-bool dds_qget_##prop_type_##names (const dds_qos_t *qos, uint32_t * n, char *** names) \
+bool dds_qget_##prop_type_##names (const dds_qos_t * __restrict qos, uint32_t * n, char *** names) \
 { \
   bool props; \
   if (qos == NULL || (n == NULL && names == NULL)) \
     return false; \
-  props = (qos->present & DDSI_QP_PROPERTY_LIST) && qos->property.prop_field_.n > 0; \
+  props = (qos->present & QP_PROPERTY_LIST) && qos->property.prop_field_.n > 0; \
   if (n != NULL) \
     *n = props ? qos->property.prop_field_.n : 0; \
   if (names != NULL) \
@@ -783,7 +750,7 @@ bool dds_qget_##prop_type_##names (const dds_qos_t *qos, uint32_t * n, char *** 
 DDS_QGET_PROPNAMES (prop, value)
 DDS_QGET_PROPNAMES (bprop, binary_value)
 
-bool dds_qget_prop (const dds_qos_t *qos, const char * name, char ** value)
+bool dds_qget_prop (const dds_qos_t * __restrict qos, const char * name, char ** value)
 {
   uint32_t i;
   bool found;
@@ -797,7 +764,7 @@ bool dds_qget_prop (const dds_qos_t *qos, const char * name, char ** value)
   return found;
 }
 
-bool dds_qget_bprop (const dds_qos_t *qos, const char * name, void ** value, size_t * sz)
+bool dds_qget_bprop (const dds_qos_t * __restrict qos, const char * name, void ** value, size_t * sz)
 {
   uint32_t i;
   bool found;
@@ -821,10 +788,10 @@ bool dds_qget_bprop (const dds_qos_t *qos, const char * name, void ** value, siz
   return found;
 }
 
-bool dds_qget_type_consistency (const dds_qos_t *qos, dds_type_consistency_kind_t *kind,
+bool dds_qget_type_consistency (const dds_qos_t * __restrict qos, dds_type_consistency_kind_t *kind,
   bool *ignore_sequence_bounds, bool *ignore_string_bounds, bool *ignore_member_names, bool *prevent_type_widening, bool *force_type_validation)
 {
-  if (qos == NULL || !(qos->present & DDSI_QP_TYPE_CONSISTENCY_ENFORCEMENT))
+  if (qos == NULL || !(qos->present & QP_TYPE_CONSISTENCY_ENFORCEMENT))
     return false;
   if (kind)
     *kind = qos->type_consistency.kind;
@@ -841,9 +808,9 @@ bool dds_qget_type_consistency (const dds_qos_t *qos, dds_type_consistency_kind_
   return true;
 }
 
-bool dds_qget_data_representation (const dds_qos_t *qos, uint32_t *n, dds_data_representation_id_t **values)
+bool dds_qget_data_representation (const dds_qos_t * __restrict qos, uint32_t *n, dds_data_representation_id_t **values)
 {
-  if (qos == NULL || !(qos->present & DDSI_QP_DATA_REPRESENTATION))
+  if (qos == NULL || !(qos->present & QP_DATA_REPRESENTATION))
     return false;
   if (n == NULL)
     return false;
@@ -871,7 +838,7 @@ dds_return_t dds_ensure_valid_data_representation (dds_qos_t *qos, uint32_t allo
   const bool allow1 = allowed_data_representations & DDS_DATA_REPRESENTATION_FLAG_XCDR1,
     allow2 = allowed_data_representations & DDS_DATA_REPRESENTATION_FLAG_XCDR2;
 
-  if ((qos->present & DDSI_QP_DATA_REPRESENTATION) && qos->data_representation.value.n > 0)
+  if ((qos->present & QP_DATA_REPRESENTATION) && qos->data_representation.value.n > 0)
   {
     assert (qos->data_representation.value.ids != NULL);
     for (uint32_t n = 0; n < qos->data_representation.value.n; n++)
@@ -907,124 +874,22 @@ dds_return_t dds_ensure_valid_data_representation (dds_qos_t *qos, uint32_t allo
   return DDS_RETCODE_OK;
 }
 
-
-bool dds_qget_psmx_instances (const dds_qos_t *qos, uint32_t *n_out, char ***values)
+bool dds_qget_entity_name (const dds_qos_t * __restrict qos, char **name)
 {
-  if (qos == NULL || !(qos->present & DDSI_QP_PSMX) || n_out == NULL)
-    return false;
-
-  if (qos->psmx.n > 0)
-    assert (qos->psmx.strs != NULL);
-
-  *n_out = qos->psmx.n;
-  if (values != NULL)
-  {
-    if (*n_out > 0)
-    {
-      *values = dds_alloc ((*n_out) * sizeof (**values));
-      for (uint32_t i = 0; i < *n_out; i++)
-        (*values)[i] = dds_string_dup (qos->psmx.strs[i]);
-    }
-    else
-      *values = NULL;
-  }
-
-  return true;
-}
-
-dds_return_t dds_ensure_valid_psmx_instances (dds_qos_t *qos, dds_psmx_endpoint_type_t forwhat, const struct ddsi_sertype *stype, const struct dds_psmx_set *psmx_instances)
-{
-  uint32_t n_supported = 0;
-  const char *supported_psmx[DDS_MAX_PSMX_INSTANCES];
-  dds_return_t ret = DDS_RETCODE_OK;
-
-  // Check sertype has operations required by PSMX
-  if ((forwhat == DDS_PSMX_ENDPOINT_TYPE_WRITER && stype->serdata_ops->from_loaned_sample) ||
-      (forwhat == DDS_PSMX_ENDPOINT_TYPE_READER && stype->serdata_ops->from_psmx))
-  {
-    if (!(qos->present & DDSI_QP_PSMX))
-    {
-      assert (psmx_instances->length <= DDS_MAX_PSMX_INSTANCES);
-      for (uint32_t i = 0; i < psmx_instances->length; i++)
-      {
-        struct dds_psmx_int *psmx = psmx_instances->elems[i].instance;
-        if (psmx->ops.type_qos_supported (psmx->ext, forwhat, stype->data_type_props, qos))
-          supported_psmx[n_supported++] = psmx->instance_name;
-      }
-    }
-    else
-    {
-      uint32_t n = 0;
-      char **values;
-      dds_qget_psmx_instances (qos, &n, &values);
-      for (uint32_t i = 0; ret == DDS_RETCODE_OK && i < n; i++)
-      {
-        struct dds_psmx_int *psmx = NULL;
-        for (uint32_t s = 0; psmx == NULL && s < psmx_instances->length; s++)
-        {
-          assert (psmx_instances->elems[s].instance);
-          if (strcmp (psmx_instances->elems[s].instance->instance_name, values[i]) == 0)
-            psmx = psmx_instances->elems[s].instance;
-        }
-        if (psmx == NULL || !psmx->ops.type_qos_supported (psmx->ext, forwhat, stype->data_type_props, qos))
-          ret = DDS_RETCODE_BAD_PARAMETER;
-        else
-        {
-          uint32_t j;
-          for (j = 0; j < n_supported; j++)
-            if (supported_psmx[j] == psmx->instance_name)
-              break;
-          if (j == n_supported)
-            supported_psmx[n_supported++] = psmx->instance_name;
-          else
-            ret = DDS_RETCODE_BAD_PARAMETER;
-        }
-      }
-      for (uint32_t i = 0; i < n; i++)
-        dds_free (values[i]);
-      dds_free (values);
-    }
-  }
-
-  if (ret == DDS_RETCODE_OK)
-    dds_qset_psmx_instances (qos, n_supported, supported_psmx);
-  return ret;
-}
-
-bool dds_qos_has_psmx_instances (const dds_qos_t *qos, const char *psmx_instance_name)
-{
-  uint32_t n_instances = 0;
-  char **values = NULL;
-  bool found = false;
-  dds_qget_psmx_instances (qos, &n_instances, &values);
-  for (uint32_t i = 0; values != NULL && i < n_instances; i++)
-  {
-    if (strcmp (psmx_instance_name, values[i]) == 0)
-      found = true;
-    dds_free (values[i]);
-  }
-  if (n_instances > 0)
-    dds_free (values);
-  return found;
-}
-
-bool dds_qget_entity_name (const dds_qos_t *qos, char **name)
-{
-  if (qos == NULL || name == NULL || !(qos->present & DDSI_QP_ENTITY_NAME))
+  if (qos == NULL || name == NULL || !(qos->present & QP_ENTITY_NAME))
     return false;
 
   *name = dds_string_dup (qos->entity_name);
   return *name != NULL;
 }
 
-void dds_apply_entity_naming(dds_qos_t *qos, /* optional */ dds_qos_t *parent_qos, struct ddsi_domaingv *gv)
-{
-  if (gv->config.entity_naming_mode == DDSI_ENTITY_NAMING_DEFAULT_FANCY && !(qos->present & DDSI_QP_ENTITY_NAME)) {
+void dds_apply_entity_naming(dds_qos_t *qos, /* optional */ dds_qos_t *parent_qos, struct ddsi_domaingv *gv) {
+  if (gv->config.entity_naming_mode == DDSI_ENTITY_NAMING_DEFAULT_FANCY && !(qos->present & QP_ENTITY_NAME)) {
     char name_buf[16];
     ddsrt_mutex_lock(&gv->naming_lock);
     ddsrt_prng_random_name(&gv->naming_rng, name_buf, sizeof(name_buf));
     ddsrt_mutex_unlock(&gv->naming_lock);
-    if (parent_qos && parent_qos->present & DDSI_QP_ENTITY_NAME) {
+    if (parent_qos && parent_qos->present & QP_ENTITY_NAME) {
       // Copy the parent prefix
       memcpy(name_buf, parent_qos->entity_name, strnlen(parent_qos->entity_name, 3));
     }

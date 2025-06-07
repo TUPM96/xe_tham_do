@@ -1,13 +1,14 @@
-// Copyright(c) 2006 to 2020 ZettaScale Technology and others
-//
-// This program and the accompanying materials are made available under the
-// terms of the Eclipse Public License v. 2.0 which is available at
-// http://www.eclipse.org/legal/epl-2.0, or the Eclipse Distribution License
-// v. 1.0 which is available at
-// http://www.eclipse.org/org/documents/edl-v10.php.
-//
-// SPDX-License-Identifier: EPL-2.0 OR BSD-3-Clause
-
+/*
+ * Copyright(c) 2006 to 2020 ZettaScale Technology and others
+ *
+ * This program and the accompanying materials are made available under the
+ * terms of the Eclipse Public License v. 2.0 which is available at
+ * http://www.eclipse.org/legal/epl-2.0, or the Eclipse Distribution License
+ * v. 1.0 which is available at
+ * http://www.eclipse.org/org/documents/edl-v10.php.
+ *
+ * SPDX-License-Identifier: EPL-2.0 OR BSD-3-Clause
+ */
 #include <assert.h>
 
 #include "dds/ddsrt/heap.h"
@@ -17,12 +18,16 @@
 #include "dds/security/dds_security_api.h"
 #include "dds/security/core/dds_security_serialize.h"
 #include "dds/security/core/dds_security_utils.h"
-#include "dds/security/core/dds_security_shared_secret.h"
+#include "dds/security/core/shared_secret.h"
 #include "dds/security/openssl_support.h"
 #include "CUnit/CUnit.h"
 #include "CUnit/Test.h"
 #include "common/src/loader.h"
 #include "crypto_objects.h"
+
+#if OPENSLL_VERSION_NUMBER >= 0x10002000L
+#define AUTH_INCLUDE_EC
+#endif
 
 static struct plugins_hdl *plugins = NULL;
 static dds_security_cryptography *crypto = NULL;
@@ -147,6 +152,7 @@ CU_Test(ddssec_builtin_register_local_participant, empty_identity, .init = suite
 
   CU_ASSERT(exception.code == DDS_SECURITY_ERR_IDENTITY_EMPTY_CODE);
   CU_ASSERT_FATAL(exception.message != NULL);
+  assert(exception.message != NULL); // for Clang's static analyzer
   CU_ASSERT(!strcmp(exception.message, DDS_SECURITY_ERR_IDENTITY_EMPTY_MESSAGE));
   CU_ASSERT(result == 0);
 

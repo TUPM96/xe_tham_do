@@ -1,13 +1,14 @@
-// Copyright(c) 2006 to 2022 ZettaScale Technology and others
-//
-// This program and the accompanying materials are made available under the
-// terms of the Eclipse Public License v. 2.0 which is available at
-// http://www.eclipse.org/legal/epl-2.0, or the Eclipse Distribution License
-// v. 1.0 which is available at
-// http://www.eclipse.org/org/documents/edl-v10.php.
-//
-// SPDX-License-Identifier: EPL-2.0 OR BSD-3-Clause
-
+/*
+ * Copyright(c) 2006 to 2022 ZettaScale Technology and others
+ *
+ * This program and the accompanying materials are made available under the
+ * terms of the Eclipse Public License v. 2.0 which is available at
+ * http://www.eclipse.org/legal/epl-2.0, or the Eclipse Distribution License
+ * v. 1.0 which is available at
+ * http://www.eclipse.org/org/documents/edl-v10.php.
+ *
+ * SPDX-License-Identifier: EPL-2.0 OR BSD-3-Clause
+ */
 #include <assert.h>
 #include <stdbool.h>
 #include <stddef.h>
@@ -18,9 +19,6 @@
 #include "dds/ddsrt/misc.h"
 #include "dds/ddsrt/retcode.h"
 #include "dds/ddsrt/time.h"
-
-// Has to be included after most of windows has been included, it seems
-#include <mswsock.h>
 
 #ifdef ddsrt_select
 #undef ddsrt_select /* See sockets.h for details. */
@@ -98,43 +96,6 @@ ddsrt_socket(ddsrt_socket_t *sockptr, int domain, int type, int protocol)
   }
 
   return DDS_RETCODE_ERROR;
-}
-
-void
-ddsrt_socket_ext_init(
-  ddsrt_socket_ext_t *sockext,
-  ddsrt_socket_t sock)
-{
-  sockext->sock = sock;
-  // It is not clear to me whether each socket gets the same WSARecvMsg function pointer
-  // so we have to request it for every socket.  It is clear to me that one mustn't try it
-  // on a SOCK_STREAM socket
-  int type;
-  int length = sizeof (int);
-  getsockopt (sock, SOL_SOCKET, SO_TYPE, (char *) &type, &length);
-  if (type == SOCK_STREAM)
-  {
-    sockext->wsarecvmsg = 0;
-  }
-  else
-  {
-    GUID wsarecvmsg_guid = WSAID_WSARECVMSG;
-    DWORD dwBytesReturned = 0;
-    if (WSAIoctl (sockext->sock, SIO_GET_EXTENSION_FUNCTION_POINTER,
-                  &wsarecvmsg_guid, sizeof (wsarecvmsg_guid),
-                  &sockext->wsarecvmsg, sizeof (sockext->wsarecvmsg),
-                  &dwBytesReturned, NULL, NULL) != 0)
-    {
-      sockext->wsarecvmsg = 0;
-    }
-  }
-}
-
-void
-ddsrt_socket_ext_fini(
-  ddsrt_socket_ext_t *sockext)
-{
-  (void)sockext;
 }
 
 dds_return_t
@@ -536,93 +497,46 @@ ddsrt_recv(
   return recv_error_to_retcode(WSAGetLastError());
 }
 
-/* Compile time check to ensure iovec matches WSABUF. */
-struct iovec_matches_WSABUF {
-  char sizeof_matches[sizeof(ddsrt_iovec_t) == sizeof(WSABUF) ? 1 : -1];
-  char base_off_matches[offsetof(ddsrt_iovec_t, iov_base) == offsetof(WSABUF, buf) ? 1 : -1];
-  char base_size_matches[sizeof(((ddsrt_iovec_t *)8)->iov_base) == sizeof(((WSABUF *)8)->buf) ? 1 : -1];
-  char len_off_matches[offsetof(ddsrt_iovec_t, iov_len) == offsetof(WSABUF, len) ? 1 : -1];
-  char len_size_matches[sizeof(((ddsrt_iovec_t *)8)->iov_len) == sizeof(((WSABUF *)8)->len) ? 1 : -1];
-};
-
-static dds_return_t
-ddsrt_recvmsg_wsarecvmsg(
-  const ddsrt_socket_ext_t *sockext,
-  ddsrt_msghdr_t *msg,
-  int flags,
-  ssize_t *rcvd)
-{
-  WSAMSG wsamsg = {
-    .name = (LPSOCKADDR) msg->msg_name,
-    .namelen = (INT) msg->msg_namelen,
-    .lpBuffers = (LPWSABUF) msg->msg_iov,
-    .dwBufferCount = (DWORD) msg->msg_iovlen,
-    .Control = {
-      .len = (ULONG) msg->msg_controllen,
-      .buf = (CHAR *) msg->msg_control,
-    },
-    .dwFlags = 0
-  };
-  DWORD n;
-  int err;
-  if (sockext->wsarecvmsg (sockext->sock, &wsamsg, &n, NULL, 0) == 0 || (err = WSAGetLastError()) == WSAEMSGSIZE)
-  {
-    // WSAEMSGSIZE is not an error for us: we look at (msg_flags & MSG_TRUNC)
-    msg->msg_flags = wsamsg.dwFlags;
-    msg->msg_controllen = wsamsg.Control.len;
-    *rcvd = (ssize_t) n;
-    return DDS_RETCODE_OK;
-  }
-  else
-  {
-    return recv_error_to_retcode(err);
-  }
-}
-
-static dds_return_t
-ddsrt_recvmsg_recvfrom(
-  const ddsrt_socket_ext_t *sockext,
-  ddsrt_msghdr_t *msg,
-  int flags,
-  ssize_t *rcvd)
-{
-  assert(msg->msg_iovlen == 1);
-  assert(msg->msg_iov[0].iov_len < INT_MAX);
-  msg->msg_flags = 0;
-  int n = recvfrom(
-          sockext->sock,
-          msg->msg_iov[0].iov_base,
-          (int)msg->msg_iov[0].iov_len,
-          flags,
-          msg->msg_name,
-          &msg->msg_namelen);
-  msg->msg_controllen = 0;
-  *rcvd = n;
-  if (n != SOCKET_ERROR)
-    return DDS_RETCODE_OK;
-
-  int err = WSAGetLastError();
-  if (err == WSAEMSGSIZE) {
-    // WSAEMSGSIZE is not an error for us: we look at (msg_flags & MSG_TRUNC)
-    msg->msg_flags |= MSG_TRUNC;
-    return DDS_RETCODE_OK;
-  } else {
-    return recv_error_to_retcode(err);
-  }
-}
-
 dds_return_t
 ddsrt_recvmsg(
-  const ddsrt_socket_ext_t *sockext,
+  ddsrt_socket_t sock,
   ddsrt_msghdr_t *msg,
   int flags,
   ssize_t *rcvd)
 {
+  int err, n;
+
   assert(msg != NULL);
-  if (sockext->wsarecvmsg)
-    return ddsrt_recvmsg_wsarecvmsg (sockext, msg, flags, rcvd);
-  else
-    return ddsrt_recvmsg_recvfrom (sockext, msg, flags, rcvd);
+  assert(msg->msg_iovlen == 1);
+  assert(msg->msg_controllen == 0);
+  assert(msg->msg_iov[0].iov_len < INT_MAX);
+
+  msg->msg_flags = 0;
+  n = recvfrom(
+    sock,
+    msg->msg_iov[0].iov_base,
+    (int)msg->msg_iov[0].iov_len,
+    flags,
+    msg->msg_name,
+   &msg->msg_namelen);
+
+  if (n != -1) {
+    *rcvd = n;
+    return DDS_RETCODE_OK;
+  }
+
+  err = WSAGetLastError();
+  if (err == WSAEMSGSIZE) {
+    /* Windows returns an error for too-large messages, UNIX expects the
+       original size and the MSG_TRUNC flag. MSDN states it is truncated, which
+       presumably means it returned as much of the message as it could. Return
+       that the message was one byte larger than the available space and set
+       MSG_TRUNC. */
+    *rcvd = msg->msg_iov[0].iov_len + 1;
+    msg->msg_flags |= MSG_TRUNC;
+  }
+
+  return recv_error_to_retcode(err);
 }
 
 static dds_return_t
@@ -693,6 +607,15 @@ ddsrt_send(
   return send_error_to_retcode(WSAGetLastError());
 }
 
+/* Compile time check to ensure iovec matches WSABUF. */
+struct iovec_matches_WSABUF {
+  char sizeof_matches[sizeof(ddsrt_iovec_t) == sizeof(WSABUF) ? 1 : -1];
+  char base_off_matches[offsetof(ddsrt_iovec_t, iov_base) == offsetof(WSABUF, buf) ? 1 : -1];
+  char base_size_matches[sizeof(((ddsrt_iovec_t *)8)->iov_base) == sizeof(((WSABUF *)8)->buf) ? 1 : -1];
+  char len_off_matches[offsetof(ddsrt_iovec_t, iov_len) == offsetof(WSABUF, len) ? 1 : -1];
+  char len_size_matches[sizeof(((ddsrt_iovec_t *)8)->iov_len) == sizeof(((WSABUF *)8)->len) ? 1 : -1];
+};
+
 dds_return_t
 ddsrt_sendmsg(
   ddsrt_socket_t sock,
@@ -706,8 +629,6 @@ ddsrt_sendmsg(
   assert(msg != NULL);
   assert(msg->msg_controllen == 0);
 
-  // msg_iov -> WSABUF* cast validity is checked by compile-time
-  // checks defined above in "struct iovec_matches_WSABUF"
   ret = WSASendTo(
         sock,
         (WSABUF *)msg->msg_iov,
@@ -761,28 +682,4 @@ ddsrt_select(
   }
 
   return DDS_RETCODE_ERROR;
-}
-
-dds_return_t
-ddsrt_shutdown(
-  ddsrt_socket_t sock,
-  enum ddsrt_shutdown_how how)
-{
-  int how1 = -1;
-  switch (how)
-  {
-    case DDSRT_SHUTDOWN_READ:
-      how1 = SD_RECEIVE;
-      break;
-    case DDSRT_SHUTDOWN_WRITE:
-      how1 = SD_SEND;
-      break;
-    case DDSRT_SHUTDOWN_READ_WRITE:
-      how1 = SD_BOTH;
-  }
-  int ret = shutdown (sock, how1);
-  if (ret == 0)
-    return DDS_RETCODE_OK;
-  else
-    return DDS_RETCODE_BAD_PARAMETER;
 }

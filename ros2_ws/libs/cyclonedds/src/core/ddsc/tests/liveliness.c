@@ -1,16 +1,24 @@
-// Copyright(c) 2006 to 2022 ZettaScale Technology and others
-//
-// This program and the accompanying materials are made available under the
-// terms of the Eclipse Public License v. 2.0 which is available at
-// http://www.eclipse.org/legal/epl-2.0, or the Eclipse Distribution License
-// v. 1.0 which is available at
-// http://www.eclipse.org/org/documents/edl-v10.php.
-//
-// SPDX-License-Identifier: EPL-2.0 OR BSD-3-Clause
-
+/*
+ * Copyright(c) 2006 to 2022 ZettaScale Technology and others
+ *
+ * This program and the accompanying materials are made available under the
+ * terms of the Eclipse Public License v. 2.0 which is available at
+ * http://www.eclipse.org/legal/epl-2.0, or the Eclipse Distribution License
+ * v. 1.0 which is available at
+ * http://www.eclipse.org/org/documents/edl-v10.php.
+ *
+ * SPDX-License-Identifier: EPL-2.0 OR BSD-3-Clause
+ */
 #include <assert.h>
 #include <limits.h>
 
+#include "dds/dds.h"
+#include "config_env.h"
+
+#include "dds/version.h"
+#include "dds__entity.h"
+#include "dds/ddsi/ddsi_entity.h"
+#include "dds/ddsi/ddsi_entity_index.h"
 #include "dds/ddsrt/cdtors.h"
 #include "dds/ddsrt/misc.h"
 #include "dds/ddsrt/process.h"
@@ -18,19 +26,19 @@
 #include "dds/ddsrt/environ.h"
 #include "dds/ddsrt/atomics.h"
 #include "dds/ddsrt/time.h"
-#include "dds/ddsi/ddsi_entity.h"
-#include "dds/ddsi/ddsi_entity_index.h"
-#include "ddsi__participant.h"
-#include "dds/dds.h"
-#include "dds/version.h"
-#include "dds__entity.h"
-#include "config_env.h"
+#include "dds/ddsi/ddsi_participant.h"
+
 #include "test_common.h"
 
 #define DDS_DOMAINID_PUB 0
 #define DDS_DOMAINID_SUB 1
+#ifdef DDS_HAS_SHM
+#define DDS_CONFIG_NO_PORT_GAIN "${CYCLONEDDS_URI}${CYCLONEDDS_URI:+,}<Discovery><ExternalDomainId>0</ExternalDomainId></Discovery><Domain id=\"any\"><SharedMemory><Enable>false</Enable></SharedMemory></Domain>"
+#define DDS_CONFIG_NO_PORT_GAIN_LOG "${CYCLONEDDS_URI}${CYCLONEDDS_URI:+,}<Tracing><OutputFile>cyclonedds_liveliness_tests.${CYCLONEDDS_DOMAIN_ID}.${CYCLONEDDS_PID}.log</OutputFile><Verbosity>finest</Verbosity></Tracing><Discovery><ExternalDomainId>0</ExternalDomainId></Discovery><Domain id=\"any\"><SharedMemory><Enable>false</Enable></SharedMemory></Domain>"
+#else
 #define DDS_CONFIG_NO_PORT_GAIN "${CYCLONEDDS_URI}${CYCLONEDDS_URI:+,}<Discovery><ExternalDomainId>0</ExternalDomainId></Discovery>"
 #define DDS_CONFIG_NO_PORT_GAIN_LOG "${CYCLONEDDS_URI}${CYCLONEDDS_URI:+,}<Tracing><OutputFile>cyclonedds_liveliness_tests.${CYCLONEDDS_DOMAIN_ID}.${CYCLONEDDS_PID}.log</OutputFile><Verbosity>finest</Verbosity></Tracing><Discovery><ExternalDomainId>0</ExternalDomainId></Discovery>"
+#endif
 
 static dds_entity_t g_pub_domain = 0;
 static dds_entity_t g_pub_participant = 0;
@@ -74,20 +82,20 @@ static void liveliness_fini(void)
  * can be used to count the number of PMD messages that is sent by
  * the participant.
  */
-static ddsi_seqno_t get_pmd_seqno(dds_entity_t participant)
+static seqno_t get_pmd_seqno(dds_entity_t participant)
 {
-  ddsi_seqno_t seqno;
+  seqno_t seqno;
   struct dds_entity *pp_entity;
   struct ddsi_participant *pp;
   struct ddsi_writer *wr;
   CU_ASSERT_EQUAL_FATAL(dds_entity_pin(participant, &pp_entity), 0);
-  ddsi_thread_state_awake(ddsi_lookup_thread_state(), &pp_entity->m_domain->gv);
-  pp = ddsi_entidx_lookup_participant_guid(pp_entity->m_domain->gv.entity_index, &pp_entity->m_guid);
-  dds_return_t ret = ddsi_get_builtin_writer (pp, DDSI_ENTITYID_P2P_BUILTIN_PARTICIPANT_MESSAGE_WRITER, &wr);
+  thread_state_awake(lookup_thread_state(), &pp_entity->m_domain->gv);
+  pp = entidx_lookup_participant_guid(pp_entity->m_domain->gv.entity_index, &pp_entity->m_guid);
+  wr = ddsi_get_builtin_writer (pp, NN_ENTITYID_P2P_BUILTIN_PARTICIPANT_MESSAGE_WRITER);
   CU_ASSERT_FATAL(wr != NULL);
-  CU_ASSERT_EQUAL_FATAL(ret, DDS_RETCODE_OK);
+  assert(wr != NULL); /* for Clang's static analyzer */
   seqno = wr->seq;
-  ddsi_thread_state_asleep(ddsi_lookup_thread_state());
+  thread_state_asleep(lookup_thread_state());
   dds_entity_unpin(pp_entity);
   return seqno;
 }
@@ -101,10 +109,10 @@ static dds_duration_t get_pmd_interval(dds_entity_t participant)
   struct dds_entity *pp_entity;
   struct ddsi_participant *pp;
   CU_ASSERT_EQUAL_FATAL(dds_entity_pin(participant, &pp_entity), 0);
-  ddsi_thread_state_awake(ddsi_lookup_thread_state(), &pp_entity->m_domain->gv);
-  pp = ddsi_entidx_lookup_participant_guid(pp_entity->m_domain->gv.entity_index, &pp_entity->m_guid);
+  thread_state_awake(lookup_thread_state(), &pp_entity->m_domain->gv);
+  pp = entidx_lookup_participant_guid(pp_entity->m_domain->gv.entity_index, &pp_entity->m_guid);
   intv = ddsi_participant_get_pmd_interval(pp);
-  ddsi_thread_state_asleep(ddsi_lookup_thread_state());
+  thread_state_asleep(lookup_thread_state());
   dds_entity_unpin(pp_entity);
   return intv;
 }
@@ -144,7 +152,7 @@ static void test_pmd_count(dds_liveliness_kind_t kind, uint32_t ldur, double mul
   dds_entity_t sub_topic = 0;
   dds_entity_t reader;
   dds_entity_t writer;
-  ddsi_seqno_t start_seqno, end_seqno;
+  seqno_t start_seqno, end_seqno;
   dds_qos_t *rqos;
   dds_qos_t *wqos;
   dds_entity_t waitset;
@@ -196,9 +204,9 @@ static void test_pmd_count(dds_liveliness_kind_t kind, uint32_t ldur, double mul
   /* End-start should be mult - 1 under ideal circumstances, but consider the test successful
            when at least 50% of the expected PMD's was sent. This checks that the frequency for sending
            PMDs was increased when the writer was added. */
-  CU_ASSERT_FATAL((double) (end_seqno - start_seqno) >= (kind == DDS_LIVELINESS_AUTOMATIC ? (50 * (mult - 1)) / 100 : 0));
+  CU_ASSERT_FATAL((double) (end_seqno - start_seqno) >= (kind == DDS_LIVELINESS_AUTOMATIC ? (50 * (mult - 1)) / 100 : 0))
   if (kind != DDS_LIVELINESS_AUTOMATIC)
-    CU_ASSERT_FATAL((double) (get_pmd_seqno(g_pub_participant) - start_seqno) < mult);
+    CU_ASSERT_FATAL((double) (get_pmd_seqno(g_pub_participant) - start_seqno) < mult)
 
   /* cleanup */
   if (remote_reader)
@@ -491,6 +499,7 @@ static void test_lease_duration_pwr(bool remote_reader)
   dds_builtintopic_endpoint_t *ep;
   ep = dds_get_matched_publication_data(reader, wrs[0]);
   CU_ASSERT_FATAL(ep != NULL);
+  assert(ep != NULL); /* for Clang's static analyzer */
   CU_ASSERT_EQUAL_FATAL(ep->qos->liveliness.lease_duration, DDS_MSECS(ldur));
   dds_builtintopic_free_endpoint (ep);
 

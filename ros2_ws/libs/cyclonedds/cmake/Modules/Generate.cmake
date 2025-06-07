@@ -11,39 +11,13 @@
 #
 
 function(IDLC_GENERATE)
-  set(options NO_TYPE_INFO WERROR)
-  set(one_value_keywords TARGET DEFAULT_EXTENSIBILITY BASE_DIR OUTPUT_DIR)
+  set(options NO_TYPE_INFO)
+  set(one_value_keywords TARGET DEFAULT_EXTENSIBILITY BASE_DIR)
   set(multi_value_keywords FILES FEATURES INCLUDES WARNINGS)
   cmake_parse_arguments(
     IDLC "${options}" "${one_value_keywords}" "${multi_value_keywords}" "" ${ARGN})
 
-  if (TARGET CycloneDDS::libidlc)
-    set(_idlc_backend "$<TARGET_FILE:CycloneDDS::libidlc>")
-    if (NOT DEFINED _idlc_generate_skipreport)
-      message(STATUS "Building internal IDLC backend")
-      set(_idlc_generate_skipreport 1 CACHE INTERNAL "")
-    endif()
-    set(_idlc_depends CycloneDDS::libidlc)
-  else()
-    if (CMAKE_HOST_SYSTEM_NAME STREQUAL "Linux" AND NOT ".so" IN_LIST CMAKE_FIND_LIBRARY_SUFFIXES)
-      # When cross-compiling, find_library looks for libraries using naming conventions of the target,
-      # But here we're trying to find the idlc backend library to run on the host.
-      # For now, building for a Windows target on a Linux host with w64-mingw is supported by this workaround.
-      list(APPEND CMAKE_FIND_LIBRARY_SUFFIXES ".so")
-    endif()
-    find_library(_idlc_backend "cycloneddsidlc" NO_CMAKE_FIND_ROOT_PATH)
-    if (_idlc_backend)
-      if (NOT DEFINED _idlc_generate_skipreport)
-        message(STATUS "Using external IDLC backend: ${_idlc_backend}")
-        set(_idlc_generate_skipreport 1 CACHE INTERNAL "")
-      endif()
-    else()
-      message(FATAL_ERROR "Unable to find IDLC C-backend library: cycloneddsidlc")
-    endif()
-  endif()
-
   set(gen_args
-    BACKEND ${_idlc_backend}
     ${IDLC_UNPARSED_ARGUMENTS}
     TARGET ${IDLC_TARGET}
     BASE_DIR ${IDLC_BASE_DIR}
@@ -51,41 +25,32 @@ function(IDLC_GENERATE)
     FEATURES ${IDLC_FEATURES}
     INCLUDES ${IDLC_INCLUDES}
     WARNINGS ${IDLC_WARNINGS}
-    OUTPUT_DIR ${IDLC_OUTPUT_DIR}
-    DEFAULT_EXTENSIBILITY ${IDLC_DEFAULT_EXTENSIBILITY}
-    DEPENDS ${_idlc_depends})
-
+    DEFAULT_EXTENSIBILITY ${IDLC_DEFAULT_EXTENSIBILITY})
   if(${IDLC_NO_TYPE_INFO})
     list(APPEND gen_args NO_TYPE_INFO)
   endif()
-
-  if(${IDLC_WERROR})
-    list(APPEND gen_args WERROR)
-  endif()
-
   idlc_generate_generic(${gen_args})
 endfunction()
 
 function(IDLC_GENERATE_GENERIC)
-  set(options NO_TYPE_INFO WERROR)
-  set(one_value_keywords TARGET BACKEND DEFAULT_EXTENSIBILITY BASE_DIR OUTPUT_DIR)
+  set(options NO_TYPE_INFO)
+  set(one_value_keywords TARGET BACKEND DEFAULT_EXTENSIBILITY BASE_DIR)
   set(multi_value_keywords FILES FEATURES INCLUDES WARNINGS SUFFIXES DEPENDS)
   cmake_parse_arguments(
     IDLC "${options}" "${one_value_keywords}" "${multi_value_keywords}" "" ${ARGN})
 
   # find idlc binary
-  if(BUILD_IDLC)
-    if (CMAKE_PROJECT_NAME STREQUAL "CycloneDDS")
-      # By using the internal target when building CycloneDDS itself, prevent using an external idlc
-      # This prevents a problem when an installed cyclone is on your prefix path when building cyclone again
-      set(_idlc_executable idlc)
-      set(_idlc_depends idlc)
+  if(CMAKE_CROSSCOMPILING)
+    find_program(_idlc_executable idlc NO_CMAKE_FIND_ROOT_PATH REQUIRED)
+
+    if(_idlc_executable)
+      set(_idlc_depends "")
     else()
-      set(_idlc_executable CycloneDDS::idlc)
-      set(_idlc_depends CycloneDDS::idlc)
+      message(FATAL_ERROR "Cannot find idlc executable")
     endif()
   else()
-    find_program(_idlc_executable "idlc" NO_CMAKE_FIND_ROOT_PATH REQUIRED)
+    set(_idlc_executable CycloneDDS::idlc)
+    set(_idlc_depends CycloneDDS::idlc)
   endif()
 
   if(NOT IDLC_TARGET AND NOT IDLC_FILES)
@@ -149,25 +114,12 @@ function(IDLC_GENERATE_GENERIC)
     list(APPEND IDLC_ARGS "-t")
   endif()
 
-  if(IDLC_WERROR)
-    list(APPEND IDLC_ARGS "-Werror")
-  endif()
-
   if(IDLC_BASE_DIR)
-    if(${CMAKE_VERSION} VERSION_LESS "3.19.0")
-      get_filename_component(_base_dir_abs ${IDLC_BASE_DIR} REALPATH)
-    else()
-      file(REAL_PATH ${IDLC_BASE_DIR} _base_dir_abs)
-    endif()
+    file(REAL_PATH ${IDLC_BASE_DIR} _base_dir_abs)
     list(APPEND IDLC_ARGS "-b${_base_dir_abs}")
   endif()
 
-  if(IDLC_OUTPUT_DIR)
-    set(_dir ${IDLC_OUTPUT_DIR})
-  else()
-    set(_dir ${CMAKE_CURRENT_BINARY_DIR})
-  endif()
-
+  set(_dir ${CMAKE_CURRENT_BINARY_DIR})
   list(APPEND IDLC_ARGS "-o${_dir}")
   set(_target ${IDLC_TARGET})
   foreach(_file ${IDLC_FILES})
@@ -181,7 +133,7 @@ function(IDLC_GENERATE_GENERIC)
   endif()
   set(_outputs "")
   foreach(_file ${_files})
-    get_filename_component(_name ${_file} NAME_WLE)
+    get_filename_component(_name ${_file} NAME_WE)
     get_filename_component(_name_ext ${_file} NAME)
 
     # Determine middle path for directory reconstruction
@@ -192,7 +144,7 @@ function(IDLC_GENERATE_GENERIC)
         message(FATAL_ERROR "Cannot use base dir with different file tree from input file (${_base_dir_abs} to ${_file} yields ${_file_path_rel})")
       endif()
       string(REPLACE ${_name_ext} "" _mid_dir_path ${_file_path_rel})
-      string(REGEX REPLACE "[\\/]$" "" _mid_dir_path "${_mid_dir_path}")
+      string(REGEX REPLACE "[\\/]$" "" _mid_dir_path ${_mid_dir_path})
     endif()
 
     set(_file_outputs "")

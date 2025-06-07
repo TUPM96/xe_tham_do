@@ -1,18 +1,18 @@
-// Copyright(c) 2006 to 2022 ZettaScale Technology and others
-//
-// This program and the accompanying materials are made available under the
-// terms of the Eclipse Public License v. 2.0 which is available at
-// http://www.eclipse.org/legal/epl-2.0, or the Eclipse Distribution License
-// v. 1.0 which is available at
-// http://www.eclipse.org/org/documents/edl-v10.php.
-//
-// SPDX-License-Identifier: EPL-2.0 OR BSD-3-Clause
-
+/*
+ * Copyright(c) 2006 to 2022 ZettaScale Technology and others
+ *
+ * This program and the accompanying materials are made available under the
+ * terms of the Eclipse Public License v. 2.0 which is available at
+ * http://www.eclipse.org/legal/epl-2.0, or the Eclipse Distribution License
+ * v. 1.0 which is available at
+ * http://www.eclipse.org/org/documents/edl-v10.php.
+ *
+ * SPDX-License-Identifier: EPL-2.0 OR BSD-3-Clause
+ */
 #include "dds/dds.h"
 #include "dds/ddsrt/atomics.h"
 #include "dds/ddsrt/process.h"
 #include "dds/ddsrt/threads.h"
-#include "dds/ddsc/dds_internal_api.h"
 #include "test_common.h"
 
 static void sync_reader_writer_impl (dds_entity_t participant_rd, dds_entity_t reader, dds_entity_t participant_wr, dds_entity_t writer, bool expect_sync, dds_duration_t timeout)
@@ -80,21 +80,29 @@ void no_sync_reader_writer (dds_entity_t participant_rd, dds_entity_t reader, dd
   sync_reader_writer_impl (participant_rd, reader, participant_wr, writer, false, timeout);
 }
 
-void xcdr2_ser (const void *obj, const dds_topic_descriptor_t *topic_desc, dds_ostreamLE_t *os)
+void xcdr2_ser (const void *obj, const dds_topic_descriptor_t *desc, dds_ostream_t *os)
 {
-  struct dds_cdrstream_desc desc;
-  dds_cdrstream_desc_from_topic_desc (&desc, topic_desc);
+  struct ddsi_sertype_default sertype;
+  memset (&sertype, 0, sizeof (sertype));
+  sertype.type = (struct ddsi_sertype_default_desc) {
+    .size = desc->m_size,
+    .align = desc->m_align,
+    .flagset = desc->m_flagset,
+    .keys.nkeys = 0,
+    .keys.keys = NULL,
+    .ops.nops = dds_stream_countops (desc->m_ops, desc->m_nkeys, desc->m_keys),
+    .ops.ops = (uint32_t *) desc->m_ops
+  };
 
-  os->x.m_buffer = NULL;
-  os->x.m_index = 0;
-  os->x.m_size = 0;
-  os->x.m_xcdr_version = DDSI_RTPS_CDR_ENC_VERSION_2;
-  bool ret = dds_stream_write_sampleLE (os, &dds_cdrstream_default_allocator, obj, &desc);
-  dds_cdrstream_desc_fini (&desc, &dds_cdrstream_default_allocator);
+  os->m_buffer = NULL;
+  os->m_index = 0;
+  os->m_size = 0;
+  os->m_xcdr_version = CDR_ENC_VERSION_2;
+  bool ret = dds_stream_write_sampleLE ((dds_ostreamLE_t *) os, obj, &sertype);
   CU_ASSERT_FATAL (ret);
 }
 
-void xcdr2_deser (const unsigned char *buf, uint32_t sz, void **obj, const dds_topic_descriptor_t *desc)
+void xcdr2_deser (unsigned char *buf, uint32_t sz, void **obj, const dds_topic_descriptor_t *desc)
 {
   unsigned char *data;
   uint32_t srcoff = 0;
@@ -105,15 +113,15 @@ void xcdr2_deser (const unsigned char *buf, uint32_t sz, void **obj, const dds_t
   {
     data = ddsrt_malloc (sz);
     memcpy (data, buf, sz);
-    const uint32_t *ret = dds_stream_normalize_data ((char *) data, &srcoff, sz, bswap, DDSI_RTPS_CDR_ENC_VERSION_2, desc->m_ops);
+    const uint32_t *ret = dds_stream_normalize_data ((char *) data, &srcoff, sz, bswap, CDR_ENC_VERSION_2, desc->m_ops);
     CU_ASSERT_NOT_EQUAL_FATAL (ret, NULL);
   }
   else
-    data = (void *) buf;
+    data = buf;
 
-  dds_istream_t is = { .m_buffer = data, .m_index = 0, .m_size = sz, .m_xcdr_version = DDSI_RTPS_CDR_ENC_VERSION_2 };
+  dds_istream_t is = { .m_buffer = data, .m_index = 0, .m_size = sz, .m_xcdr_version = CDR_ENC_VERSION_2 };
   *obj = ddsrt_calloc (1, desc->m_size);
-  dds_stream_read (&is, (void *) *obj, &dds_cdrstream_default_allocator, desc->m_ops);
+  dds_stream_read (&is, (void *) *obj, desc->m_ops);
   if (bswap)
     ddsrt_free (data);
 }

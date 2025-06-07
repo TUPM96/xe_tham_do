@@ -1,6 +1,6 @@
 prefix=@CMAKE_INSTALL_PREFIX@
-includedir=@CYCLONEDDS_PKG_CONFIG_INCLUDEDIR@
-libdir=@CYCLONEDDS_PKG_CONFIG_LIBDIR@
+includedir=${prefix}/@CMAKE_INSTALL_INCLUDEDIR@
+libdir=${prefix}/@CMAKE_INSTALL_LIBDIR@
 
 Name: @PROJECT_NAME@
 Description: Eclipse Cyclone DDS library

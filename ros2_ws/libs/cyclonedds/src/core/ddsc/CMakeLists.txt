@@ -41,25 +41,15 @@ prepend(srcs_ddsc "${CMAKE_CURRENT_LIST_DIR}/src/"
   dds_whc_builtintopic.c
   dds_serdata_builtintopic.c
   dds_sertype_builtintopic.c
-  dds_serdata_default.c
-  dds_sertype_default.c
-  dds_loaned_sample.c
-  dds_heap_loan.c
-  dds_psmx.c
-  dds_guid.c
-)
+  dds_data_allocator.c
+  dds_loan.c)
 
-if(ENABLE_TYPELIB)
-  list(APPEND srcs_ddsc "${CMAKE_CURRENT_LIST_DIR}/src/dds_dynamic_type.c")
-endif()
-if(ENABLE_QOS_PROVIDER)
-  list(APPEND srcs_ddsc
-    "${CMAKE_CURRENT_LIST_DIR}/src/dds_sysdef_parser.c"
-    "${CMAKE_CURRENT_LIST_DIR}/src/dds_sysdef_validation.c"
-    "${CMAKE_CURRENT_LIST_DIR}/src/dds_qos_provider.c")
+if(ENABLE_SHM)
+  list(APPEND srcs_ddsc "${CMAKE_CURRENT_LIST_DIR}/src/shm_monitor.c")
 endif()
 
 prepend(hdrs_private_ddsc "${CMAKE_CURRENT_LIST_DIR}/src/"
+  dds__alloc.h
   dds__builtin.h
   dds__domain.h
   dds__handles.h
@@ -69,9 +59,9 @@ prepend(hdrs_private_ddsc "${CMAKE_CURRENT_LIST_DIR}/src/"
   dds__participant.h
   dds__publisher.h
   dds__qos.h
+  dds__querycond.h
   dds__readcond.h
   dds__guardcond.h
-  dds__read.h
   dds__reader.h
   dds__rhc_default.h
   dds__statistics.h
@@ -83,24 +73,14 @@ prepend(hdrs_private_ddsc "${CMAKE_CURRENT_LIST_DIR}/src/"
   dds__whc.h
   dds__whc_builtintopic.h
   dds__serdata_builtintopic.h
-  dds__serdata_default.h
   dds__get_status.h
-  dds__loaned_sample.h
-  dds__heap_loan.h
-  dds__psmx.h
-  dds__sysdef_model.h
-  dds__sysdef_parser.h
-  dds__sysdef_validation.h
-  dds__qos_provider.h
-  dds__guid.h
-)
+  dds__data_allocator.h)
 
 prepend(hdrs_public_ddsc "$<BUILD_INTERFACE:${CMAKE_CURRENT_LIST_DIR}/include>$<INSTALL_INTERFACE:${CMAKE_INSTALL_INCLUDEDIR}>/dds/"
   dds.h
   ddsc/dds_public_error.h
   ddsc/dds_public_impl.h
   ddsc/dds_public_listener.h
-  ddsc/dds_public_loan_api.h
   ddsc/dds_public_qos.h
   ddsc/dds_public_qosdefs.h
   ddsc/dds_public_status.h
@@ -108,16 +88,11 @@ prepend(hdrs_public_ddsc "$<BUILD_INTERFACE:${CMAKE_CURRENT_LIST_DIR}/include>$<
   ddsc/dds_rhc.h
   ddsc/dds_internal_api.h
   ddsc/dds_opcodes.h
-  ddsc/dds_loaned_sample.h
-  ddsc/dds_psmx.h
-  ddsc/dds_data_type_properties.h
-)
+  ddsc/dds_data_allocator.h
+  ddsc/dds_loan_api.h)
 
-if(ENABLE_TYPELIB)
-  list(APPEND hdrs_public_ddsc "$<BUILD_INTERFACE:${CMAKE_CURRENT_LIST_DIR}/include>$<INSTALL_INTERFACE:${CMAKE_INSTALL_INCLUDEDIR}>/dds/ddsc/dds_public_dynamic_type.h")
-endif()
-if(ENABLE_QOS_PROVIDER)
-  list(APPEND hdrs_public_ddsc "$<BUILD_INTERFACE:${CMAKE_CURRENT_LIST_DIR}/include>$<INSTALL_INTERFACE:${CMAKE_INSTALL_INCLUDEDIR}>/dds/ddsc/dds_public_qos_provider.h")
+if(ENABLE_SHM)
+  list(APPEND hdrs_private_ddsc "${CMAKE_CURRENT_LIST_DIR}/src/shm__monitor.h")
 endif()
 
 generate_export_header(
@@ -148,6 +123,7 @@ install(
   DESTINATION "${CMAKE_INSTALL_INCLUDEDIR}"
   COMPONENT dev)
 
-if((BUILD_TESTING) AND ((NOT DEFINED MSVC_VERSION) OR (MSVC_VERSION GREATER "1800")))
+# TODO: improve test inclusion.
+if((BUILD_TESTING) AND (BUILD_IDLC) AND ((NOT DEFINED MSVC_VERSION) OR (MSVC_VERSION GREATER "1800")))
   add_subdirectory("${CMAKE_CURRENT_LIST_DIR}/tests")
 endif()

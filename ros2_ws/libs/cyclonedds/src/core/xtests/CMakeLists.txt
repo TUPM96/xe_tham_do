@@ -9,12 +9,6 @@
 #
 # SPDX-License-Identifier: EPL-2.0 OR BSD-3-Clause
 #
-if(BUILD_TESTING AND BUILD_IDLC)
-    include(CUnit)
-    add_subdirectory(rhc_torture)
-    add_subdirectory(initsampledeliv)
-endif()
-
-if(NOT CMAKE_CROSSCOMPILING AND NOT CMAKE_SYSTEM_NAME MATCHES "iOS" AND NOT DEFINED ENV{LIB_FUZZING_ENGINE})
-    add_subdirectory(symbol_export)
-endif()
+include(CUnit)
+add_subdirectory(rhc_torture)
+add_subdirectory(initsampledeliv)

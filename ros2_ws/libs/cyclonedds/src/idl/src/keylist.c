@@ -1,185 +1,53 @@
-// Copyright(c) 2021 ZettaScale Technology and others
-//
-// This program and the accompanying materials are made available under the
-// terms of the Eclipse Public License v. 2.0 which is available at
-// http://www.eclipse.org/legal/epl-2.0, or the Eclipse Distribution License
-// v. 1.0 which is available at
-// http://www.eclipse.org/org/documents/edl-v10.php.
-//
-// SPDX-License-Identifier: EPL-2.0 OR BSD-3-Clause
+/*
+ * Copyright(c) 2021 ZettaScale Technology and others
+ *
+ * This program and the accompanying materials are made available under the
+ * terms of the Eclipse Public License v. 2.0 which is available at
+ * http://www.eclipse.org/legal/epl-2.0, or the Eclipse Distribution License
+ * v. 1.0 which is available at
+ * http://www.eclipse.org/org/documents/edl-v10.php.
+ *
+ * SPDX-License-Identifier: EPL-2.0 OR BSD-3-Clause
+ */
 
 #include <assert.h>
 #include <stdlib.h>
 #include <string.h>
-#include "idl/heap.h"
 #include "idl/misc.h"
 #include "idl/string.h"
-#include "idl/vector.h"
 #include "keylist.h"
 
 struct key_field {
   const idl_declarator_t *key_declarator; /* declarator node, used for finding an entry in the key_containers key_fields */
-  idl_boxed_vector_t parent_paths; /* stores the paths to this key field, as string with dot separated field names, e.g. { "field1.f2.id", "field2.f2.id" } */
+  char **parent_paths;    /* stores the paths to this key field, as string with dot separated field names, e.g. { "field1.f2.id", "field2.f2.id" } */
+  size_t n_parent_paths;  /* number of paths in parent_paths */
 };
 
 struct key_container {
   const idl_node_t *node;
-  idl_boxed_vector_t key_fields;
+  struct key_field *key_fields;
+  size_t n_key_fields;
 };
 
-struct key_container_iter {
-  idl_boxed_vector_iter_t x;
-};
-
-struct key_containers {
-  idl_boxed_vector_t key_containers;
-};
-
-struct key_containers_iter {
-  idl_boxed_vector_iter_t x;
-};
-
-/* ======= new/free/iterators/... wrappers for the above ======== */
-
-static void *boxed_vector_init_with_failure_action (idl_boxed_vector_t *v, void (*failure_action) (void *c), void *c)
+static int cmp_parent_path(const void *a, const void *b)
 {
-  if (idl_boxed_vector_init (v))
-    return c;
-  failure_action (c);
-  return NULL;
+  return strcmp(*(char **)a, *(char **)b);
 }
 
-static void *boxed_vector_append_with_failure_action (idl_boxed_vector_t *v, void *x, void (*failure_action) (void *x))
+static bool parent_path_sorted_list_equal(char **a, char **b, size_t len)
 {
-  if (idl_boxed_vector_append (v, x))
-    return x;
-  else
-  {
-    failure_action (x);
-    return NULL;
-  }
+  for (size_t n = 0; n < len; n++)
+    if (strcmp(a[n], b[n]))
+      return false;
+  return true;
 }
 
-static struct key_field *key_field_new (const idl_declarator_t *key_declarator)
+static bool has_conflicting_keys(const struct key_container *key_containers, size_t n_key_containers, const idl_node_t **node)
 {
-  struct key_field *kf;
-  if ((kf = idl_malloc (sizeof (*kf))) == NULL)
-    return NULL;
-  kf->key_declarator = key_declarator;
-  return boxed_vector_init_with_failure_action (&kf->parent_paths, idl_free, kf);
-}
+  assert(node);
+  for (size_t c = 0; c < n_key_containers; c++) {
+    const struct key_container *cntr = &key_containers[c];
 
-static void key_field_free (struct key_field *kf) {
-  idl_boxed_vector_fini (&kf->parent_paths, idl_free);
-  idl_free (kf);
-}
-static void key_field_free_wrapper (void *vkf) {
-  key_field_free (vkf);
-}
-
-static bool key_field_append (struct key_field *kf, char *parent_path)
-{
-  return idl_boxed_vector_append (&kf->parent_paths, parent_path);
-}
-
-static struct key_container *key_container_new (const idl_node_t *node)
-{
-  struct key_container *kc;
-  if ((kc = idl_malloc (sizeof (*kc))) == NULL)
-    return NULL;
-  kc->node = node;
-  return boxed_vector_init_with_failure_action (&kc->key_fields, idl_free, kc);
-}
-
-static void key_container_free (struct key_container *kc) {
-  idl_boxed_vector_fini (&kc->key_fields, key_field_free_wrapper);
-  idl_free (kc);
-}
-static void key_container_free_wrapper (void *vkc) {
-  key_container_free (vkc);
-}
-
-static struct key_field *key_container_append (struct key_container *kc, const idl_declarator_t *declarator)
-{
-  struct key_field *kf;
-  if ((kf = key_field_new (declarator)) == NULL)
-    return NULL;
-  return boxed_vector_append_with_failure_action (&kc->key_fields, kf, key_field_free_wrapper);
-}
-
-static const struct key_field *key_container_first_c (const struct key_container *kc, struct key_container_iter *it) {
-  return idl_boxed_vector_first_c (&kc->key_fields, &it->x);
-}
-static const struct key_field *key_container_next_c (struct key_container_iter *it) {
-  return idl_boxed_vector_next_c (&it->x);
-}
-static struct key_field *key_container_first (struct key_container *kc, struct key_container_iter *it) {
-  return idl_boxed_vector_first (&kc->key_fields, &it->x);
-}
-static struct key_field *key_container_next (struct key_container_iter *it) {
-  return idl_boxed_vector_next (&it->x);
-}
-
-static struct key_containers *key_containers_new (void)
-{
-  struct key_containers *kcs;
-  if ((kcs = idl_malloc (sizeof (*kcs))) == NULL)
-    return NULL;
-  return boxed_vector_init_with_failure_action (&kcs->key_containers, idl_free, kcs);
-}
-
-static void key_containers_free (struct key_containers *kcs)
-{
-  idl_boxed_vector_fini (&kcs->key_containers, key_container_free_wrapper);
-  idl_free (kcs);
-}
-
-static struct key_container *key_containers_append (struct key_containers *kcs, const idl_node_t *key_type_node)
-{
-  struct key_container *kc;
-  if ((kc = key_container_new (key_type_node)) == NULL)
-    return NULL;
-  return boxed_vector_append_with_failure_action (&kcs->key_containers, kc, key_container_free_wrapper);
-}
-
-static const struct key_container *key_containers_first_c (const struct key_containers *kcs, struct key_containers_iter *it) {
-  return idl_boxed_vector_first_c (&kcs->key_containers, &it->x);
-}
-static const struct key_container *key_containers_next_c (struct key_containers_iter *it) {
-  return idl_boxed_vector_next_c (&it->x);
-}
-static struct key_container *key_containers_first (struct key_containers *kcs, struct key_containers_iter *it) {
-  return idl_boxed_vector_first (&kcs->key_containers, &it->x);
-}
-static struct key_container *key_containers_next (struct key_containers_iter *it) {
-  return idl_boxed_vector_next (&it->x);
-}
-
-/* ======= end of new/free/iterators/... wrappers ======== */
-
-static int cmp_parent_path (const void **a, const void **b)
-{
-  return strcmp (*a, *b);
-}
-
-static void sort_parent_paths (struct key_containers *key_containers)
-{
-  struct key_containers_iter it;
-  for (struct key_container *cntr = key_containers_first (key_containers, &it); cntr; cntr = key_containers_next (&it))
-  {
-    struct key_container_iter kcit;
-    for (struct key_field *fld = key_container_first (cntr, &kcit); fld; fld = key_container_next (&kcit))
-      idl_boxed_vector_sort (&fld->parent_paths, cmp_parent_path);
-  }
-}
-
-static bool check_for_conflicting_keys(struct key_containers *key_containers, const idl_node_t **node)
-{
-  assert (node);
-  sort_parent_paths (key_containers);
-  struct key_containers_iter it;
-  for (const struct key_container *cntr = key_containers_first_c (key_containers, &it); cntr; cntr = key_containers_next_c (&it))
-  {
     /* For all keys in a key_container (struct), check if the set of parent nodes is
        equal. The parent path of a key is the list of fields that form the key,
        except the key field itself (the last field).
@@ -192,22 +60,22 @@ static bool check_for_conflicting_keys(struct key_containers *key_containers, co
        only f1. So the parent paths for alls keys in inner_type are not equal, and
        therefore the keylist has conflicting keys (and cannot be represented with
        @key annotations). */
-    struct key_container_iter kcit;
-    for (const struct key_field *fld = key_container_first_c (cntr, &kcit); fld; fld = key_container_next_c (&kcit))
-    {
-      struct key_container_iter kcit1;
-      for (const struct key_field *fld1 = key_container_first_c (cntr, &kcit1); fld1; fld1 = key_container_next_c (&kcit1))
-      {
-        idl_boxed_vector_iter_t ppit, ppit1;
-        const char *pp = idl_boxed_vector_first_c (&fld->parent_paths, &ppit);
-        const char *pp1 = idl_boxed_vector_first_c (&fld1->parent_paths, &ppit1);
-        while (pp && pp1 && strcmp (pp, pp1) == 0)
-        {
-          pp = idl_boxed_vector_next (&ppit);
-          pp1 = idl_boxed_vector_next (&ppit1);
-        }
-        if (pp || pp1)
-        {
+    for (size_t k = 0; k < cntr->n_key_fields; k++) {
+      const struct key_field *fld = &cntr->key_fields[k];
+      /* parent_paths == NULL && n_parent_paths == 0 happens for keys in the outer
+         struct but qsort() requires a non-null pointer */
+      if (fld->n_parent_paths > 1) {
+        qsort(fld->parent_paths, fld->n_parent_paths,
+          sizeof(*fld->parent_paths), cmp_parent_path);
+      }
+    }
+    for (size_t k = 0; k < cntr->n_key_fields; k++) {
+      const struct key_field *fld = &cntr->key_fields[k];
+      for (size_t k1 = 0; k1 < cntr->n_key_fields; k1++) {
+        const struct key_field *fld1 = &cntr->key_fields[k1];
+        if (fld->n_parent_paths != fld1->n_parent_paths
+          || !parent_path_sorted_list_equal(fld->parent_paths, fld1->parent_paths, fld->n_parent_paths)
+        ) {
           *node = cntr->node;
           return true;
         }
@@ -217,42 +85,100 @@ static bool check_for_conflicting_keys(struct key_containers *key_containers, co
   return false;
 }
 
-static struct key_container *get_key_container (const idl_node_t *key_type_node, struct key_containers *key_containers)
+static struct key_container *get_key_container(const idl_node_t *key_type_node, struct key_container **key_containers, size_t *n_key_containers)
 {
-  struct key_containers_iter it;
-  for (struct key_container *kc = key_containers_first (key_containers, &it); kc; kc = key_containers_next (&it))
-    if (kc->node == key_type_node)
-      return kc;
-  return key_containers_append (key_containers, key_type_node);
+  for (size_t n=0; n < *n_key_containers; n++) {
+    if ((*key_containers)[n].node == key_type_node)
+      return &(*key_containers)[n];
+  }
+
+  // not found => add it
+  (*n_key_containers)++;
+  struct key_container *tmp = realloc(*key_containers, *n_key_containers * sizeof(**key_containers));
+  if (tmp == NULL) {
+    free (*key_containers);
+    *key_containers = NULL;
+    return NULL;
+  }
+  *key_containers = tmp;
+  (*key_containers)[*n_key_containers - 1] = (struct key_container) { key_type_node, NULL, 0 };
+  return &(*key_containers)[*n_key_containers - 1];
 }
 
-static struct key_field *get_key_field (const idl_declarator_t *declarator, struct key_container *key_container)
+static struct key_field *get_key_field(const idl_declarator_t *declarator, struct key_container *key_container)
 {
-  struct key_container_iter it;
-  for (struct key_field *kf = key_container_first (key_container, &it); kf; kf = key_container_next (&it))
-    if (kf->key_declarator == declarator)
-      return kf;
-  return key_container_append (key_container, declarator);
+  for (size_t n=0; n < key_container->n_key_fields; n++) {
+    if (key_container->key_fields[n].key_declarator == declarator)
+      return &key_container->key_fields[n];
+  }
+
+  // not found => add it
+  key_container->n_key_fields++;
+  struct key_field *tmp = realloc(key_container->key_fields, key_container->n_key_fields * sizeof(*key_container->key_fields));
+  if (tmp == NULL) {
+    free (key_container->key_fields);
+    key_container->key_fields = NULL;
+    return NULL;
+  }
+  key_container->key_fields = tmp;
+  key_container->key_fields[key_container->n_key_fields - 1] = (struct key_field) { declarator, NULL, 0 };
+  return &key_container->key_fields[key_container->n_key_fields - 1];
 }
 
-static bool add_parent_path (struct key_field *key_field, idl_field_name_t *key)
+static idl_retcode_t add_parent_path(struct key_field *key_field, idl_field_name_t *key)
 {
-  assert (key->length);
+  assert(key->length);
   if (key->length == 1)
-    return true;
+    return IDL_RETCODE_OK;
+  key_field->n_parent_paths++;
+  char **tmp;
+  if (!(tmp = realloc(key_field->parent_paths, key_field->n_parent_paths * sizeof(*key_field->parent_paths))))
+  {
+    free (key_field->parent_paths);
+    key_field->parent_paths = NULL;
+    return IDL_RETCODE_NO_MEMORY;
+  }
+  key_field->parent_paths = tmp;
 
   size_t parent_path_len = strlen(key->identifier) - strlen(key->names[key->length - 1]->identifier) - 1;
-  assert (parent_path_len > 0);
-  char *pp = idl_malloc (parent_path_len + 1);
-  if (pp == NULL)
-    return false;
-  memcpy (pp, key->identifier, parent_path_len);
-  pp[parent_path_len] = '\0';
-  return key_field_append (key_field, pp);
+  assert(parent_path_len > 0);
+  if (!(key_field->parent_paths[key_field->n_parent_paths - 1] = malloc(parent_path_len + 1)))
+    return IDL_RETCODE_NO_MEMORY;
+  memcpy(key_field->parent_paths[key_field->n_parent_paths - 1], key->identifier, parent_path_len);
+  key_field->parent_paths[key_field->n_parent_paths - 1][parent_path_len] = '\0';
+  return IDL_RETCODE_OK;
 }
 
-static idl_retcode_t get_keylist_key_paths_struct_key(idl_pstate_t *pstate, idl_struct_t *struct_node, const idl_key_t *key_node, struct key_containers *key_containers)
+static void key_containers_fini(struct key_container *key_containers, size_t n_key_containers)
 {
+  IDL_WARNING_MSVC_OFF (6001);
+  if (!key_containers)
+    return;
+  for (size_t c = 0; c < n_key_containers; c++) {
+    if (!key_containers[c].key_fields)
+      continue;
+    for (size_t f = 0; f < key_containers[c].n_key_fields; f++) {
+      if (!key_containers[c].key_fields[f].parent_paths)
+        continue;
+      for (size_t p = 0; p < key_containers[c].key_fields[f].n_parent_paths; p++) {
+        if (!key_containers[c].key_fields[f].parent_paths)
+          continue;
+        free(key_containers[c].key_fields[f].parent_paths[p]);
+        key_containers[c].key_fields[f].parent_paths[p] = NULL;
+      }
+      free(key_containers[c].key_fields[f].parent_paths);
+      key_containers[c].key_fields[f].parent_paths = NULL;
+    }
+    free(key_containers[c].key_fields);
+    key_containers[c].key_fields = NULL;
+  }
+  free(key_containers);
+  IDL_WARNING_MSVC_ON (6001);
+}
+
+static idl_retcode_t get_keylist_key_paths_struct_key(idl_pstate_t *pstate, idl_struct_t *struct_node, const idl_key_t *key_node, struct key_container **key_containers, size_t *n_key_containers)
+{
+
   /* Create a shallow copy of the key names and unalias the identifier, so that
      this copy can be used to find fields for all parts of the key, by removing
      the last name-part in each iteration. */
@@ -260,9 +186,10 @@ static idl_retcode_t get_keylist_key_paths_struct_key(idl_pstate_t *pstate, idl_
   if ((key_names.identifier = idl_strdup(key_node->field_name->identifier)) == NULL)
     return IDL_RETCODE_NO_MEMORY;
 
+  idl_retcode_t ret = IDL_RETCODE_OK;
   idl_scope_t *scope = struct_node->node.declaration->scope;
   assert(scope);
-  for (uint32_t k = 0; k < key_node->field_name->length; k++)
+  for (uint32_t k = 0; ret == IDL_RETCODE_OK && k < key_node->field_name->length; k++)
   {
     const idl_declaration_t *declaration = idl_find_field_name(pstate, scope, &key_names, 0u);
     assert(declaration && declaration->node);
@@ -278,46 +205,47 @@ static idl_retcode_t get_keylist_key_paths_struct_key(idl_pstate_t *pstate, idl_
 
     struct key_container *key_container;
     struct key_field *key_field;
-    if (!(key_container = get_key_container(key_parent, key_containers)))
-      break;
+    if (!(key_container = get_key_container(key_parent, key_containers, n_key_containers)))
+      ret = IDL_RETCODE_NO_MEMORY;
     else if (!(key_field = get_key_field(declarator, key_container)))
-      break;
-    else if (!add_parent_path(key_field, &key_names))
-      break;
+      ret = IDL_RETCODE_NO_MEMORY;
     else
+      ret = add_parent_path(key_field, &key_names);
+    if (ret == IDL_RETCODE_OK)
     {
       if (key_names.length > 1)
         key_names.identifier[strlen(key_names.identifier) - strlen(key_names.names[key_names.length - 1]->identifier) - 1] = '\0';
       key_names.length--;
     }
   }
-  idl_free(key_names.identifier);
-  return (key_names.length == 0) ? IDL_RETCODE_OK : IDL_RETCODE_NO_MEMORY;
+  assert(key_names.length == 0 || ret != IDL_RETCODE_OK);
+  free(key_names.identifier);
+  return ret;
 }
 
-static idl_retcode_t get_keylist_key_paths_struct(idl_pstate_t *pstate, idl_struct_t *struct_node, struct key_containers *key_containers)
+static idl_retcode_t get_keylist_key_paths_struct(idl_pstate_t *pstate, idl_struct_t *struct_node, struct key_container **key_containers, size_t *n_key_containers)
 {
   if (struct_node->keylist != NULL) {
     for (const idl_key_t *key_node = struct_node->keylist->keys; key_node; key_node = idl_next(key_node)) {
       idl_retcode_t ret;
-      if ((ret = get_keylist_key_paths_struct_key(pstate, struct_node, key_node, key_containers)) != IDL_RETCODE_OK)
+      if ((ret = get_keylist_key_paths_struct_key(pstate, struct_node, key_node, key_containers, n_key_containers)) != IDL_RETCODE_OK)
         return ret;
     }
   }
   return IDL_RETCODE_OK;
 }
 
-static idl_retcode_t get_keylist_key_paths(idl_pstate_t *pstate, void *list, struct key_containers *key_containers)
+static idl_retcode_t get_keylist_key_paths(idl_pstate_t *pstate, void *list, struct key_container **key_containers, size_t *n_key_containers)
 {
   /* Build tree of key_containers, key fields and paths to these key fields */
   idl_retcode_t ret = IDL_RETCODE_OK;
   for ( ; ret == IDL_RETCODE_OK && list; list = idl_next(list)) {
     if (idl_mask(list) == IDL_MODULE) {
       idl_module_t *node = list;
-      ret = get_keylist_key_paths(pstate, node->definitions, key_containers);
+      ret = get_keylist_key_paths(pstate, node->definitions, key_containers, n_key_containers);
     } else if (idl_mask(list) == IDL_STRUCT) {
       idl_struct_t *struct_node = list;
-      ret = get_keylist_key_paths_struct(pstate, struct_node, key_containers);
+      ret = get_keylist_key_paths_struct(pstate, struct_node, key_containers, n_key_containers);
     }
   }
   return ret;
@@ -326,25 +254,26 @@ static idl_retcode_t get_keylist_key_paths(idl_pstate_t *pstate, void *list, str
 idl_retcode_t idl_validate_keylists(idl_pstate_t *pstate)
 {
   idl_retcode_t ret = IDL_RETCODE_OK;
-  struct key_containers *key_containers;
-  if ((key_containers = key_containers_new ()) == NULL)
-    return IDL_RETCODE_NO_MEMORY;
+  struct key_container *key_containers = NULL;
+  size_t nkc = 0;
 
   assert(pstate);
-  if ((ret = get_keylist_key_paths (pstate, pstate->root, key_containers) != IDL_RETCODE_OK))
+  if ((ret = get_keylist_key_paths(pstate, pstate->root, &key_containers, &nkc) != IDL_RETCODE_OK))
     goto err_create_key;
 
   /* Check for conflicting keys */
-  const idl_node_t *conflicting_type;
-  if (check_for_conflicting_keys (key_containers, &conflicting_type))
-  {
-    idl_error(pstate, idl_location(conflicting_type),
-              "Conflicting keys in keylist directive for type '%s'", idl_identifier(conflicting_type));
-    ret = IDL_RETCODE_SEMANTIC_ERROR;
+  if (nkc > 0) {
+    const idl_node_t *conflicting_type;
+    if (has_conflicting_keys(key_containers, nkc, &conflicting_type))
+    {
+      idl_error(pstate, idl_location(conflicting_type),
+        "Conflicting keys in keylist directive for type '%s'", idl_identifier(conflicting_type));
+      ret = IDL_RETCODE_SEMANTIC_ERROR;
+    }
   }
 
 err_create_key:
-  key_containers_free (key_containers);
+  key_containers_fini(key_containers, nkc);
   return ret;
 }
 

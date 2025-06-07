@@ -1,13 +1,14 @@
-// Copyright(c) 2020 to 2022 ZettaScale Technology and others
-//
-// This program and the accompanying materials are made available under the
-// terms of the Eclipse Public License v. 2.0 which is available at
-// http://www.eclipse.org/legal/epl-2.0, or the Eclipse Distribution License
-// v. 1.0 which is available at
-// http://www.eclipse.org/org/documents/edl-v10.php.
-//
-// SPDX-License-Identifier: EPL-2.0 OR BSD-3-Clause
-
+/*
+ * Copyright(c) 2020 to 2022 ZettaScale Technology and others
+ *
+ * This program and the accompanying materials are made available under the
+ * terms of the Eclipse Public License v. 2.0 which is available at
+ * http://www.eclipse.org/legal/epl-2.0, or the Eclipse Distribution License
+ * v. 1.0 which is available at
+ * http://www.eclipse.org/org/documents/edl-v10.php.
+ *
+ * SPDX-License-Identifier: EPL-2.0 OR BSD-3-Clause
+ */
 #include <stdio.h>
 #include <ctype.h>
 #include <stdlib.h>
@@ -15,6 +16,7 @@
 #include <string.h>
 #include <setjmp.h>
 
+#include "dds/dds.h"
 #include "dds/ddsrt/align.h"
 #include "dds/ddsrt/misc.h"
 #include "dds/ddsrt/sync.h"
@@ -22,19 +24,16 @@
 #include "dds/ddsrt/strtod.h"
 #include "dds/ddsrt/string.h"
 #include "dds/ddsrt/environ.h"
-#include "dds/ddsi/ddsi_guid.h"
-#include "dds/ddsi/ddsi_xevent.h"
-#include "dds/ddsi/ddsi_entity_index.h"
-#include "dds/ddsi/ddsi_participant.h"
-#include "dds/ddsi/ddsi_gc.h"
-#include "ddsi__lease.h"
-#include "ddsi__participant.h"
-#include "ddsi__proxy_participant.h"
-#include "ddsi__spdp_schedule.h"
-#include "dds/dds.h"
+
 #include "dds__types.h"
 #include "dds__entity.h"
 #include "dds__writer.h"
+#include "dds/ddsi/q_bswap.h"
+#include "dds/ddsi/q_lease.h"
+#include "dds/ddsi/q_xevent.h"
+#include "dds/ddsi/ddsi_entity_index.h"
+#include "dds/ddsi/ddsi_participant.h"
+#include "dds/ddsi/ddsi_proxy_participant.h"
 
 #include "test_util.h"
 #include "test_oneliner.h"
@@ -389,17 +388,16 @@ static int nexttok_dur (struct oneliner_lex *l, union oneliner_tokval *v, bool e
   else if (l->inp[0] == '@' || (expecting_duration && (lookingatnum (l) || lookingatinf (l))))
   {
     const int ists = (l->inp[0] == '@');
-    const int isabs = (ists && l->inp[1] == '=');
     char *endp;
-    if (!ists && strncmp (l->inp + ists + isabs, "inf", 3) == 0 && !issymchar (l->inp[ists + 3]))
+    if (!ists && strncmp (l->inp + ists, "inf", 3) == 0 && !issymchar (l->inp[ists + 3]))
     {
-      l->inp += ists + isabs + 3;
+      l->inp += ists + 3;
       l->v.d = DDS_INFINITY;
     }
     else
     {
       double d;
-      if (ddsrt_strtod (l->inp + ists + isabs, &endp, &d) != DDS_RETCODE_OK)
+      if (ddsrt_strtod (l->inp + ists, &endp, &d) != DDS_RETCODE_OK)
         return false;
       if (!ists && d < 0)
         return false;
@@ -409,7 +407,7 @@ static int nexttok_dur (struct oneliner_lex *l, union oneliner_tokval *v, bool e
         l->v.d = (int64_t) (d * 1e9 + 0.5);
       else
         l->v.d = -(int64_t) (-d * 1e9 + 0.5);
-      if (ists && !isabs)
+      if (ists)
         l->v.d += l->tref;
       l->inp = endp;
     }
@@ -513,15 +511,9 @@ static bool read_kvarg_3len (struct oneliner_lex *l, void *dst)
   return true;
 }
 
-static bool read_kvarg_isterm (struct oneliner_lex *l2)
-{
-  int tok = peektok (l2, NULL);
-  return tok == ',' || tok == ')' || tok == '/';
-}
-
 static bool read_kvarg (const struct kvarg *ks, size_t sizeof_ks, struct oneliner_lex *l, int *v, void *arg)
 {
-  // l points at name, *inp is , or / or ) terminated; *l unchanged when false
+  // l points at name, *inp is , or ) terminated; *l unchanged when false
   const struct kvarg *kend = ks + sizeof_ks / sizeof (*ks);
   struct oneliner_lex l1 = *l;
   advancetok (&l1);
@@ -533,7 +525,7 @@ static bool read_kvarg (const struct kvarg *ks, size_t sizeof_ks, struct oneline
     {
       assert (k->arg != 0 && k->def == 0);
       struct oneliner_lex l2 = l1;
-      if (k->arg (&l2, arg) && read_kvarg_isterm (&l2))
+      if (k->arg (&l2, arg) && (peektok (&l2, NULL) == ',' || peektok (&l2, NULL) == ')'))
       {
         *l = l2;
         return true;
@@ -548,7 +540,7 @@ static bool read_kvarg (const struct kvarg *ks, size_t sizeof_ks, struct oneline
       /* skip symbol */
       struct oneliner_lex l2 = l1;
       l2.inp += k->klen;
-      if (read_kvarg_isterm (&l2))
+      if (peektok (&l2, NULL) == ',' || peektok (&l2, NULL) == ')')
       {
         if (k->arg == 0 || k->def != 0)
         {
@@ -559,7 +551,7 @@ static bool read_kvarg (const struct kvarg *ks, size_t sizeof_ks, struct oneline
       }
       else if (k->arg != 0 && nexttok (&l2, NULL) == ':')
       {
-        if (k->arg (&l2, arg) && read_kvarg_isterm (&l2))
+        if (k->arg (&l2, arg) && (peektok (&l2, NULL) == ',' || peektok (&l2, NULL) == ')'))
         {
           *l = l2;
           return true;
@@ -665,7 +657,7 @@ static bool qos_liveliness (struct oneliner_lex *l, dds_qos_t *q)
   return true;
 }
 
-static bool qos_simple_duration (struct oneliner_lex *l, dds_qos_t *q, void (*set) (dds_qos_t *q, dds_duration_t dur))
+static bool qos_simple_duration (struct oneliner_lex *l, dds_qos_t *q, void (*set) (dds_qos_t * __restrict q, dds_duration_t dur))
 {
   static const struct kvarg k = { "", 0, 0, .arg = read_kvarg_dur };
   int v;
@@ -753,54 +745,6 @@ static bool qos_autodispose_unregistered_instances (struct oneliner_lex *l, dds_
   return true;
 }
 
-static bool qos_writer_batching (struct oneliner_lex *l, dds_qos_t *q)
-{
-  static const struct kvarg ks[] = {
-    { "y", 1, 1 },
-    { "n", 1, 0 }
-  };
-  int v;
-  if (!read_kvarg (ks, sizeof ks, l, &v, NULL))
-    return false;
-  dds_qset_writer_batching (q, !!v);
-  return true;
-}
-
-static bool qos_partition (struct oneliner_lex *l, dds_qos_t *q)
-{
-  uint32_t nps = 0;
-  char **ps = NULL;
-  while (*l->inp != 0 && *l->inp != ',' && *l->inp != ')')
-  {
-    const char *p = l->inp;
-    while (*p != 0 && *p != ':' && *p != ',' && *p != ')')
-      p++;
-    ps = ddsrt_realloc (ps, (nps + 1) * sizeof (*ps));
-    ps[nps] = ddsrt_malloc ((size_t) (p - l->inp) + 1);
-    memcpy (ps[nps], l->inp, (size_t) (p - l->inp));
-    ps[nps][p - l->inp] = 0;
-    nps++;
-    if (*p == ':')
-      p++;
-    l->inp = p;
-  }
-  dds_qset_partition (q, nps, (const char **) ps);
-  for (uint32_t i = 0; i < nps; i++)
-    ddsrt_free (ps[i]);
-  ddsrt_free (ps);
-  return true;
-}
-
-static bool qos_userdata (struct oneliner_lex *l, dds_qos_t *q)
-{
-  const char *p = l->inp;
-  while (*p != 0 && *p != ',' && *p != ')')
-    p++;
-  dds_qset_userdata (q, l->inp, (size_t) (p - l->inp));
-  l->inp = p;
-  return true;
-}
-
 static const struct {
   char *abbrev;
   size_t n;
@@ -820,10 +764,7 @@ static const struct {
   { "r",  1, qos_reliability, DDS_RELIABILITY_QOS_POLICY_ID },
   { "rl", 2, qos_resource_limits, DDS_RESOURCELIMITS_QOS_POLICY_ID },
   { "ds", 2, qos_durability_service, DDS_DURABILITYSERVICE_QOS_POLICY_ID },
-  { "ad", 2, qos_autodispose_unregistered_instances, DDS_WRITERDATALIFECYCLE_QOS_POLICY_ID },
-  { "wb", 2, qos_writer_batching, DDS_INVALID_QOS_POLICY_ID },
-  { "part", 4, qos_partition, DDS_PARTITION_QOS_POLICY_ID },
-  { "ud", 2, qos_userdata, DDS_USERDATA_QOS_POLICY_ID }
+  { "ad", 2, qos_autodispose_unregistered_instances, DDS_WRITERDATALIFECYCLE_QOS_POLICY_ID }
 };
 
 static bool setqos (struct oneliner_lex *l, dds_qos_t *q)
@@ -919,7 +860,11 @@ static const char *getentname (entname_t *name, int ent)
 static void make_participant (struct oneliner_ctx *ctx, int ent, dds_qos_t *qos, dds_listener_t *list)
 {
   const dds_domainid_t domid = (dds_domainid_t) (ent / 9);
+#ifdef DDS_HAS_SHM
+  char *conf = ddsrt_expand_envvars ("${CYCLONEDDS_URI}${CYCLONEDDS_URI:+,}<Discovery><ExternalDomainId>0</ExternalDomainId></Discovery><Domain id=\"any\"><SharedMemory><Enable>false</Enable></SharedMemory></Domain>", domid);
+#else
   char* conf = ddsrt_expand_envvars("${CYCLONEDDS_URI}${CYCLONEDDS_URI:+,}<Discovery><ExternalDomainId>0</ExternalDomainId></Discovery>", domid);
+#endif
   if (ctx->config_override)
   {
     size_t newsize = strlen (conf) + strlen (ctx->config_override) + 1;
@@ -927,20 +872,6 @@ static void make_participant (struct oneliner_ctx *ctx, int ent, dds_qos_t *qos,
     (void) snprintf (conf1, newsize, "%s,%s", conf, ctx->config_override);
     ddsrt_free (conf);
     conf = conf1;
-  }
-  void *udata;
-  size_t udatasz;
-  if (dds_qget_userdata (qos, &udata, &udatasz))
-  {
-    // user data is always 0 terminated in output of qget, terminating 0 is not included
-    // in size -- so we can pretend it is just a string
-    static const char *fmt = "%s,<Compatibility><ProtocolVersion>%s</ProtocolVersion></Compatibility>";
-    size_t newsize = strlen (fmt) - 4 + strlen (conf) + udatasz + 1;
-    char *conf1 = ddsrt_malloc (newsize);
-    (void) snprintf (conf1, newsize, fmt, conf, udata);
-    ddsrt_free (conf);
-    conf = conf1;
-    dds_free (udata);
   }
   entname_t name;
   dds_entity_t bisub;
@@ -1330,19 +1261,15 @@ static void doreadlike (struct oneliner_ctx *ctx, const char *name, dds_return_t
   bool ellipsis = false;
   int exp_nvalid = -1, exp_ninvalid = -1;
   int ent;
-  const bool blocking = nexttok_if (&ctx->l, '!');
-  char const * const namesuf = blocking ? "!" : "";
   switch (peektok (&ctx->l, NULL))
   {
     default: // no expectations
       ellipsis = true;
       break;
     case '(': // (# valid, # invalid)
-      if (blocking)
-        error (ctx, "%s%s: blocking only supported i.c.w. expected result", name, namesuf);
       nexttok (&ctx->l, NULL);
       if (!(nexttok_int (&ctx->l, &exp_nvalid) && nexttok_if (&ctx->l, ',') && nexttok_int (&ctx->l, &exp_ninvalid) && nexttok_if (&ctx->l, ')')))
-        error (ctx, "%s%s: expecting (NINVALID, NVALID)", name, namesuf);
+        error (ctx, "%s: expecting (NINVALID, NVALID)", name);
       ellipsis = true;
       break;
     case '{':
@@ -1353,26 +1280,26 @@ static void doreadlike (struct oneliner_ctx *ctx, const char *name, dds_return_t
           if (nexttok_if (&ctx->l, TOK_ELLIPSIS)) {
             ellipsis = true; break;
           } else if (nexp == MAXN) {
-            error (ctx, "%s%s: too many samples specified", name, namesuf);
+            error (ctx, "%s: too many samples specified", name);
           } else if (!doreadlike_parse_sample (ctx, &exp[nexp++])) {
-            error (ctx, "%s%s: expecting sample", name, namesuf);
+            error (ctx, "%s: expecting sample", name);
           }
         } while (nexttok_if (&ctx->l, ','));
         if (!nexttok_if (&ctx->l, '}'))
-          error (ctx, "%s%s: expecting '}'", name, namesuf);
+          error (ctx, "%s: expecting '}'", name);
       }
       break;
   }
   if ((ent = parse_entity1 (&ctx->l, NULL)) < 0)
-    error (ctx, "%s%s: entity required", name, namesuf);
+    error (ctx, "%s: entity required", name);
 
   for (int i = 0; i < nexp; i++)
   {
     if (exp[i].wrent >= 0 && (exp[i].wrih = lookup_insthandle (ctx, ent, exp[i].wrent)) == 0)
-      error (ctx, "%s%s: instance lookup failed", name, namesuf);
+      error (ctx, "%s: instance lookup failed", name);
   }
 
-  mprintf (ctx, "entity %"PRId32": %s%s: ", ctx->es[ent], name, namesuf);
+  mprintf (ctx, "entity %"PRId32": %s: ", ctx->es[ent], (fn == dds_take) ? "take" : "read");
   Space_Type1 data[MAXN];
   void *raw[MAXN];
   for (int i = 0; i < MAXN; i++)
@@ -1380,64 +1307,40 @@ static void doreadlike (struct oneliner_ctx *ctx, const char *name, dds_return_t
   int matchidx[MAXN];
   dds_sample_info_t si[MAXN];
   DDSRT_STATIC_ASSERT (MAXN < CHAR_BIT * sizeof (unsigned));
+  const uint32_t maxs = (uint32_t) (sizeof (raw) / sizeof (raw[0]));
+  const int32_t n = fn (ctx->es[ent], raw, si, maxs, maxs);
+  if (n < 0)
+    error_dds (ctx, n, "%s: failed on %"PRId32, name, ctx->es[ent]);
   unsigned tomatch = (1u << nexp) - 1; // used to track result entries matched by spec
-  bool first = true;
-  bool matchok = true;
+  dds_instance_handle_t lastih = 0;
+  int cursor = -1;
   int count[2] = { 0, 0 };
-  dds_entity_t ws = 0, readcond = 0;
-  const dds_duration_t abstimeout = dds_time () + DDS_SECS (5);
-  if (blocking) {
-    if ((ws = dds_create_waitset (dds_get_participant (ctx->es[ent]))) < 0)
-      error_dds (ctx, ws, "%s%s: failed to create waitset for %"PRId32, name, namesuf, ctx->es[ent]);
-    if ((readcond = dds_create_readcondition (ctx->es[ent], DDS_NOT_READ_SAMPLE_STATE | DDS_ANY_VIEW_STATE | DDS_ANY_INSTANCE_STATE))< 0)
-      error_dds (ctx, readcond, "%s%s: failed to create read condition for %"PRId32, name, namesuf, ctx->es[ent]);
-    dds_return_t rc;
-    if ((rc = dds_waitset_attach (ws, readcond, 0)) < 0)
-      error_dds (ctx, rc, "%s%s: failed to attach read condition to waitset for %"PRId32, name, namesuf, ctx->es[ent]);
-  }
-  while (first || (tomatch != 0 && ws && dds_waitset_wait_until (ws, NULL, 0, abstimeout) > 0))
+  bool matchok = true;
+  mprintf (ctx, "{");
+  for (int i = 0; i < n; i++)
   {
-    first = false;
-    const uint32_t maxs = (uint32_t) (sizeof (raw) / sizeof (raw[0]));
-    const int32_t n = fn (ctx->es[ent], raw, si, maxs, maxs);
-    if (n < 0)
-      error_dds (ctx, n, "%s%s: failed on %"PRId32, name, namesuf, ctx->es[ent]);
-    dds_instance_handle_t lastih = 0;
-    int cursor = -1;
-    mprintf (ctx, "{");
-    for (int i = 0; i < n; i++)
-    {
-      const Space_Type1 *s = raw[i];
-      entname_t wrname;
-      count[si[i].valid_data]++;
-      mprintf (ctx, "%s%c%c%c",
-               (i > 0) ? "," : "",
-               (si[i].sample_state == DDS_NOT_READ_SAMPLE_STATE) ? 'f' : 's',
-               (si[i].instance_state == DDS_ALIVE_INSTANCE_STATE) ? 'a' : (si[i].instance_state == DDS_NOT_ALIVE_NO_WRITERS_INSTANCE_STATE) ? 'u' : 'd',
-               (si[i].view_state == DDS_NEW_VIEW_STATE) ? 'n' : 'o');
-      if (si[i].valid_data)
-        mprintf (ctx, "(%"PRId32",%"PRId32",%"PRId32")", s->long_1, s->long_2, s->long_3);
-      else
-        mprintf (ctx, "%"PRId32, s->long_1);
-      if (!wrname_from_pubhandle (ctx, ent, si[i].publication_handle, &wrname))
-        error (ctx, "%s%s: unknown publication handle received", name, namesuf);
-      mprintf (ctx, "%s", wrname.n);
-      print_timestamp (ctx, si[i].source_timestamp);
-      if (!doreadlike_matchstep (&si[i], s, exp, nexp, ellipsis, &tomatch, &cursor, &lastih, &matchidx[i]))
-        matchok = false;
-    }
-    mprintf (ctx, "}:");
-    for (int i = 0; i < n; i++)
-      mprintf (ctx, " %d", matchidx[i]);
+    const Space_Type1 *s = raw[i];
+    entname_t wrname;
+    count[si[i].valid_data]++;
+    mprintf (ctx, "%s%c%c%c",
+            (i > 0) ? "," : "",
+            (si[i].sample_state == DDS_NOT_READ_SAMPLE_STATE) ? 'f' : 's',
+            (si[i].instance_state == DDS_ALIVE_INSTANCE_STATE) ? 'a' : (si[i].instance_state == DDS_NOT_ALIVE_NO_WRITERS_INSTANCE_STATE) ? 'u' : 'd',
+            (si[i].view_state == DDS_NEW_VIEW_STATE) ? 'n' : 'o');
+    if (si[i].valid_data)
+      mprintf (ctx, "(%"PRId32",%"PRId32",%"PRId32")", s->long_1, s->long_2, s->long_3);
+    else
+      mprintf (ctx, "%"PRId32, s->long_1);
+    if (!wrname_from_pubhandle (ctx, ent, si[i].publication_handle, &wrname))
+      error (ctx, "%s: unknown publication handle received", name);
+    mprintf (ctx, "%s", wrname.n);
+    print_timestamp (ctx, si[i].source_timestamp);
+    if (!doreadlike_matchstep (&si[i], s, exp, nexp, ellipsis, &tomatch, &cursor, &lastih, &matchidx[i]))
+      matchok = false;
   }
-  if (ws)
-  {
-    dds_return_t rc;
-    if ((rc = dds_delete (ws)) < 0)
-      error_dds (ctx, rc, "%s%s: failed to delete waitset", name, namesuf);
-    if ((rc = dds_delete (readcond)) < 0)
-      error_dds (ctx, rc, "%s%s: failed to delete read condition", name, namesuf);
-  }
+  mprintf (ctx, "}:");
+  for (int i = 0; i < n; i++)
+    mprintf (ctx, " %d", matchidx[i]);
   if (tomatch != 0)
   {
     mprintf (ctx, " (samples missing)");
@@ -1450,7 +1353,7 @@ static void doreadlike (struct oneliner_ctx *ctx, const char *name, dds_return_t
     matchok = false;
   mprintf (ctx, "\n");
   if (!matchok)
-    testfail (ctx, "%s%s: mismatch between actual and expected set\n", name, namesuf);
+    testfail (ctx, "%s: mismatch between actual and expected set\n", name);
 #undef MAXN
 }
 
@@ -1500,21 +1403,6 @@ static void dodisp (struct oneliner_ctx *ctx) { dowritelike (ctx, "disp", false,
 static void dodispfail (struct oneliner_ctx *ctx) { dowritelike (ctx, "dispfail", true, dds_dispose_ts); }
 static void dounreg (struct oneliner_ctx *ctx) { dowritelike (ctx, "unreg", false, dds_unregister_instance_ts); }
 static void dounregfail (struct oneliner_ctx *ctx) { dowritelike (ctx, "unregfail", true, dds_unregister_instance_ts); }
-
-static void dowriteflush (struct oneliner_ctx *ctx)
-{
-  dds_return_t ret;
-  int ent;
-  if ((ent = parse_entity (ctx)) < 0)
-    error (ctx, "flush: expecting entity");
-  DDSRT_WARNING_MSVC_OFF(6385)
-  if (ctx->es[ent] == 0)
-    make_entity (ctx, ent, NULL);
-  DDSRT_WARNING_MSVC_ON(6385)
-  mprintf (ctx, "entity %"PRId32": flush\n", ctx->es[ent]);
-  if ((ret = dds_write_flush (ctx->es[ent])) != 0)
-    error_dds (ctx, ret, "flush: failed");
-}
 
 static int checkstatus (struct oneliner_ctx *ctx, int ll, int ent, struct oneliner_lex *argl, const void *status)
 {
@@ -1707,7 +1595,7 @@ static void dowaitforack (struct oneliner_ctx *ctx)
       error (ctx, "wait for ack: expecting existing reader as argument");
     if ((ret = dds_get_guid (ctx->es[ent1], &rdguid.x)) != 0)
       error_dds (ctx, ret, "wait for ack: failed to get GUID for reader %"PRId32, ctx->es[ent1]);
-    rdguid.i = ddsi_ntoh_guid (rdguid.i);
+    rdguid.i = nn_ntoh_guid (rdguid.i);
     if (!nexttok_if (&ctx->l, ')'))
       error (ctx, "wait for ack: expecting ')'");
   }
@@ -1853,9 +1741,9 @@ static void dodeaf_maybe_imm (struct oneliner_ctx *ctx, bool immediate)
         dds_entity_unpin (x);
         error_dds (ctx, ret, "%s: pin counterpart participant failed %"PRId32, mode, ctx->es[9*i]);
       }
-      ddsi_thread_state_awake (ddsi_lookup_thread_state (), &x->m_domain->gv);
+      thread_state_awake (lookup_thread_state (), &x->m_domain->gv);
       ddsi_delete_proxy_participant_by_guid (&x->m_domain->gv, &xprime->m_guid, ddsrt_time_wallclock (), true);
-      ddsi_thread_state_asleep (ddsi_lookup_thread_state ());
+      thread_state_asleep (lookup_thread_state ());
       dds_entity_unpin (xprime);
     }
     dds_entity_unpin (x);
@@ -1866,18 +1754,6 @@ static void dodeaf (struct oneliner_ctx *ctx)
 {
   const bool immediate = nexttok_if (&ctx->l, '!');
   dodeaf_maybe_imm (ctx, immediate);
-}
-
-static void wait_for_cleanup (struct oneliner_ctx *ctx, dds_entity_t recovering_participant_handle, const ddsi_guid_t *guid)
-{
-  dds_entity *xprime;
-  dds_return_t ret;
-  if ((ret = dds_entity_pin (recovering_participant_handle, &xprime)) < 0)
-    error_dds (ctx, ret, "wait_for_cleanup: pin participant failed %"PRId32, recovering_participant_handle);
-  struct ddsi_domaingv * const gv = &xprime->m_domain->gv;
-  while (ddsi_is_deleted_participant_guid (gv->deleted_participants, guid))
-    dds_sleepfor (DDS_MSECS (10));
-  dds_entity_unpin (xprime);
 }
 
 static void dohearing_maybe_imm (struct oneliner_ctx *ctx, bool immediate)
@@ -1896,9 +1772,6 @@ static void dohearing_maybe_imm (struct oneliner_ctx *ctx, bool immediate)
   if (immediate)
   {
     // speed up the process by forcing SPDP publication on the remote
-    // better wait until our local GC completed because we block
-    // rediscovery of the remote participant while we're still cleaning
-    // up after it
     for (int i = 0; i < (int) (sizeof (ctx->doms) / sizeof (ctx->doms[0])); i++)
     {
       if (i == ent / 9 || ctx->es[9*i] == 0)
@@ -1907,11 +1780,10 @@ static void dohearing_maybe_imm (struct oneliner_ctx *ctx, bool immediate)
       struct ddsi_participant *pp;
       if ((ret = dds_entity_pin (ctx->es[9*i], &xprime)) < 0)
         error_dds (ctx, ret, "%s: pin counterpart participant failed %"PRId32, mode, ctx->es[9*i]);
-      wait_for_cleanup (ctx, ctx->es[ent], &xprime->m_guid);
-      ddsi_thread_state_awake (ddsi_lookup_thread_state (), &xprime->m_domain->gv);
-      if ((pp = ddsi_entidx_lookup_participant_guid (xprime->m_domain->gv.entity_index, &xprime->m_guid)) != NULL)
-        ddsi_spdp_force_republish (pp->e.gv->spdp_schedule, pp, NULL);
-      ddsi_thread_state_asleep (ddsi_lookup_thread_state ());
+      thread_state_awake (lookup_thread_state (), &xprime->m_domain->gv);
+      if ((pp = entidx_lookup_participant_guid (xprime->m_domain->gv.entity_index, &xprime->m_guid)) != NULL)
+        resched_xevent_if_earlier (pp->spdp_xevent, ddsrt_mtime_add_duration (ddsrt_time_monotonic (), DDS_MSECS (100)));
+      thread_state_asleep (lookup_thread_state ());
       dds_entity_unpin (xprime);
     }
   }
@@ -1960,7 +1832,7 @@ static void dosetflags (struct oneliner_ctx *ctx)
     error (ctx, "setflags: entity is not a writer");
   }
   dds_writer *wr = (dds_writer *) xwr;
-  if (strspn (flagstok.n, "arhsd") != strlen (flagstok.n))
+  if (strspn (flagstok.n, "arhd") != strlen (flagstok.n))
   {
     dds_entity_unpin (xwr);
     error (ctx, "setflags: unknown flags");
@@ -1968,7 +1840,6 @@ static void dosetflags (struct oneliner_ctx *ctx)
   wr->m_wr->test_ignore_acknack = (strchr (flagstok.n, 'a') != NULL);
   wr->m_wr->test_suppress_retransmit = (strchr (flagstok.n, 'r') != NULL);
   wr->m_wr->test_suppress_heartbeat = (strchr (flagstok.n, 'h') != NULL);
-  wr->m_wr->test_suppress_flush_on_sync_heartbeat = (strchr (flagstok.n, 's') != NULL);
   wr->m_wr->test_drop_outgoing_data = (strchr (flagstok.n, 'd') != NULL);
   dds_entity_unpin (xwr);
 }
@@ -2031,7 +1902,6 @@ static void dispatchcmd (struct oneliner_ctx *ctx)
     { "wrdispfail", dowrdispfail },
     { "dispfail",   dodispfail },
     { "unregfail",  dounregfail },
-    { "flush",      dowriteflush },
     { "take",       dotake },
     { "read",       doread },
     { "deaf",       dodeaf },
@@ -2180,10 +2050,4 @@ int test_oneliner_with_config (const char *ops, const char *config_override)
 int test_oneliner (const char *ops)
 {
   return test_oneliner_with_config (ops, NULL);
-}
-
-int test_oneliner_no_shm (const char *ops)
-{
-  const char *config_override = NULL;
-  return test_oneliner_with_config (ops, config_override);
 }

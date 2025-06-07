@@ -1,13 +1,14 @@
-// Copyright(c) 2021 to 2022 ZettaScale Technology and others
-//
-// This program and the accompanying materials are made available under the
-// terms of the Eclipse Public License v. 2.0 which is available at
-// http://www.eclipse.org/legal/epl-2.0, or the Eclipse Distribution License
-// v. 1.0 which is available at
-// http://www.eclipse.org/org/documents/edl-v10.php.
-//
-// SPDX-License-Identifier: EPL-2.0 OR BSD-3-Clause
-
+/*
+ * Copyright(c) 2021 to 2022 ZettaScale Technology and others
+ *
+ * This program and the accompanying materials are made available under the
+ * terms of the Eclipse Public License v. 2.0 which is available at
+ * http://www.eclipse.org/legal/epl-2.0, or the Eclipse Distribution License
+ * v. 1.0 which is available at
+ * http://www.eclipse.org/org/documents/edl-v10.php.
+ *
+ * SPDX-License-Identifier: EPL-2.0 OR BSD-3-Clause
+ */
 #include <assert.h>
 #include <stdarg.h>
 #include <stdbool.h>
@@ -16,7 +17,6 @@
 #include <string.h>
 #include <stdlib.h>
 
-#include "idl/heap.h"
 #include "idl/processor.h"
 #include "idl/string.h"
 #include "scanner.h"
@@ -436,7 +436,7 @@ scan_pp_number(idl_pstate_t *pstate, const char *cur, const char **lim)
 }
 
 static int32_t
-scan_identifier(idl_pstate_t *pstate, const char *cur, const char **lim, bool allow_leading_underscores)
+scan_identifier(idl_pstate_t *pstate, const char *cur, const char **lim)
 {
   int32_t cnt = 0;
 
@@ -451,19 +451,6 @@ scan_identifier(idl_pstate_t *pstate, const char *cur, const char **lim, bool al
       return IDL_RETCODE_NEED_REFILL;
     cur += cnt;
   } while (cnt);
-
-  /* scan_identifier is only called when looking at alpha|_ */
-  const char *tok = pstate->scanner.cursor;
-  assert(cur - tok > 0);
-  if (!allow_leading_underscores) {
-    if (cur - tok == 1 && tok[0] == '_') {
-      error(pstate, tok, "'_' is not a valid identifier");
-      return IDL_RETCODE_SYNTAX_ERROR;
-    } else if (cur - tok >= 2 && tok[0] == '_' && tok[1] == '_') {
-      error(pstate, tok, "At most one leading underscore allowed in an identifier");
-      return IDL_RETCODE_SYNTAX_ERROR;
-    }
-  }
 
   switch (pstate->scanner.state) {
     case IDL_SCAN_ANNOTATION:
@@ -595,8 +582,6 @@ scan(idl_pstate_t *pstate, idl_lexeme_t *lex)
     } else if ((cnt = have_newline(pstate, cur)) > 0) {
       lim = cur + cnt;
       code = '\n';
-    } else if (cnt < 0) {
-      return IDL_RETCODE_NEED_REFILL;
     } else if ((cnt = have_space(pstate, cur)) > 0) {
       /* skip space characters, except newline */
       lim = cur + cnt;
@@ -607,7 +592,7 @@ scan(idl_pstate_t *pstate, idl_lexeme_t *lex)
       if (chr == '.' && have_digit(pstate, next(pstate, cur))) {
         code = scan_pp_number(pstate, cur, &lim);
       } else if (have_alpha(pstate, cur) || chr == '_') {
-        code = scan_identifier(pstate, cur, &lim, true);
+        code = scan_identifier(pstate, cur, &lim);
       } else if (have_digit(pstate, cur)) {
         code = scan_pp_number(pstate, cur, &lim);
       } else if (have(pstate, cur, "::")) {
@@ -626,7 +611,7 @@ scan(idl_pstate_t *pstate, idl_lexeme_t *lex)
         /* idl_stroull takes care of decimal vs. octal vs. hexadecimal */
         code = scan_integer_literal(pstate, cur, &lim);
       } else if (have_alpha(pstate, cur) || chr == '_') {
-        code = scan_identifier(pstate, cur, &lim, false);
+        code = scan_identifier(pstate, cur, &lim);
       } else if (have(pstate, cur, "::") > 0) {
         code = scan_scope(pstate, cur, &lim);
       } else if ((cnt = have(pstate, cur, "<<")) > 0) {
@@ -742,7 +727,7 @@ tokenize(
   }
 
   len = (size_t)((uintptr_t)lex->limit - (uintptr_t)lex->marker);
-  if (len >= sizeof(buf) && !(str = idl_malloc(len + 1)))
+  if (len >= sizeof(buf) && !(str = malloc(len + 1)))
     return IDL_RETCODE_NO_MEMORY;
 
   /* strip line continuation sequences */
@@ -788,7 +773,7 @@ identifier:
       str[len] = '\0';
       if ((ret = unescape(pstate, lex, str, &len)) != IDL_RETCODE_OK) {
         if (str != buf)
-          idl_free(str);
+          free(str);
         return ret;
       }
       break;
@@ -820,14 +805,14 @@ identifier:
       if (len != 1) {
         idl_error(pstate, &lex->location, "invalid character constant");
         if (str != buf)
-          idl_free(str);
+          free(str);
         return IDL_RETCODE_SYNTAX_ERROR;
       }
       tok->value.chr = *str;
       /* fall through */
     default:
       if (str != buf)
-        idl_free(str);
+        free(str);
       break;
   }
 

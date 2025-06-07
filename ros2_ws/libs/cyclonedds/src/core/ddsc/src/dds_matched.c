@@ -1,13 +1,14 @@
-// Copyright(c) 2019 to 2022 ZettaScale Technology and others
-//
-// This program and the accompanying materials are made available under the
-// terms of the Eclipse Public License v. 2.0 which is available at
-// http://www.eclipse.org/legal/epl-2.0, or the Eclipse Distribution License
-// v. 1.0 which is available at
-// http://www.eclipse.org/org/documents/edl-v10.php.
-//
-// SPDX-License-Identifier: EPL-2.0 OR BSD-3-Clause
-
+/*
+ * Copyright(c) 2019 to 2022 ZettaScale Technology and others
+ *
+ * This program and the accompanying materials are made available under the
+ * terms of the Eclipse Public License v. 2.0 which is available at
+ * http://www.eclipse.org/legal/epl-2.0, or the Eclipse Distribution License
+ * v. 1.0 which is available at
+ * http://www.eclipse.org/org/documents/edl-v10.php.
+ *
+ * SPDX-License-Identifier: EPL-2.0 OR BSD-3-Clause
+ */
 #include <assert.h>
 #include <string.h>
 
@@ -15,18 +16,19 @@
 #include "dds/ddsrt/string.h"
 #include "dds/dds.h"
 #include "dds/version.h"
+#include "dds/ddsi/ddsi_config_impl.h"
 #include "dds/ddsi/ddsi_domaingv.h"
 #include "dds/ddsi/ddsi_entity.h"
-#include "dds/ddsi/ddsi_endpoint_match.h"
+#include "dds/ddsi/ddsi_entity_match.h"
 #include "dds/ddsi/ddsi_participant.h"
 #include "dds/ddsi/ddsi_proxy_participant.h"
 #include "dds/ddsi/ddsi_endpoint.h"
 #include "dds/ddsi/ddsi_entity_index.h"
-#include "dds/ddsi/ddsi_thread.h"
+#include "dds/ddsi/q_thread.h"
+#include "dds/ddsi/q_bswap.h"
 #include "dds__writer.h"
 #include "dds__reader.h"
 #include "dds__topic.h"
-#include "dds__guid.h"
 
 dds_return_t dds_get_matched_subscriptions (dds_entity_t writer, dds_instance_handle_t *rds, size_t nrds)
 {
@@ -38,9 +40,43 @@ dds_return_t dds_get_matched_subscriptions (dds_entity_t writer, dds_instance_ha
     return rc;
   else
   {
-    rc = ddsi_writer_get_matched_subscriptions (wr->m_wr, rds, nrds);
+    const struct entity_index *gh = wr->m_entity.m_domain->gv.entity_index;
+    size_t nrds_act = 0;
+    ddsrt_avl_iter_t it;
+    /* FIXME: this ought not be so tightly coupled to the lower layer */
+    thread_state_awake (lookup_thread_state (), &wr->m_entity.m_domain->gv);
+    ddsrt_mutex_lock (&wr->m_wr->e.lock);
+    for (const struct ddsi_wr_prd_match *m = ddsrt_avl_iter_first (&ddsi_wr_readers_treedef, &wr->m_wr->readers, &it);
+         m != NULL;
+         m = ddsrt_avl_iter_next (&it))
+    {
+      struct ddsi_proxy_reader *prd;
+      if ((prd = entidx_lookup_proxy_reader_guid (gh, &m->prd_guid)) != NULL)
+      {
+        if (nrds_act < nrds)
+          rds[nrds_act] = prd->e.iid;
+        nrds_act++;
+      }
+    }
+    for (const struct ddsi_wr_rd_match *m = ddsrt_avl_iter_first (&ddsi_wr_local_readers_treedef, &wr->m_wr->local_readers, &it);
+         m != NULL;
+         m = ddsrt_avl_iter_next (&it))
+    {
+      struct ddsi_reader *rd;
+      if ((rd = entidx_lookup_reader_guid (gh, &m->rd_guid)) != NULL)
+      {
+        if (nrds_act < nrds)
+          rds[nrds_act] = rd->e.iid;
+        nrds_act++;
+      }
+    }
+    ddsrt_mutex_unlock (&wr->m_wr->e.lock);
+    thread_state_asleep (lookup_thread_state ());
     dds_writer_unlock (wr);
-    return rc;
+    /* FIXME: is it really true that there can not be more than INT32_MAX matching readers?
+       (in practice it'll come to a halt long before that) */
+    assert (nrds_act <= INT32_MAX);
+    return (dds_return_t) nrds_act;
   }
 }
 
@@ -54,52 +90,104 @@ dds_return_t dds_get_matched_publications (dds_entity_t reader, dds_instance_han
     return rc;
   else
   {
-    rc = ddsi_reader_get_matched_publications (rd->m_rd, wrs, nwrs);
+    const struct entity_index *gh = rd->m_entity.m_domain->gv.entity_index;
+    size_t nwrs_act = 0;
+    ddsrt_avl_iter_t it;
+    /* FIXME: this ought not be so tightly coupled to the lower layer */
+    thread_state_awake (lookup_thread_state (), &rd->m_entity.m_domain->gv);
+    ddsrt_mutex_lock (&rd->m_rd->e.lock);
+    for (const struct ddsi_rd_pwr_match *m = ddsrt_avl_iter_first (&ddsi_rd_writers_treedef, &rd->m_rd->writers, &it);
+         m != NULL;
+         m = ddsrt_avl_iter_next (&it))
+    {
+      struct ddsi_proxy_writer *pwr;
+      if ((pwr = entidx_lookup_proxy_writer_guid (gh, &m->pwr_guid)) != NULL)
+      {
+        if (nwrs_act < nwrs)
+          wrs[nwrs_act] = pwr->e.iid;
+        nwrs_act++;
+      }
+    }
+    for (const struct ddsi_rd_wr_match *m = ddsrt_avl_iter_first (&ddsi_rd_local_writers_treedef, &rd->m_rd->local_writers, &it);
+         m != NULL;
+         m = ddsrt_avl_iter_next (&it))
+    {
+      struct ddsi_writer *wr;
+      if ((wr = entidx_lookup_writer_guid (gh, &m->wr_guid)) != NULL)
+      {
+        if (nwrs_act < nwrs)
+          wrs[nwrs_act] = wr->e.iid;
+        nwrs_act++;
+      }
+    }
+    ddsrt_mutex_unlock (&rd->m_rd->e.lock);
+    thread_state_asleep (lookup_thread_state ());
     dds_reader_unlock (rd);
-    return rc;
+    /* FIXME: is it really true that there can not be more than INT32_MAX matching readers?
+     (in practice it'll come to a halt long before that) */
+    assert (nwrs_act <= INT32_MAX);
+    return (dds_return_t) nwrs_act;
   }
 }
 
 static dds_builtintopic_endpoint_t *make_builtintopic_endpoint (const ddsi_guid_t *guid, const ddsi_guid_t *ppguid, dds_instance_handle_t ppiid, const dds_qos_t *qos)
 {
   dds_builtintopic_endpoint_t *ep;
+  ddsi_guid_t tmp;
   ep = dds_alloc (sizeof (*ep));
-  ep->key = dds_guid_from_ddsi_guid (*guid);
+  tmp = nn_hton_guid (*guid);
+  memcpy (&ep->key, &tmp, sizeof (ep->key));
   ep->participant_instance_handle = ppiid;
-  ep->participant_key = dds_guid_from_ddsi_guid (*ppguid);
+  tmp = nn_hton_guid (*ppguid);
+  memcpy (&ep->participant_key, &tmp, sizeof (ep->participant_key));
   ep->qos = dds_create_qos ();
-  ddsi_xqos_mergein_missing (ep->qos, qos, ~(DDSI_QP_TOPIC_NAME | DDSI_QP_TYPE_NAME));
+  ddsi_xqos_mergein_missing (ep->qos, qos, ~(QP_TOPIC_NAME | QP_TYPE_NAME));
   ep->topic_name = dds_string_dup (qos->topic_name);
   ep->type_name = dds_string_dup (qos->type_name);
   return ep;
 }
-
-static const struct ddsi_entity_common null_entity_common;
 
 dds_builtintopic_endpoint_t *dds_get_matched_subscription_data (dds_entity_t writer, dds_instance_handle_t ih)
 {
   dds_writer *wr;
   if (dds_writer_lock (writer, &wr))
     return NULL;
-
-  dds_builtintopic_endpoint_t *ret = NULL;
-  const struct ddsi_entity_common *rdc;
-  const struct dds_qos *rdqos;
-  const struct ddsi_entity_common *ppc;
-
-  // thread must be "awake" while pointers to DDSI entities are being used
-  struct ddsi_domaingv * const gv = &wr->m_entity.m_domain->gv;
-  ddsi_thread_state_awake (ddsi_lookup_thread_state (), gv);
-  if (ddsi_writer_find_matched_reader (wr->m_wr, ih, &rdc, &rdqos, &ppc))
+  else
   {
-    if (ppc == NULL)
-      ppc = &null_entity_common;
-    ret = make_builtintopic_endpoint (&rdc->guid, &ppc->guid, ppc->iid, rdqos);
-  }
-  ddsi_thread_state_asleep (ddsi_lookup_thread_state ());
+    const struct entity_index *gh = wr->m_entity.m_domain->gv.entity_index;
+    dds_builtintopic_endpoint_t *ret = NULL;
+    ddsrt_avl_iter_t it;
+    /* FIXME: this ought not be so tightly coupled to the lower layer, and not be so inefficient besides */
+    thread_state_awake (lookup_thread_state (), &wr->m_entity.m_domain->gv);
+    ddsrt_mutex_lock (&wr->m_wr->e.lock);
+    for (const struct ddsi_wr_prd_match *m = ddsrt_avl_iter_first (&ddsi_wr_readers_treedef, &wr->m_wr->readers, &it);
+         m != NULL && ret == NULL;
+         m = ddsrt_avl_iter_next (&it))
+    {
+      struct ddsi_proxy_reader *prd;
+      if ((prd = entidx_lookup_proxy_reader_guid (gh, &m->prd_guid)) != NULL)
+      {
+        if (prd->e.iid == ih)
+          ret = make_builtintopic_endpoint (&prd->e.guid, &prd->c.proxypp->e.guid, prd->c.proxypp->e.iid, prd->c.xqos);
+      }
+    }
+    for (const struct ddsi_wr_rd_match *m = ddsrt_avl_iter_first (&ddsi_wr_local_readers_treedef, &wr->m_wr->local_readers, &it);
+         m != NULL && ret == NULL;
+         m = ddsrt_avl_iter_next (&it))
+    {
+      struct ddsi_reader *rd;
+      if ((rd = entidx_lookup_reader_guid (gh, &m->rd_guid)) != NULL)
+      {
+        if (rd->e.iid == ih)
+          ret = make_builtintopic_endpoint (&rd->e.guid, &rd->c.pp->e.guid, rd->c.pp->e.iid, rd->xqos);
+      }
+    }
 
-  dds_writer_unlock (wr);
-  return ret;
+    ddsrt_mutex_unlock (&wr->m_wr->e.lock);
+    thread_state_asleep (lookup_thread_state ());
+    dds_writer_unlock (wr);
+    return ret;
+  }
 }
 
 dds_builtintopic_endpoint_t *dds_get_matched_publication_data (dds_entity_t reader, dds_instance_handle_t ih)
@@ -107,42 +195,56 @@ dds_builtintopic_endpoint_t *dds_get_matched_publication_data (dds_entity_t read
   dds_reader *rd;
   if (dds_reader_lock (reader, &rd))
     return NULL;
-
-  dds_builtintopic_endpoint_t *ret = NULL;
-  const struct ddsi_entity_common *wrc;
-  const struct dds_qos *wrqos;
-  const struct ddsi_entity_common *ppc;
-
-  // thread must be "awake" while pointers to DDSI entities are being used
-  struct ddsi_domaingv * const gv = &rd->m_entity.m_domain->gv;
-  ddsi_thread_state_awake (ddsi_lookup_thread_state (), gv);
-  if (ddsi_reader_find_matched_writer (rd->m_rd, ih, &wrc, &wrqos, &ppc))
+  else
   {
-    if (ppc == NULL)
-      ppc = &null_entity_common;
-    ret = make_builtintopic_endpoint (&wrc->guid, &ppc->guid, ppc->iid, wrqos);
+    const struct entity_index *gh = rd->m_entity.m_domain->gv.entity_index;
+    dds_builtintopic_endpoint_t *ret = NULL;
+    ddsrt_avl_iter_t it;
+    /* FIXME: this ought not be so tightly coupled to the lower layer, and not be so inefficient besides */
+    thread_state_awake (lookup_thread_state (), &rd->m_entity.m_domain->gv);
+    ddsrt_mutex_lock (&rd->m_rd->e.lock);
+    for (const struct ddsi_rd_pwr_match *m = ddsrt_avl_iter_first (&ddsi_rd_writers_treedef, &rd->m_rd->writers, &it);
+         m != NULL && ret == NULL;
+         m = ddsrt_avl_iter_next (&it))
+    {
+      struct ddsi_proxy_writer *pwr;
+      if ((pwr = entidx_lookup_proxy_writer_guid (gh, &m->pwr_guid)) != NULL)
+      {
+        if (pwr->e.iid == ih)
+          ret = make_builtintopic_endpoint (&pwr->e.guid, &pwr->c.proxypp->e.guid, pwr->c.proxypp->e.iid, pwr->c.xqos);
+      }
+    }
+    for (const struct ddsi_rd_wr_match *m = ddsrt_avl_iter_first (&ddsi_rd_local_writers_treedef, &rd->m_rd->local_writers, &it);
+         m != NULL && ret == NULL;
+         m = ddsrt_avl_iter_next (&it))
+    {
+      struct ddsi_writer *wr;
+      if ((wr = entidx_lookup_writer_guid (gh, &m->wr_guid)) != NULL)
+      {
+        if (wr->e.iid == ih)
+          ret = make_builtintopic_endpoint (&wr->e.guid, &wr->c.pp->e.guid, wr->c.pp->e.iid, wr->xqos);
+      }
+    }
+    ddsrt_mutex_unlock (&rd->m_rd->e.lock);
+    thread_state_asleep (lookup_thread_state ());
+    dds_reader_unlock (rd);
+    return ret;
   }
-  ddsi_thread_state_asleep (ddsi_lookup_thread_state ());
-
-  dds_reader_unlock (rd);
-  return ret;
 }
 
-#ifdef DDS_HAS_TYPELIB
-
+#ifdef DDS_HAS_TYPE_DISCOVERY
 dds_return_t dds_builtintopic_get_endpoint_type_info (dds_builtintopic_endpoint_t * builtintopic_endpoint, const dds_typeinfo_t ** type_info)
 {
   if (builtintopic_endpoint == NULL || type_info == NULL)
     return DDS_RETCODE_BAD_PARAMETER;
 
-  if (builtintopic_endpoint->qos && builtintopic_endpoint->qos->present & DDSI_QP_TYPE_INFORMATION)
+  if (builtintopic_endpoint->qos && builtintopic_endpoint->qos->present & QP_TYPE_INFORMATION)
     *type_info = builtintopic_endpoint->qos->type_information;
   else
     *type_info = NULL;
   return DDS_RETCODE_OK;
 }
-
-#endif /* DDS_HAS_TYPELIB */
+#endif
 
 void dds_builtintopic_free_endpoint (dds_builtintopic_endpoint_t * builtintopic_endpoint)
 {

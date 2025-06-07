@@ -242,9 +242,9 @@ typedef struct fileinfo {
         char *          buffer;     /* Buffer of current input line */
 #if MCPP_LIB
         /* Save output functions during push/pop of #includes   */
-        int (* last_fputc)  ( int c, MCPP_OUTDEST od);
-        int (* last_fputs)  ( const char * s, MCPP_OUTDEST od);
-        int (* last_fprintf)( MCPP_OUTDEST od, const char * format, ...)
+        int (* last_fputc)  ( int c, OUTDEST od);
+        int (* last_fputs)  ( const char * s, OUTDEST od);
+        int (* last_fprintf)( OUTDEST od, const char * format, ...)
                 MCPP_ATTRIBUTE_FORMAT_PRINTF(2, 3);
 #endif
 } FILEINFO;
@@ -267,16 +267,11 @@ typedef struct ifinfo {
 
 #define compiling       ifstack[0].stat
 
-/* FP2DEST used to evaluate to -1 if fp did not match any of the three,
-   but that case is not a valid input to the functions that get it
-   passed.  In Clang 18 (perhaps earlier) it triggers a static analyzer
-   warning.  Evaluating it to MCPP_DBG seems a reasonable way of avoiding
-   that warning. */
 #define FP2DEST(fp) \
-    (fp == fp_out) ? MCPP_OUT : \
-    ((fp == fp_err) ? MCPP_ERR : \
-    ((fp == fp_debug) ? MCPP_DBG : \
-     MCPP_DBG))
+    (fp == fp_out) ? OUT : \
+    ((fp == fp_err) ? ERR : \
+    ((fp == fp_debug) ? DBG : \
+    ((OUTDEST) -1)))
 
 /* VAL_SIGN structure stores information about evaluated number.    */
 typedef struct val_sign {
@@ -506,13 +501,12 @@ extern void     dump_string( const char * why, const char * text);
 extern void     dump_unget( const char * why);
                 /* Dump all ungotten junk       */
 /* Support for alternate output mechanisms (e.g. memory buffers) */
-extern int      (* mcpp_fputc)( int c, MCPP_OUTDEST od);
-extern int      (* mcpp_fputs)( const char * s, MCPP_OUTDEST od);
-extern int      (* mcpp_fprintf)( MCPP_OUTDEST od, const char * format, ...)
+extern int      (* mcpp_fputc)( int c, OUTDEST od);
+extern int      (* mcpp_fputs)( const char * s, OUTDEST od);
+extern int      (* mcpp_fprintf)( OUTDEST od, const char * format, ...)
         MCPP_ATTRIBUTE_FORMAT_PRINTF(2, 3);
 
 /* system.c */
-extern void     clean_system(void);
 extern void     do_options( int argc, char ** argv, char ** in_pp
         , char ** out_pp);
                 /* Process command line args    */

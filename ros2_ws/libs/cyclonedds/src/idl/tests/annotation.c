@@ -1,13 +1,14 @@
-// Copyright(c) 2020 to 2022 ZettaScale Technology and others
-//
-// This program and the accompanying materials are made available under the
-// terms of the Eclipse Public License v. 2.0 which is available at
-// http://www.eclipse.org/legal/epl-2.0, or the Eclipse Distribution License
-// v. 1.0 which is available at
-// http://www.eclipse.org/org/documents/edl-v10.php.
-//
-// SPDX-License-Identifier: EPL-2.0 OR BSD-3-Clause
-
+/*
+ * Copyright(c) 2020 to 2022 ZettaScale Technology and others
+ *
+ * This program and the accompanying materials are made available under the
+ * terms of the Eclipse Public License v. 2.0 which is available at
+ * http://www.eclipse.org/legal/epl-2.0, or the Eclipse Distribution License
+ * v. 1.0 which is available at
+ * http://www.eclipse.org/org/documents/edl-v10.php.
+ *
+ * SPDX-License-Identifier: EPL-2.0 OR BSD-3-Clause
+ */
 #include <assert.h>
 
 #include "hashid.h"
@@ -941,42 +942,6 @@ CU_Test(idl_annotation, parameter_scope)
 #undef A
 #undef TA
 
-CU_Test(idl_annotation, identifier_clash)
-{
-  static const struct {
-    const char *str;
-    idl_retcode_t ret;
-  } tests[] = {
-    { "struct key { @key long f1; };", IDL_RETCODE_OK },
-    { "struct Key { @key long f1; };", IDL_RETCODE_OK },
-    { "struct external { long f1; };", IDL_RETCODE_OK },
-    { "module m1 { struct key { long f1; }; }; struct b { @key long f1; };", IDL_RETCODE_OK },
-    { "@annotation key { }; struct a { @key long f1; };", IDL_RETCODE_SEMANTIC_ERROR },
-    { "module m1 { @annotation key { }; struct a { @key long f1; }; };", IDL_RETCODE_OK }, // uses the custom @key annotation, so field is not a key!
-    { "@annotation a1 { }; struct a1 { long f1; };", IDL_RETCODE_OK },
-    { "@annotation a1 { }; @annotation a1 { }; struct b { @a1 long f1; };", IDL_RETCODE_OK },
-    { "@annotation a1 { }; @annotation a1 { unsigned long value; }; struct b { @a1 long f1; };", IDL_RETCODE_SEMANTIC_ERROR },
-    { "@annotation a1 { }; @a1 struct a2 { @a1 long f1; };", IDL_RETCODE_OK },
-    { "module m1 { @annotation a1 { }; }; struct a1 { long f1; };", IDL_RETCODE_OK },
-    { "module m1 { struct a1 { long f1; }; }; @annotation a1 { };", IDL_RETCODE_OK }
-  };
-  static const size_t n = sizeof(tests)/sizeof(tests[0]);
-
-  idl_retcode_t ret;
-  idl_pstate_t *pstate = NULL;
-
-  for (size_t i = 0; i < n; i++) {
-    pstate = NULL;
-    ret = parse_string(IDL_FLAG_ANNOTATIONS, tests[i].str, &pstate);
-    CU_ASSERT_EQUAL_FATAL(ret, tests[i].ret);
-    if (tests[i].ret == IDL_RETCODE_OK)
-    {
-      CU_ASSERT_PTR_NOT_NULL_FATAL(pstate);
-      idl_delete_pstate(pstate);
-    }
-  }
-}
-
 #define BM(i) "@bit_bound(" i ") bitmask MyBitMask { flag0 };"
 #define E(i) "@bit_bound(" i ") enum MyEnum { ENUM1 };"
 CU_Test(idl_annotation, bit_bound)
@@ -1236,49 +1201,28 @@ static void validate_limit(const idl_literal_t *lit, double to_test, double gran
 {
   assert(lit);
   double fval = 0;
-  switch (idl_type(lit)) {
-    case IDL_INT8:
-      fval = (double)lit->value.int8;
-      break;
-    case IDL_INT16:
-    case IDL_SHORT:
-      fval = (double)lit->value.int16;
-      break;
-    case IDL_INT32:
-    case IDL_LONG:
-      fval = (double)lit->value.int32;
-      break;
-    case IDL_INT64:
-    case IDL_LLONG:
-      fval = (double)lit->value.int64;
-      break;
-    case IDL_UINT8:
-      fval = (double)lit->value.uint8;
-      break;
-    case IDL_UINT16:
-    case IDL_USHORT:
-      fval = (double)lit->value.uint16;
-      break;
-    case IDL_UINT32:
-    case IDL_ULONG:
-      fval = (double)lit->value.uint32;
-      break;
-    case IDL_UINT64:
-    case IDL_ULLONG:
+  idl_type_t type = idl_type(lit);
+  if (type & IDL_INTEGER_TYPE) {
+    if (type & IDL_UNSIGNED)
       fval = (double)lit->value.uint64;
-      break;
-    case IDL_FLOAT:
-      fval = (double)lit->value.flt;
-      break;
-    case IDL_DOUBLE:
-      fval = (double)lit->value.dbl;
-      break;
-    case IDL_LDOUBLE:
-      fval = (double)lit->value.ldbl;
-      break;
-    default:
-      CU_ASSERT(false);
+    else
+      fval = (double)lit->value.int64;
+  } else {
+    switch (type) {
+      case IDL_FLOAT:
+        fval = (double)lit->value.flt;
+        break;
+      case IDL_DOUBLE:
+        fval = (double)lit->value.dbl;
+        break;
+      case IDL_LDOUBLE:
+        fval = (double)lit->value.ldbl;
+        break;
+      default:
+        CU_ASSERT(false);
+    }
   }
+
   CU_ASSERT_DOUBLE_EQUAL(fval, to_test, granularity);
 }
 

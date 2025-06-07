@@ -1,13 +1,14 @@
-// Copyright(c) 2020 to 2022 ZettaScale Technology and others
-//
-// This program and the accompanying materials are made available under the
-// terms of the Eclipse Public License v. 2.0 which is available at
-// http://www.eclipse.org/legal/epl-2.0, or the Eclipse Distribution License
-// v. 1.0 which is available at
-// http://www.eclipse.org/org/documents/edl-v10.php.
-//
-// SPDX-License-Identifier: EPL-2.0 OR BSD-3-Clause
-
+/*
+ * Copyright(c) 2020 to 2022 ZettaScale Technology and others
+ *
+ * This program and the accompanying materials are made available under the
+ * terms of the Eclipse Public License v. 2.0 which is available at
+ * http://www.eclipse.org/legal/epl-2.0, or the Eclipse Distribution License
+ * v. 1.0 which is available at
+ * http://www.eclipse.org/org/documents/edl-v10.php.
+ *
+ * SPDX-License-Identifier: EPL-2.0 OR BSD-3-Clause
+ */
 #include <stdarg.h>
 #include <stdbool.h>
 #include <stdio.h>
@@ -39,13 +40,11 @@ void gendef_pf_maybe_memsize (FILE *fp, void *parent, struct cfgelem const * con
 void gendef_pf_int (FILE *fp, void *parent, struct cfgelem const * const cfgelem);
 void gendef_pf_uint (FILE *fp, void *parent, struct cfgelem const * const cfgelem);
 void gendef_pf_duration (FILE *fp, void *parent, struct cfgelem const * const cfgelem);
-void gendef_pf_maybe_duration (FILE *fp, void *parent, struct cfgelem const * const cfgelem);
 void gendef_pf_domainId(FILE *fp, void *parent, struct cfgelem const * const cfgelem);
 void gendef_pf_participantIndex (FILE *fp, void *parent, struct cfgelem const * const cfgelem);
 void gendef_pf_boolean (FILE *fp, void *parent, struct cfgelem const * const cfgelem);
 void gendef_pf_boolean_default (FILE *fp, void *parent, struct cfgelem const * const cfgelem);
 void gendef_pf_besmode (FILE *fp, void *parent, struct cfgelem const * const cfgelem);
-void gendef_pf_protocol_version (FILE *out, void *parent, struct cfgelem const * const cfgelem);
 void gendef_pf_retransmit_merging (FILE *fp, void *parent, struct cfgelem const * const cfgelem);
 void gendef_pf_sched_class (FILE *fp, void *parent, struct cfgelem const * const cfgelem);
 void gendef_pf_entity_naming_mode (FILE *fp, void *parent, struct cfgelem const * const cfgelem);
@@ -54,7 +53,6 @@ void gendef_pf_transport_selector (FILE *fp, void *parent, struct cfgelem const 
 void gendef_pf_many_sockets_mode (FILE *fp, void *parent, struct cfgelem const * const cfgelem);
 void gendef_pf_standards_conformance (FILE *fp, void *parent, struct cfgelem const * const cfgelem);
 void gendef_pf_shm_loglevel (FILE *fp, void *parent, struct cfgelem const * const cfgelem);
-void gendef_pf_uint32_array (FILE *out, void *parent, struct cfgelem const * const cfgelem);
 
 struct cfgunit {
   const char *name;
@@ -128,5 +126,4 @@ void printspc(FILE *out, unsigned int cols, const char *fmt, ...);
 int printrnc(FILE *out, struct cfgelem *elem, const struct cfgunit *units);
 int printxsd(FILE *out, struct cfgelem *elem, const struct cfgunit *units);
 int printmd(FILE *out, struct cfgelem *elem, const struct cfgunit *units);
-int printrst(FILE *out, struct cfgelem *elem, const struct cfgunit *units);
 int printdefconfig(FILE *out, struct cfgelem *elem);

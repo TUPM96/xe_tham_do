@@ -1,12 +1,14 @@
-// Copyright(c) 2006 to 2020 ZettaScale Technology and others
-//
-// This program and the accompanying materials are made available under the
-// terms of the Eclipse Public License v. 2.0 which is available at
-// http://www.eclipse.org/legal/epl-2.0, or the Eclipse Distribution License
-// v. 1.0 which is available at
-// http://www.eclipse.org/org/documents/edl-v10.php.
-//
-// SPDX-License-Identifier: EPL-2.0 OR BSD-3-Clause
+/*
+ * Copyright(c) 2006 to 2020 ZettaScale Technology and others
+ *
+ * This program and the accompanying materials are made available under the
+ * terms of the Eclipse Public License v. 2.0 which is available at
+ * http://www.eclipse.org/legal/epl-2.0, or the Eclipse Distribution License
+ * v. 1.0 which is available at
+ * http://www.eclipse.org/org/documents/edl-v10.php.
+ *
+ * SPDX-License-Identifier: EPL-2.0 OR BSD-3-Clause
+ */
 
 #ifndef DDS_SECURITY_BUITIN_TEST_HANDSHAKE_HELPER_H
 #define DDS_SECURITY_BUITIN_TEST_HANDSHAKE_HELPER_H
@@ -15,41 +17,14 @@
 #include "dds/security/core/dds_security_serialize.h"
 #include "dds/security/openssl_support.h"
 
-struct octet_seq {
-    unsigned char  *data;
-    uint32_t  length;
-};
-
-void
-octet_seq_init(
-    struct octet_seq *seq,
-    unsigned char *data,
-    uint32_t size);
-
-void
-octet_seq_deinit(
-    struct octet_seq *seq);
-
-ASN1_INTEGER *
-get_pubkey_asn1int(EVP_PKEY *pkey);
+const BIGNUM *
+dh_get_public_key(
+     DH *dhkey);
 
 int
-get_dh_public_key_modp_2048(
-    EVP_PKEY *pkey,
-    struct octet_seq *pubkey);
-
-int
-get_dh_public_key_ecdh(
-    EVP_PKEY *pkey,
-    struct octet_seq *pubkey);
-
-int
-create_dh_key_modp_2048(
-    EVP_PKEY **pkey);
-
-int
-create_dh_key_ecdh(
-    EVP_PKEY **pkey);
+dh_set_public_key(
+    DH *dhkey,
+    BIGNUM *pubkey);
 
 DDS_Security_ValidationResult_t
 create_signature_for_test(

@@ -1,13 +1,14 @@
-// Copyright(c) 2020 to 2022 ZettaScale Technology and others
-//
-// This program and the accompanying materials are made available under the
-// terms of the Eclipse Public License v. 2.0 which is available at
-// http://www.eclipse.org/legal/epl-2.0, or the Eclipse Distribution License
-// v. 1.0 which is available at
-// http://www.eclipse.org/org/documents/edl-v10.php.
-//
-// SPDX-License-Identifier: EPL-2.0 OR BSD-3-Clause
-
+/*
+ * Copyright(c) 2020 to 2022 ZettaScale Technology and others
+ *
+ * This program and the accompanying materials are made available under the
+ * terms of the Eclipse Public License v. 2.0 which is available at
+ * http://www.eclipse.org/legal/epl-2.0, or the Eclipse Distribution License
+ * v. 1.0 which is available at
+ * http://www.eclipse.org/org/documents/edl-v10.php.
+ *
+ * SPDX-License-Identifier: EPL-2.0 OR BSD-3-Clause
+ */
 #include <assert.h>
 #include <errno.h>
 #include <getopt.h>
@@ -34,7 +35,7 @@
 #define PATTERN(str) .pattern = str
 #define END_MARKER { NULL, NULL, NULL }
 
-#include "cfgunits.h"
+#include "dds/ddsi/ddsi_cfgunits.h"
 /* undefine unit macros */
 #undef UNIT
 #undef DESCRIPTION
@@ -46,7 +47,7 @@
 #define DEPRECATED(name) "|" name
 #define MEMBER(name) offsetof (struct ddsi_config, name), #name
 #define MEMBEROF(parent,name) 0, NULL /* default config for doesn't contain lists, so these aren't needed */
-/* renaming print functions to use prefix gendef_pf so that the symbols are different from those in ddsi_config.c
+/* renaming print functions to use prefix gendef_pf so that the symbols are different from those in q_config.c
    (they have file-local scope, so this isn't required, but I am guessing it will be less confusing in the long
    run, even if it means that 0/NULL will get translated to gendef_0/gendef_NULL, which then need additional
    macros to convert them back to 0 ... */
@@ -89,7 +90,7 @@
 #define GROUP(name, elems, attrs, multip, ofst, funcs, desc, ...) \
   EXPAND(ELEMENT, (name, elems, attrs, multip, NULL, ofst, funcs, desc, .type = "group", __VA_ARGS__))
 
-#include "ddsi__cfgelems.h"
+#include "dds/ddsi/ddsi_cfgelems.h"
 /* undefine element macros */
 #undef DEPRECATED
 #undef MEMBER
@@ -155,7 +156,7 @@ usage: %s -f FORMAT\n\
 \n\
 OPTIONS:\n\
     -h           print help message\n\
-    -f FORMAT    output format. one of md, rnc, rst or xsd\n\
+    -f FORMAT    output format. one of md, rnc or xsd\n\
     -o FILENAME  output file. specify - to use stdout\n\
 ";
 
@@ -304,7 +305,7 @@ static int sanitize_names(struct cfgelem *elem)
   if ((end = strchr(elem->name, '|'))) {
     assert(!elem->meta.name);
     size_t len = (uintptr_t)end - (uintptr_t)elem->name;
-    if (!(elem->meta.name = malloc(len + 1)))
+    if (!(elem->meta.name = ddsrt_malloc(len + 1)))
       return -1;
     memcpy(elem->meta.name, elem->name, len);
     elem->meta.name[len] = '\0';
@@ -336,7 +337,7 @@ static int generate_enum_pattern(struct cfgelem *elem)
     size += strlen(*vals) + 2;
   }
   size += (cnt - 1) + 2 + 1;
-  if (!(pat = malloc(size)))
+  if (!(pat = ddsrt_malloc(size)))
     return -1;
   pat[pos++] = '(';
   for (vals = elem->meta.values; *vals; vals++) {
@@ -367,7 +368,7 @@ static int generate_list_pattern(struct cfgelem *elem)
     size += strlen(*vals);
   }
   size += (cnt - 1) + 2 + 1;
-  if (!(lst = malloc(size)))
+  if (!(lst = ddsrt_malloc(size)))
     return -1;
   lst[pos++] = '(';
   for (vals = elem->meta.values; *vals != NULL; vals++) {
@@ -381,15 +382,10 @@ static int generate_list_pattern(struct cfgelem *elem)
   lst[pos++] = ')';
   lst[pos++] = '\0';
   assert(pos == size);
-  size_t patsz = 8 + strlen(val) + 2 * strlen(lst);
-  if ((pat = malloc (patsz)) == NULL) {
-    free (lst);
-    return -1;
-  }
   if (strlen(val) != 0)
-    snprintf(pat, patsz, "%s|(%s(,%s)*)", val, lst, lst);
+    ddsrt_asprintf(&pat, "%s|(%s(,%s)*)", val, lst, lst);
   else
-    snprintf(pat, patsz, "(%s(,%s)*)|", lst, lst);
+    ddsrt_asprintf(&pat, "(%s(,%s)*)|", lst, lst);
   free(lst);
   elem->meta.pattern = pat;
   return pat ? 0 : -1;
@@ -507,9 +503,9 @@ format(
       if (pos == *lenp) {
         char *str;
         size_t len = *lenp + BLOCK;
-        if (!(str = realloc(*strp, (len + 1) * sizeof(char)))) {
+        if (!(str = ddsrt_realloc(*strp, (len + 1) * sizeof(char)))) {
           if (*strp)
-            free(*strp);
+            ddsrt_free(*strp);
           return -1;
         }
         *strp = str;
@@ -525,7 +521,7 @@ format(
   return 0;
 }
 
-#define DFLTFMT "<p>The default value is: <code>%s</code></p>"
+#define DFLTFMT "<p>The default value is: \"%s\".</p>"
 
 int makedescription(
   struct cfgelem *elem,
@@ -535,39 +531,30 @@ int makedescription(
   if (elem->description) {
     char *src = NULL;
     char *dest = elem->meta.description;
-    const char *dflt = "&lt;empty&gt;";
+    const char *dflt = "";
     size_t len = 0, pos = 0;
     const struct cfgunit *unit = NULL;
 
     if (isgroup(elem)) {
-      src = strdup(elem->description);
+      src = ddsrt_strdup(elem->description);
     } else {
       if (elem->value)
-      {
-        if (strlen(elem->value) > 0)
-          dflt = elem->value;
-      }
+        dflt = elem->value;
       if (elem->meta.unit) {
         unit = findunit(units, elem->meta.unit);
         assert(unit);
-        size_t srcsz = 3 + strlen(DFLTFMT) + strlen(elem->description) + strlen(unit->description) + strlen(dflt);
-        if ((src = malloc (srcsz)) == NULL)
-          return -1;
-        snprintf(
-          src, srcsz, "%s\n%s\n"DFLTFMT, elem->description, unit->description, dflt);
+        ddsrt_asprintf(
+          &src, "%s\n%s\n"DFLTFMT, elem->description, unit->description, dflt);
       } else {
-        size_t srcsz = 2 + strlen(DFLTFMT) + strlen(elem->description) + strlen(dflt);
-        if ((src = malloc (srcsz)) == NULL)
-          return -1;
-        snprintf(
-          src, srcsz, "%s\n"DFLTFMT, elem->description, dflt);
+        ddsrt_asprintf(
+          &src, "%s\n"DFLTFMT, elem->description, dflt);
       }
     }
 
     if (!src)
       return -1;
     format(&dest, &len, &pos, src, xlat);
-    free(src);
+    ddsrt_free(src);
     if (!dest)
       return -1;
     elem->meta.description = dest;
@@ -589,13 +576,13 @@ static void fini(struct cfgelem *elem)
   if (!elem)
     return;
   if (elem->meta.name)
-    free(elem->meta.name);
+    ddsrt_free(elem->meta.name);
   if (elem->meta.title)
-    free(elem->meta.title);
+    ddsrt_free(elem->meta.title);
   if (elem->meta.pattern)
-    free(elem->meta.pattern);
+    ddsrt_free(elem->meta.pattern);
   if (elem->meta.description)
-    free(elem->meta.description);
+    ddsrt_free(elem->meta.description);
   elem->meta.name = NULL;
   elem->meta.title = NULL;
   elem->meta.pattern = NULL;
@@ -618,7 +605,7 @@ int main(int argc, char *argv[])
   int code = EXIT_FAILURE;
   FILE *out = NULL;
   const char *file = "-";
-  enum { rnc, xsd, md, rst, defconfig } format = rnc;
+  enum { rnc, xsd, md, defconfig } format = rnc;
 
   while ((opt = getopt(argc, argv, "f:o:h")) != -1) {
     switch (opt) {
@@ -629,8 +616,6 @@ int main(int argc, char *argv[])
           format = xsd;
         } else if (strcmp(optarg, "md") == 0) {
           format = md;
-        } else if (strcmp(optarg, "rst") == 0) {
-          format = rst;
         } else if (strcmp(optarg, "defconfig") == 0) {
           format = defconfig;
         } else {
@@ -679,10 +664,6 @@ int main(int argc, char *argv[])
       break;
     case md:
       if (printmd(out, cyclonedds_root_cfgelems, cfgunits) == 0)
-        code = EXIT_SUCCESS;
-      break;
-    case rst:
-      if (printrst(out, cyclonedds_root_cfgelems, cfgunits) == 0)
         code = EXIT_SUCCESS;
       break;
     case defconfig:

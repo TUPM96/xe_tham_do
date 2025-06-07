@@ -1,13 +1,14 @@
-// Copyright(c) 2006 to 2022 ZettaScale Technology and others
-//
-// This program and the accompanying materials are made available under the
-// terms of the Eclipse Public License v. 2.0 which is available at
-// http://www.eclipse.org/legal/epl-2.0, or the Eclipse Distribution License
-// v. 1.0 which is available at
-// http://www.eclipse.org/org/documents/edl-v10.php.
-//
-// SPDX-License-Identifier: EPL-2.0 OR BSD-3-Clause
-
+/*
+ * Copyright(c) 2006 to 2022 ZettaScale Technology and others
+ *
+ * This program and the accompanying materials are made available under the
+ * terms of the Eclipse Public License v. 2.0 which is available at
+ * http://www.eclipse.org/legal/epl-2.0, or the Eclipse Distribution License
+ * v. 1.0 which is available at
+ * http://www.eclipse.org/org/documents/edl-v10.php.
+ *
+ * SPDX-License-Identifier: EPL-2.0 OR BSD-3-Clause
+ */
 #ifndef DDSRT_STRING_H
 #define DDSRT_STRING_H
 
@@ -75,16 +76,16 @@ ddsrt_strsep(
  * is obtained with @ddsrt_malloc and must be freed with @ddsrt_free when it
  * is no longer used.
  *
- * @param[in]  src  Pointer to block of memory to duplicate.
- * @param[in]  n    Number of bytes to copy into newly allocated buffer.
+ * @param[in]  ptr  Pointer to block of memory to duplicate.
+ * @param[in]  len  Number of bytes to copy into newly allocated buffer.
  *
  * @returns A new block of memory that is a duplicate of the block pointed to
  *          by @ptr or NULL if not enough memory was available.
  */
 DDS_EXPORT void *
 ddsrt_memdup(
-  const void *src,
-  size_t n)
+  const void *ptr,
+  size_t len)
 ddsrt_nonnull((1))
 ddsrt_attribute_malloc;
 
@@ -141,10 +142,11 @@ ddsrt_attribute_malloc;
  *          the number of characters that would have been copied if dest is not
  *          sufficiently large enough.
  */
-DDS_EXPORT size_t
+DDS_EXPORT
+size_t
 ddsrt_strlcpy(
-  char *dest,
-  const char *src,
+  char * __restrict dest,
+  const char * __restrict src,
   size_t size)
 ddsrt_nonnull((1,2));
 
@@ -164,10 +166,11 @@ ddsrt_nonnull((1,2));
  *          the number of characters that would have been copied if dest is not
  *          sufficiently large enough.
  */
-DDS_EXPORT size_t
+DDS_EXPORT
+size_t
 ddsrt_strlcat(
-  char *dest,
-  const char *src,
+  char * __restrict dest,
+  const char * __restrict src,
   size_t size)
 ddsrt_nonnull((1,2));
 
@@ -189,18 +192,6 @@ ddsrt_str_replace(
     const char *subst,
     size_t max)
 ddsrt_nonnull_all;
-
-/**
- * @brief Trim leading and trailing ordinary space character (' ' ascii 32) from string.
- *
- * @param[in] str  pointer to string.
- *
- * @returns Pointer to original trimed string 
- *          without leading and trailing ordinary space character
- */
-DDS_EXPORT char *
-ddsrt_str_trim_ord_space(
-  char *str);
 
 #if defined (__cplusplus)
 }

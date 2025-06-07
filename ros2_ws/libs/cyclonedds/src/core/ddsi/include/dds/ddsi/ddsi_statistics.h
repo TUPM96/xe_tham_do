@@ -1,13 +1,14 @@
-// Copyright(c) 2020 ZettaScale Technology and others
-//
-// This program and the accompanying materials are made available under the
-// terms of the Eclipse Public License v. 2.0 which is available at
-// http://www.eclipse.org/legal/epl-2.0, or the Eclipse Distribution License
-// v. 1.0 which is available at
-// http://www.eclipse.org/org/documents/edl-v10.php.
-//
-// SPDX-License-Identifier: EPL-2.0 OR BSD-3-Clause
-
+/*
+ * Copyright(c) 2020 ZettaScale Technology and others
+ *
+ * This program and the accompanying materials are made available under the
+ * terms of the Eclipse Public License v. 2.0 which is available at
+ * http://www.eclipse.org/legal/epl-2.0, or the Eclipse Distribution License
+ * v. 1.0 which is available at
+ * http://www.eclipse.org/org/documents/edl-v10.php.
+ *
+ * SPDX-License-Identifier: EPL-2.0 OR BSD-3-Clause
+ */
 #ifndef _DDSI_STATISTICS_H_
 #define _DDSI_STATISTICS_H_
 
@@ -20,11 +21,8 @@ extern "C" {
 struct ddsi_reader;
 struct ddsi_writer;
 
-/** @component ddsi_statistics */
-void ddsi_get_writer_stats (struct ddsi_writer *wr, uint64_t *rexmit_bytes, uint32_t *throttle_count, uint64_t *time_throttled, uint64_t *time_retransmit);
-
-/** @component ddsi_statistics */
-void ddsi_get_reader_stats (struct ddsi_reader *rd, uint64_t *discarded_bytes);
+void ddsi_get_writer_stats (struct ddsi_writer *wr, uint64_t * __restrict rexmit_bytes, uint32_t * __restrict throttle_count, uint64_t * __restrict time_throttled, uint64_t * __restrict time_retransmit);
+void ddsi_get_reader_stats (struct ddsi_reader *rd, uint64_t * __restrict discarded_bytes);
 
 #if defined (__cplusplus)
 }

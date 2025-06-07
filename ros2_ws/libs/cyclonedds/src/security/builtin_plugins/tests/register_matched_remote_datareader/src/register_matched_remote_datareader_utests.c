@@ -1,13 +1,14 @@
-// Copyright(c) 2006 to 2021 ZettaScale Technology and others
-//
-// This program and the accompanying materials are made available under the
-// terms of the Eclipse Public License v. 2.0 which is available at
-// http://www.eclipse.org/legal/epl-2.0, or the Eclipse Distribution License
-// v. 1.0 which is available at
-// http://www.eclipse.org/org/documents/edl-v10.php.
-//
-// SPDX-License-Identifier: EPL-2.0 OR BSD-3-Clause
-
+/*
+ * Copyright(c) 2006 to 2021 ZettaScale Technology and others
+ *
+ * This program and the accompanying materials are made available under the
+ * terms of the Eclipse Public License v. 2.0 which is available at
+ * http://www.eclipse.org/legal/epl-2.0, or the Eclipse Distribution License
+ * v. 1.0 which is available at
+ * http://www.eclipse.org/org/documents/edl-v10.php.
+ *
+ * SPDX-License-Identifier: EPL-2.0 OR BSD-3-Clause
+ */
 #include <assert.h>
 
 #include "dds/ddsrt/heap.h"
@@ -17,13 +18,17 @@
 #include "dds/security/dds_security_api.h"
 #include "dds/security/core/dds_security_serialize.h"
 #include "dds/security/core/dds_security_utils.h"
-#include "dds/security/core/dds_security_shared_secret.h"
+#include "dds/security/core/shared_secret.h"
 #include "dds/security/openssl_support.h"
 #include "CUnit/CUnit.h"
 #include "CUnit/Test.h"
 #include "common/src/loader.h"
 #include "common/src/crypto_helper.h"
 #include "crypto_objects.h"
+
+#if OPENSLL_VERSION_NUMBER >= 0x10002000L
+#define AUTH_INCLUDE_EC
+#endif
 
 #define TEST_SHARED_SECRET_SIZE 32
 
@@ -55,7 +60,7 @@ static void prepare_endpoint_security_attributes(DDS_Security_EndpointSecurityAt
   attributes->plugin_endpoint_attributes |= DDS_SECURITY_PLUGIN_ENDPOINT_ATTRIBUTES_FLAG_IS_SUBMESSAGE_ENCRYPTED;
 }
 
-static void register_local_regular(void)
+static void register_local_regular()
 {
   DDS_Security_SecurityException exception = {NULL, 0, 0};
   DDS_Security_PropertySeq datawriter_properties;
@@ -199,6 +204,7 @@ CU_Test(ddssec_builtin_register_remote_datareader, happy_day, .init = suite_regi
   /* A valid handle to be returned */
   CU_ASSERT_FATAL(result != 0);
   CU_ASSERT_FATAL(exception.code == DDS_SECURITY_ERR_OK_CODE);
+  assert(result != 0); // for Clang's static analyzer
 
   /* NOTE: It would be better to check if the keys have been generated but there is no interface to get them from handle */
   reader_crypto = (remote_datareader_crypto *)result;
@@ -262,6 +268,7 @@ CU_Test(ddssec_builtin_register_remote_datareader, volatile_secure, .init = suit
 
   /* A valid handle to be returned */
   CU_ASSERT_FATAL(result != 0);
+  assert(result != 0); // for Clang's static analyzer
   CU_ASSERT_FATAL(((remote_datareader_crypto *)result)->is_builtin_participant_volatile_message_secure_reader);
   CU_ASSERT_FATAL(exception.code == DDS_SECURITY_ERR_OK_CODE);
   reset_exception(&exception);
@@ -307,8 +314,9 @@ CU_Test(ddssec_builtin_register_remote_datareader, with_origin_authentication, .
     printf("register_remote_datareader: %s\n", exception.message ? exception.message : "Error message missing");
 
   /* A valid handle to be returned */
-  CU_ASSERT_FATAL(result != 0);
+  CU_ASSERT(result != 0);
   CU_ASSERT(exception.code == DDS_SECURITY_ERR_OK_CODE);
+  assert(result != 0); // for Clang's static analyzer
 
   /* NOTE: It would be better to check if the keys have been generated but there is no interface to get them from handle */
   reader_crypto = (remote_datareader_crypto *)result;

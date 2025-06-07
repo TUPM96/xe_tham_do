@@ -1,13 +1,14 @@
-// Copyright(c) 2006 to 2022 ZettaScale Technology and others
-//
-// This program and the accompanying materials are made available under the
-// terms of the Eclipse Public License v. 2.0 which is available at
-// http://www.eclipse.org/legal/epl-2.0, or the Eclipse Distribution License
-// v. 1.0 which is available at
-// http://www.eclipse.org/org/documents/edl-v10.php.
-//
-// SPDX-License-Identifier: EPL-2.0 OR BSD-3-Clause
-
+/*
+ * Copyright(c) 2006 to 2022 ZettaScale Technology and others
+ *
+ * This program and the accompanying materials are made available under the
+ * terms of the Eclipse Public License v. 2.0 which is available at
+ * http://www.eclipse.org/legal/epl-2.0, or the Eclipse Distribution License
+ * v. 1.0 which is available at
+ * http://www.eclipse.org/org/documents/edl-v10.php.
+ *
+ * SPDX-License-Identifier: EPL-2.0 OR BSD-3-Clause
+ */
 #include <assert.h>
 #include <string.h>
 
@@ -16,18 +17,17 @@
 #include "dds/ddsi/ddsi_entity.h"
 #include "dds/ddsi/ddsi_participant.h"
 #include "dds/ddsi/ddsi_proxy_endpoint.h"
-#include "dds/ddsi/ddsi_thread.h"
+#include "dds/ddsi/q_thread.h"
+#include "dds/ddsi/ddsi_config_impl.h"
 #include "dds/ddsi/ddsi_plist.h"
 #include "dds/ddsi/ddsi_domaingv.h"
 #include "dds/ddsi/ddsi_entity_index.h"
-#include "dds/ddsc/dds_internal_api.h"
 #include "dds/version.h"
 #include "dds__init.h"
 #include "dds__domain.h"
 #include "dds__participant.h"
 #include "dds__builtin.h"
 #include "dds__qos.h"
-#include "dds__guid.h"
 
 DECL_ENTITY_LOCK_UNLOCK (dds_participant)
 
@@ -38,7 +38,7 @@ static int cmp_ktopic_name (const void *a, const void *b)
   return strcmp (a, b);
 }
 
-const ddsrt_avl_treedef_t participant_ktopics_treedef = DDSRT_AVL_TREEDEF_INITIALIZER_INDKEY(offsetof (struct dds_ktopic, pp_ktopics_avlnode), offsetof (struct dds_ktopic, name), cmp_ktopic_name, NULL);
+const ddsrt_avl_treedef_t participant_ktopics_treedef = DDSRT_AVL_TREEDEF_INITIALIZER_INDKEY(offsetof (struct dds_ktopic, pp_ktopics_avlnode), offsetof (struct dds_ktopic, name), cmp_ktopic_name, 0);
 
 static dds_return_t dds_participant_status_validate (uint32_t mask)
 {
@@ -55,10 +55,10 @@ static dds_return_t dds_participant_delete (dds_entity *e)
   /* ktopics & topics are children and therefore must all have been deleted by the time we get here */
   assert (ddsrt_avl_is_empty (&((struct dds_participant *) e)->m_ktopics));
 
-  ddsi_thread_state_awake (ddsi_lookup_thread_state (), &e->m_domain->gv);
+  thread_state_awake (lookup_thread_state (), &e->m_domain->gv);
   if ((ret = ddsi_delete_participant (&e->m_domain->gv, &e->m_guid)) < 0)
     DDS_CERROR (&e->m_domain->gv.logconfig, "dds_participant_delete: internal error %"PRId32"\n", ret);
-  ddsi_thread_state_asleep (ddsi_lookup_thread_state ());
+  thread_state_asleep (lookup_thread_state ());
   return DDS_RETCODE_OK;
 }
 
@@ -68,8 +68,8 @@ static dds_return_t dds_participant_qos_set (dds_entity *e, const dds_qos_t *qos
   if (enabled)
   {
     struct ddsi_participant *pp;
-    ddsi_thread_state_awake (ddsi_lookup_thread_state (), &e->m_domain->gv);
-    if ((pp = ddsi_entidx_lookup_participant_guid (e->m_domain->gv.entity_index, &e->m_guid)) != NULL)
+    thread_state_awake (lookup_thread_state (), &e->m_domain->gv);
+    if ((pp = entidx_lookup_participant_guid (e->m_domain->gv.entity_index, &e->m_guid)) != NULL)
     {
       ddsi_plist_t plist;
       ddsi_plist_init_empty (&plist);
@@ -77,7 +77,7 @@ static dds_return_t dds_participant_qos_set (dds_entity *e, const dds_qos_t *qos
       plist.qos = *qos;
       ddsi_update_participant_plist (pp, &plist);
     }
-    ddsi_thread_state_asleep (ddsi_lookup_thread_state ());
+    thread_state_asleep (lookup_thread_state ());
   }
   return DDS_RETCODE_OK;
 }
@@ -89,15 +89,14 @@ const struct dds_entity_deriver dds_entity_deriver_participant = {
   .set_qos = dds_participant_qos_set,
   .validate_status = dds_participant_status_validate,
   .create_statistics = dds_entity_deriver_dummy_create_statistics,
-  .refresh_statistics = dds_entity_deriver_dummy_refresh_statistics,
-  .invoke_cbs_for_pending_events = dds_entity_deriver_dummy_invoke_cbs_for_pending_events
+  .refresh_statistics = dds_entity_deriver_dummy_refresh_statistics
 };
 
-static dds_entity_t create_participant_flags_guid (const dds_domainid_t domain, const dds_qos_t *qos, const dds_listener_t *listener, uint32_t flags, const dds_guid_t *guid)
+dds_entity_t dds_create_participant (const dds_domainid_t domain, const dds_qos_t *qos, const dds_listener_t *listener)
 {
   dds_domain *dom;
   dds_entity_t ret;
-  ddsi_guid_t ddsi_guid;
+  ddsi_guid_t guid;
   dds_participant * pp;
   ddsi_plist_t plist;
   dds_qos_t *new_qos = NULL;
@@ -115,7 +114,7 @@ static dds_entity_t create_participant_flags_guid (const dds_domainid_t domain, 
   new_qos = dds_create_qos ();
   if (qos != NULL)
     ddsi_xqos_mergein_missing (new_qos, qos, DDS_PARTICIPANT_QOS_MASK);
-  ddsi_xqos_mergein_missing (new_qos, &dom->gv.default_local_xqos_pp, ~(uint64_t)0);
+  ddsi_xqos_mergein_missing (new_qos, &dom->gv.default_local_plist_pp.qos, ~(uint64_t)0);
   dds_apply_entity_naming(new_qos, NULL, &dom->gv);
 
   if ((ret = ddsi_xqos_valid (&dom->gv.logconfig, new_qos)) < 0)
@@ -133,13 +132,14 @@ static dds_entity_t create_participant_flags_guid (const dds_domainid_t domain, 
   ddsi_plist_init_empty (&plist);
   ddsi_xqos_mergein_missing (&plist.qos, new_qos, ~(uint64_t)0);
 
-  ddsi_thread_state_awake (ddsi_lookup_thread_state (), &dom->gv);
-  if (guid)
-    ddsi_guid = dds_guid_to_ddsi_guid (*guid);
-  else
-    ddsi_generate_participant_guid (&ddsi_guid, &dom->gv);
-  ret = ddsi_new_participant (&ddsi_guid, &dom->gv, flags, &plist);
-  ddsi_thread_state_asleep (ddsi_lookup_thread_state ());
+  // Participants don't have a liveliness QoS according to the spec, that's a Cyclone
+  // extension.  DDSI has a "participant lease duration" parameter.
+  plist.participant_lease_duration = new_qos->liveliness.lease_duration;
+  plist.present |= PP_PARTICIPANT_LEASE_DURATION;
+
+  thread_state_awake (lookup_thread_state (), &dom->gv);
+  ret = ddsi_new_participant (&guid, &dom->gv, 0, &plist);
+  thread_state_asleep (lookup_thread_state ());
   ddsi_plist_fini (&plist);
   if (ret < 0)
   {
@@ -151,8 +151,8 @@ static dds_entity_t create_participant_flags_guid (const dds_domainid_t domain, 
   if ((ret = dds_entity_init (&pp->m_entity, &dom->m_entity, DDS_KIND_PARTICIPANT, false, true, new_qos, listener, DDS_PARTICIPANT_STATUS_MASK)) < 0)
     goto err_entity_init;
 
-  pp->m_entity.m_guid = ddsi_guid;
-  pp->m_entity.m_iid = ddsi_get_entity_instanceid (&dom->gv, &ddsi_guid);
+  pp->m_entity.m_guid = guid;
+  pp->m_entity.m_iid = ddsi_get_entity_instanceid (&dom->gv, &guid);
   pp->m_entity.m_domain = dom;
   pp->m_builtin_subscriber = 0;
   ddsrt_avl_init (&participant_ktopics_treedef, &pp->m_ktopics);
@@ -179,19 +179,6 @@ err_domain_create:
 err_dds_init:
   return ret;
 }
-
-DDSRT_STATIC_ASSERT (DDS_PARTICIPANT_FLAGS_NO_DISCOVERY == (RTPS_PF_NO_BUILTIN_READERS | RTPS_PF_NO_BUILTIN_WRITERS));
-
-dds_entity_t dds_create_participant_guid (const dds_domainid_t domain, const dds_qos_t *qos, const dds_listener_t *listener, uint32_t flags, const dds_guid_t *guid)
-{
-  return create_participant_flags_guid (domain, qos, listener, flags, guid);
-}
-
-dds_entity_t dds_create_participant (const dds_domainid_t domain, const dds_qos_t *qos, const dds_listener_t *listener)
-{
-  return create_participant_flags_guid (domain, qos, listener, 0, NULL);
-}
-
 
 dds_return_t dds_lookup_participant (dds_domainid_t domain_id, dds_entity_t *participants, size_t size)
 {

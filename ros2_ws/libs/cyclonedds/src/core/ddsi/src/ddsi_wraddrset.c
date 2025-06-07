@@ -1,30 +1,31 @@
-// Copyright(c) 2020 to 2022 ZettaScale Technology and others
-//
-// This program and the accompanying materials are made available under the
-// terms of the Eclipse Public License v. 2.0 which is available at
-// http://www.eclipse.org/legal/epl-2.0, or the Eclipse Distribution License
-// v. 1.0 which is available at
-// http://www.eclipse.org/org/documents/edl-v10.php.
-//
-// SPDX-License-Identifier: EPL-2.0 OR BSD-3-Clause
+/*
+ * Copyright(c) 2020 to 2022 ZettaScale Technology and others
+ *
+ * This program and the accompanying materials are made available under the
+ * terms of the Eclipse Public License v. 2.0 which is available at
+ * http://www.eclipse.org/legal/epl-2.0, or the Eclipse Distribution License
+ * v. 1.0 which is available at
+ * http://www.eclipse.org/org/documents/edl-v10.php.
+ *
+ * SPDX-License-Identifier: EPL-2.0 OR BSD-3-Clause
+ */
 
 #include <string.h>
 #include <assert.h>
 
 #include "dds/ddsrt/heap.h"
 #include "dds/ddsrt/static_assert.h"
+#include "dds/ddsi/ddsi_entity.h"
+#include "dds/ddsi/ddsi_entity_match.h"
 #include "dds/ddsi/ddsi_endpoint.h"
-#include "dds/ddsi/ddsi_log.h"
+#include "dds/ddsi/q_addrset.h"
+#include "dds/ddsi/q_log.h"
+#include "dds/ddsi/q_bitset.h"
+#include "dds/ddsi/ddsi_entity_index.h"
 #include "dds/ddsi/ddsi_domaingv.h"
-#include "dds/ddsi/ddsi_protocol.h"
-#include "ddsi__entity.h"
-#include "ddsi__endpoint_match.h"
-#include "ddsi__addrset.h"
-#include "ddsi__bitset.h"
-#include "ddsi__entity_index.h"
-#include "ddsi__wraddrset.h"
-#include "ddsi__tran.h"
-#include "ddsi__udp.h" /* ddsi_mc4gen_address_t */
+#include "dds/ddsi/ddsi_wraddrset.h"
+
+#include "dds/ddsi/ddsi_udp.h" /* nn_mc4gen_address_t */
 
 // For each (reader, locator) pair, the coverage map gives:
 // INT32_MIN if the reader isn't covered by this locator, >= INT32_MIN+1 if it is
@@ -68,14 +69,10 @@ static void cover_makeroom (struct cover **c, int rdidx)
   {
     // why 60? why not ... we only get here if the redundant networking trick is enabled
     const int chunk = 60;
-    const int old_nreaders = (*c)->nreaders;
+    (*c) = ddsrt_realloc (*c, cover_size ((*c)->nreaders + chunk, (*c)->nlocs));
     (*c)->nreaders += chunk;
-    (*c) = ddsrt_realloc (*c, cover_size ((*c)->nreaders, (*c)->nlocs));
     if ((*c)->rdnames)
       (*c)->rdnames = ddsrt_realloc ((*c)->rdnames, (size_t) (*c)->nreaders * sizeof (*(*c)->rdnames));
-    for (int i = old_nreaders; i < (*c)->nreaders; i++)
-      for (int j = 0; j < (*c)->nlocs; j++)
-        (*c)->m[i * (*c)->nlocs + j] = 0xff;
   }
 }
 
@@ -183,7 +180,7 @@ static struct locset *locset_new (int nlocs)
   struct locset *ls = ddsrt_malloc (sizeof (*ls) + (uint32_t) nlocs * sizeof (*ls->locs));
   ls->nlocs = nlocs;
   for (int j = 0; j < nlocs; j++)
-    ddsi_set_unspec_xlocator (&ls->locs[j]);
+    set_unspec_xlocator (&ls->locs[j]);
   return ls;
 }
 
@@ -192,24 +189,24 @@ static void locset_free (struct locset *ls)
   ddsrt_free (ls);
 }
 
-static struct ddsi_addrset *wras_collect_all_locs (const struct ddsi_writer *wr)
+static struct addrset *wras_collect_all_locs (const struct ddsi_writer *wr)
 {
-  struct ddsi_entity_index * const gh = wr->e.gv->entity_index;
-  struct ddsi_addrset *all_addrs = ddsi_new_addrset ();
+  struct entity_index * const gh = wr->e.gv->entity_index;
+  struct addrset *all_addrs = new_addrset ();
   struct ddsi_wr_prd_match *m;
   ddsrt_avl_iter_t it;
   for (m = ddsrt_avl_iter_first (&ddsi_wr_readers_treedef, &wr->readers, &it); m; m = ddsrt_avl_iter_next (&it))
   {
     struct ddsi_proxy_reader *prd;
-    if ((prd = ddsi_entidx_lookup_proxy_reader_guid (gh, &m->prd_guid)) == NULL)
+    if ((prd = entidx_lookup_proxy_reader_guid (gh, &m->prd_guid)) == NULL)
       continue;
-    ddsi_copy_addrset_into_addrset (wr->e.gv, all_addrs, prd->c.as);
+    copy_addrset_into_addrset (wr->e.gv, all_addrs, prd->c.as);
   }
-  if (!ddsi_addrset_empty (all_addrs))
+  if (!addrset_empty (all_addrs))
   {
-#ifdef DDSRT_HAVE_SSM
+#ifdef DDS_HAS_SSM
     if (wr->supports_ssm && wr->ssm_as)
-      ddsi_copy_addrset_into_addrset_mc (wr->e.gv, all_addrs, wr->ssm_as);
+      copy_addrset_into_addrset_mc (wr->e.gv, all_addrs, wr->ssm_as);
 #endif
   }
   return all_addrs;
@@ -230,7 +227,7 @@ static void wras_flatten_locs_helper (const ddsi_xlocator_t *loc, void *varg)
   arg->locs[arg->idx++] = *loc;
 }
 
-static void wras_flatten_locs_prealloc (struct locset *ls, struct ddsi_addrset *addrs)
+static void wras_flatten_locs_prealloc (struct locset *ls, struct addrset *addrs)
 {
   struct rebuild_flatten_locs_helper_arg flarg;
   flarg.locs = ls->locs;
@@ -238,13 +235,13 @@ static void wras_flatten_locs_prealloc (struct locset *ls, struct ddsi_addrset *
 #ifndef NDEBUG
   flarg.size = ls->nlocs;
 #endif
-  ddsi_addrset_forall (addrs, wras_flatten_locs_helper, &flarg);
+  addrset_forall (addrs, wras_flatten_locs_helper, &flarg);
   ls->nlocs = flarg.idx;
 }
 
-static struct locset *wras_flatten_locs (struct ddsi_addrset *all_addrs)
+static struct locset *wras_flatten_locs (struct addrset *all_addrs)
 {
-  const int nin = (int) ddsi_addrset_count (all_addrs);
+  const int nin = (int) addrset_count (all_addrs);
   struct locset *ls = locset_new (nin);
   wras_flatten_locs_prealloc (ls, all_addrs);
   assert (ls->nlocs == nin);
@@ -260,19 +257,19 @@ static int wras_compare_locs (const void *va, const void *vb)
   // index component before comparing.
   const ddsi_xlocator_t *a = va;
   const ddsi_xlocator_t *b = vb;
-  if (a->c.kind != b->c.kind || a->c.kind != DDSI_LOCATOR_KIND_UDPv4MCGEN)
-    return ddsi_compare_xlocators (a, b);
+  if (a->c.kind != b->c.kind || a->c.kind != NN_LOCATOR_KIND_UDPv4MCGEN)
+    return compare_xlocators (a, b);
   else
   {
     ddsi_xlocator_t u = *a, v = *b;
-    ddsi_udpv4mcgen_address_t *u1 = (ddsi_udpv4mcgen_address_t *) u.c.address;
-    ddsi_udpv4mcgen_address_t *v1 = (ddsi_udpv4mcgen_address_t *) v.c.address;
+    nn_udpv4mcgen_address_t *u1 = (nn_udpv4mcgen_address_t *) u.c.address;
+    nn_udpv4mcgen_address_t *v1 = (nn_udpv4mcgen_address_t *) v.c.address;
     u1->idx = v1->idx = 0;
-    return ddsi_compare_xlocators (&u, &v);
+    return compare_xlocators (&u, &v);
   }
 }
 
-static struct locset *wras_calc_locators (const struct ddsrt_log_cfg *logcfg, struct ddsi_addrset *all_addrs)
+static struct locset *wras_calc_locators (const struct ddsrt_log_cfg *logcfg, struct addrset *all_addrs)
 {
   struct locset *ls = wras_flatten_locs (all_addrs);
   int i, j;
@@ -290,47 +287,34 @@ static struct locset *wras_calc_locators (const struct ddsrt_log_cfg *logcfg, st
   return ls;
 }
 
-/* Flags that are used in the cover_info_t type. Some examples of the cover info values:
-
-                                    ______________Multicast type, and MCGEN index (index+3)
-                                   |  ____________PSMX locator
-                                   | |  __________Loopback locator
-                                   | | |   _______Status
-                                   | | |  |
-    Loopback, included          0000 0 1 01
-    Unicast, reachable          0000 0 0 00
-    Multicast, ASM, included    0001 0 0 01
-    PSMX, reachable             0000 1 0 00
-    MCGEN, index 6, reachable   1001 0 0 00
-*/
 #define CI_STATUS_MASK     0x3
 #define CI_REACHABLE       0x0 // reachable via this locator
 #define CI_INCLUDED        0x1 // reachable, already included in selected locators
 #define CI_NOMATCH         0x2 // not reached by this locator
 #define CI_LOOPBACK        0x4 // is a loopback locator (set for entire row)
-#define CI_PSMX            0x8 // is a PSMX locator
-#define CI_MULTICAST_MASK 0xf0 // 0: no, 1: ASM, 2: SSM, (index+3) if MCGEN
-#define CI_MULTICAST_SHIFT   4
+#define CI_MULTICAST_MASK 0xf8 // 0: no, 1: ASM, 2: SSM, (index+3) if MCGEN
+#define CI_MULTICAST_SHIFT   3
 #define CI_MULTICAST_ASM          1
 #define CI_MULTICAST_SSM          2
 #define CI_MULTICAST_MCGEN_OFFSET 3
-
-// Make sure that DDSI_LOCATOR_UDPv4MCGEN_INDEX_MASK_SZ fits into the available bits of cover_info_t
-DDSRT_STATIC_ASSERT (DDSI_LOCATOR_UDPv4MCGEN_INDEX_MASK_BITS + CI_MULTICAST_MCGEN_OFFSET < (1 << ((sizeof(cover_info_t) << 3) - CI_MULTICAST_SHIFT)));
 
 // Cost associated with delivering another time to a reader that has
 // already been covered by previously selected locators
 static const int32_t cost_discarded = 1;
 
 // Cost associated with delivering another time to a reader that has
-// already been covered by a (selected) PSMX locator.
-static const int32_t cost_redundant_psmx = 0;
+// already been covered by a (selected) Iceoryx locator.  Currently,
+// it is quite painful when this happens because it can lead to user
+// observable stuttering
+static const int32_t cost_redundant_iceoryx = 1000000;
 
 // Cost associated with delivering data for the first time (slightly
 // negative cost makes it possible to give a slightly higher initial
 // cost to multicasts and switch over from unicast to multicast once
 // several readers can be addressed simultaneously)
 static const int32_t cost_delivered = -1;
+
+#define CI_ICEORYX        0xfc // FIXME: this is a hack
 
 static cost_t sat_cost_add (cost_t x, int32_t a)
 {
@@ -362,9 +346,9 @@ static readercount_cost_t calc_locator_cost (const struct locset *locs, const st
   if (rdidx == c->nreaders)
     goto no_readers;
 
-  if ((ci & ~CI_STATUS_MASK) == CI_PSMX)
+  if ((ci & ~CI_STATUS_MASK) == CI_ICEORYX)
   {
-    if ((ignore & DDSI_LOCATOR_KIND_PSMX) == 0)
+    if (0 == (ignore & NN_LOCATOR_KIND_SHEM))
       x.cost = INT32_MIN;
     else
       goto no_readers;
@@ -382,9 +366,21 @@ static readercount_cost_t calc_locator_cost (const struct locset *locs, const st
     if ((ci & CI_STATUS_MASK) == CI_NOMATCH)
       continue;
 
-    assert ((ci & CI_STATUS_MASK) == CI_REACHABLE);
-    x.cost = sat_cost_add (x.cost, cost_delivered);
-    x.nrds++;
+#if 0
+    // this is nice for checking the incremental work done in wras_drop_covered_readers,
+    // but that is only possible if the cost_redundant_iceoryx == cost_discarded
+    if ((ci & CI_STATUS_MASK) == CI_INCLUDED)
+    {
+      // FIXME: need addressed hosts, addressed processes; those change when nodes come/go
+      x.cost = sat_cost_add (x.cost, cost_discarded);
+    }
+    else
+#endif
+    {
+      assert ((ci & CI_STATUS_MASK) == CI_REACHABLE);
+      x.cost = sat_cost_add (x.cost, cost_delivered);
+      x.nrds++;
+    }
   }
   if (x.cost == INT32_MAX)
     x.cost = INT32_MAX - 1;
@@ -439,13 +435,23 @@ static int move_loopback_forward (struct ddsi_domaingv const * const gv, struct 
 
 static unsigned multicast_indicator (struct ddsi_domaingv const * const gv, const ddsi_xlocator_t *l)
 {
-#if DDSRT_HAVE_SSM
+#if DDS_HAS_SSM
   if (ddsi_is_ssm_mcaddr (gv, &l->c))
     return CI_MULTICAST_SSM;
 #endif
   if (ddsi_is_mcaddr (gv, &l->c))
     return CI_MULTICAST_ASM;
   return 0;
+}
+
+static bool locator_is_iceoryx (const ddsi_xlocator_t *l)
+{
+#ifdef DDS_HAS_SHM
+  return l->c.kind == NN_LOCATOR_KIND_SHEM;
+#else
+  (void) l;
+  return false;
+#endif
 }
 
 static bool wras_cover_locatorset (struct ddsi_domaingv const * const gv, struct cover *cov, const struct locset *locs, const struct locset *work_locs, int rdidx, int nloopback, int first, int last) ddsrt_attribute_warn_unused_result;
@@ -461,15 +467,15 @@ static bool wras_cover_locatorset (struct ddsi_domaingv const * const gv, struct
       return false;
     cover_info_t x;
     int lidx = (int) (l - locs->locs);
-    if (l->c.kind == DDSI_LOCATOR_KIND_PSMX) // FIXME: a gross hack
+    if (locator_is_iceoryx (l)) // FIXME: a gross hack
     {
-      x = CI_PSMX;
+      x = CI_ICEORYX;
     }
-    else if (l->c.kind == DDSI_LOCATOR_KIND_UDPv4MCGEN)
+    else if (l->c.kind == NN_LOCATOR_KIND_UDPv4MCGEN)
     {
-      const ddsi_udpv4mcgen_address_t *l1 = (const ddsi_udpv4mcgen_address_t *) l->c.address;
-      assert (l1->idx <= DDSI_LOCATOR_UDPv4MCGEN_INDEX_MASK_BITS);
-      x = (cover_info_t) ((CI_MULTICAST_MCGEN_OFFSET + l1->idx) << CI_MULTICAST_SHIFT);
+      const nn_udpv4mcgen_address_t *l1 = (const nn_udpv4mcgen_address_t *) l->c.address;
+      assert (l1->base + l1->idx <= 31 - CI_MULTICAST_MCGEN_OFFSET);
+      x = (cover_info_t) ((CI_MULTICAST_MCGEN_OFFSET + l1->base + l1->idx) << CI_MULTICAST_SHIFT);
     }
     else
     {
@@ -492,7 +498,7 @@ static bool wras_calc_cover (const struct ddsi_writer *wr, const struct locset *
 static bool wras_calc_cover (const struct ddsi_writer *wr, const struct locset *locs, struct cover **pcov)
 {
   struct ddsi_domaingv * const gv = wr->e.gv;
-  struct ddsi_entity_index * const gh = gv->entity_index;
+  struct entity_index * const gh = gv->entity_index;
   ddsrt_avl_iter_t it;
   const bool want_rdnames = true;
   // allocate cover matrix, it needs to be grow if there are readers requesting redundant delivery
@@ -504,12 +510,12 @@ static bool wras_calc_cover (const struct ddsi_writer *wr, const struct locset *
   for (struct ddsi_wr_prd_match *m = ddsrt_avl_iter_first (&ddsi_wr_readers_treedef, &wr->readers, &it); m; m = ddsrt_avl_iter_next (&it))
   {
     struct ddsi_proxy_reader *prd;
-    struct ddsi_addrset *ass[] = { NULL, NULL, NULL };
+    struct addrset *ass[] = { NULL, NULL, NULL };
     bool increment_rdidx = true;
-    if ((prd = ddsi_entidx_lookup_proxy_reader_guid (gh, &m->prd_guid)) == NULL)
+    if ((prd = entidx_lookup_proxy_reader_guid (gh, &m->prd_guid)) == NULL)
       continue;
     ass[0] = prd->c.as;
-#ifdef DDSRT_HAVE_SSM
+#ifdef DDS_HAS_SSM
     if (prd->favours_ssm && wr->supports_ssm)
       ass[1] = wr->ssm_as;
 #endif
@@ -627,8 +633,8 @@ static void wras_trace_cover (const struct ddsi_domaingv *gv, const struct locse
           GVLOGDISC (" *");
         else
           GVLOGDISC (" +");
-        if ((ci & ~CI_STATUS_MASK) == CI_PSMX)
-          GVLOGDISC ("P ");
+        if ((ci & ~CI_STATUS_MASK) == CI_ICEORYX)
+          GVLOGDISC ("I ");
         else
         {
           if ((ci & CI_MULTICAST_MASK) == 0)
@@ -665,14 +671,14 @@ static int wras_choose_locator (const struct locset *locs, const struct costmap 
   return (w_best.cost != INT32_MAX) ? best : INT32_MIN;
 }
 
-static void wras_add_locator (const struct ddsi_domaingv *gv, struct ddsi_addrset *newas, int locidx, const struct locset *locs, const struct cover *covered)
+static void wras_add_locator (const struct ddsi_domaingv *gv, struct addrset *newas, int locidx, const struct locset *locs, const struct cover *covered)
 {
   ddsi_xlocator_t tmploc;
   char str[DDSI_LOCSTRLEN];
   const char *kindstr;
   const ddsi_xlocator_t *locp;
 
-  if (locs->locs[locidx].c.kind != DDSI_LOCATOR_KIND_UDPv4MCGEN)
+  if (locs->locs[locidx].c.kind != NN_LOCATOR_KIND_UDPv4MCGEN)
   {
     locp = &locs->locs[locidx];
     kindstr = "simple";
@@ -680,19 +686,19 @@ static void wras_add_locator (const struct ddsi_domaingv *gv, struct ddsi_addrse
   else /* convert MC gen to the correct multicast address */
   {
     const int nreaders = cover_get_nreaders (covered);
-    ddsi_udpv4mcgen_address_t l1;
+    nn_udpv4mcgen_address_t l1;
     uint32_t iph, ipn;
     int i;
     tmploc = locs->locs[locidx];
     memcpy (&l1, tmploc.c.address, sizeof (l1));
-    tmploc.c.kind = DDSI_LOCATOR_KIND_UDPv4;
+    tmploc.c.kind = NN_LOCATOR_KIND_UDPv4;
     memset (tmploc.c.address, 0, 12);
     iph = ntohl (l1.ipv4.s_addr);
     for (i = 0; i < nreaders; i++)
     {
       cover_info_t ci = cover_get (covered, i, locidx);
       if ((ci & CI_STATUS_MASK) == CI_REACHABLE)
-        iph |= 1u << (l1.base + ((ci >> CI_MULTICAST_SHIFT) - CI_MULTICAST_MCGEN_OFFSET));
+        iph |= 1u << ((ci >> CI_MULTICAST_SHIFT) - CI_MULTICAST_MCGEN_OFFSET);
     }
     ipn = htonl (iph);
     memcpy (tmploc.c.address + 12, &ipn, 4);
@@ -701,13 +707,13 @@ static void wras_add_locator (const struct ddsi_domaingv *gv, struct ddsi_addrse
   }
 
   GVLOGDISC ("  %s %s\n", kindstr, ddsi_xlocator_to_string (str, sizeof(str), locp));
-  if (locp->c.kind != DDSI_LOCATOR_KIND_PSMX)
+  if (locp->c.kind != NN_LOCATOR_KIND_SHEM)
   {
-    // PSMX offload occurs above the RTPS stack, adding it to the address only means
+    // Iceoryx offload occurs above the RTPS stack, adding it to the address only means
     // samples get packed into RTPS messages and the transmit path is traversed without
     // actually sending any packet.  It should be generalized to handle various pub/sub
     // providers.
-    ddsi_add_xlocator_to_addrset (gv, newas, locp);
+    add_xlocator_to_addrset (gv, newas, locp);
   }
 }
 
@@ -728,42 +734,31 @@ static void wras_drop_covered_readers (int locidx, struct costmap *wm, struct co
       {
         cover_set (covered, i, j, (cover_info_t) ((ci & ~CI_STATUS_MASK) | CI_INCLUDED));
         // from reachable to included -> cost goes from "delivered" to "discarded"
-        const int32_t cost = ((ci_rd_loc & ~CI_STATUS_MASK) == CI_PSMX) ? cost_redundant_psmx : cost_discarded;
+        const int32_t cost =
+          ((ci_rd_loc & ~CI_STATUS_MASK) == CI_ICEORYX) ? cost_redundant_iceoryx : cost_discarded;
         costmap_adjust (wm, j, cost - cost_delivered);
       }
     }
   }
 }
 
-static bool is_psmx_locator (const struct ddsi_endpoint_common *local_endpoint, ddsi_xlocator_t remote_locator)
-{
-  assert (local_endpoint);
-  for (uint32_t i = 0; i < local_endpoint->psmx_locators.length; i++)
-  {
-    if (memcmp (&local_endpoint->psmx_locators.locators[i], &remote_locator.c, sizeof (ddsi_locator_t)) == 0)
-      return true;
-  }
-
-  return false;
-}
-
-struct ddsi_addrset *ddsi_compute_writer_addrset (const struct ddsi_writer *wr)
+struct addrset *compute_writer_addrset (const struct ddsi_writer *wr)
 {
   struct ddsi_domaingv * const gv = wr->e.gv;
   struct locset *locs;
   struct cover *covered;
-  struct ddsi_addrset *newas;
+  struct addrset *newas;
 
   // Gather all addresses, using an addrset means no need to worry about
   // duplicates. If no addresses found it is trivial.
   {
-    struct ddsi_addrset *all_addrs = wras_collect_all_locs (wr);
-    if (ddsi_addrset_empty (all_addrs))
+    struct addrset *all_addrs = wras_collect_all_locs (wr);
+    if (addrset_empty (all_addrs))
       return all_addrs;
-    ddsi_log_addrset (gv, DDS_LC_DISCOVERY, "setcover: all_addrs", all_addrs);
+    nn_log_addrset (gv, DDS_LC_DISCOVERY, "setcover: all_addrs", all_addrs);
     ELOGDISC (wr, "\n");
     locs = wras_calc_locators (&gv->logconfig, all_addrs);
-    ddsi_unref_addrset (all_addrs);
+    unref_addrset (all_addrs);
   }
 
   if (!wras_calc_cover (wr, locs, &covered))
@@ -773,30 +768,24 @@ struct ddsi_addrset *ddsi_compute_writer_addrset (const struct ddsi_writer *wr)
     // will trigger a recalculation and we can just return the old one.
     //
     // FIXME: copying it is a bit excessive (a little rework and refcount manipulation suffices)
-    newas = ddsi_ref_addrset (wr->as);
+    newas = ref_addrset (wr->as);
   }
   else if (covered == NULL)
   {
     // No readers, no need to do anything else
-    newas = ddsi_new_addrset ();
+    newas = new_addrset ();
   }
   else
   {
-    /* FIXME: ignore reader's locators of kind PSMX if the writer
-       doesn't have PSMX endpoints. This works in case of a single PSMX instance,
-       but as soon as >1 PSMX instances are supported, needs to be fixed
-       in wras_collect_all_locs */
-    dds_locator_mask_t ignore = wr->c.psmx_locators.length == 0 ? DDSI_LOCATOR_KIND_PSMX : 0;
-    struct costmap *wm = wras_calc_costmap (locs, covered, ignore);
+    assert(wr->xqos->present & QP_LOCATOR_MASK);
+    struct costmap *wm = wras_calc_costmap (locs, covered, wr->xqos->ignore_locator_type);
     int best;
-    newas = ddsi_new_addrset ();
+    newas = new_addrset ();
     while ((best = wras_choose_locator (locs, wm)) > INT32_MIN)
     {
       wras_trace_cover (gv, locs, wm, covered);
       ELOGDISC (wr, "  best = %d\n", best);
-      if (!is_psmx_locator (&wr->c, locs->locs[best]))
-        wras_add_locator (gv, newas, best, locs, covered);
-
+      wras_add_locator (gv, newas, best, locs, covered);
       wras_drop_covered_readers (best, wm, covered);
     }
     costmap_free (wm);

@@ -1,5 +1,3 @@
-.. _waitset_conditions:
-
 WaitSets and Conditions
 =======================
 

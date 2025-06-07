@@ -1,19 +1,21 @@
-// Copyright(c) 2006 to 2021 ZettaScale Technology and others
-//
-// This program and the accompanying materials are made available under the
-// terms of the Eclipse Public License v. 2.0 which is available at
-// http://www.eclipse.org/legal/epl-2.0, or the Eclipse Distribution License
-// v. 1.0 which is available at
-// http://www.eclipse.org/org/documents/edl-v10.php.
-//
-// SPDX-License-Identifier: EPL-2.0 OR BSD-3-Clause
-
+/*
+ * Copyright(c) 2006 to 2021 ZettaScale Technology and others
+ *
+ * This program and the accompanying materials are made available under the
+ * terms of the Eclipse Public License v. 2.0 which is available at
+ * http://www.eclipse.org/legal/epl-2.0, or the Eclipse Distribution License
+ * v. 1.0 which is available at
+ * http://www.eclipse.org/org/documents/edl-v10.php.
+ *
+ * SPDX-License-Identifier: EPL-2.0 OR BSD-3-Clause
+ */
 #include <assert.h>
 
 #include "dds/ddsrt/heap.h"
 #include "dds/ddsrt/log.h"
 #include "dds__entity.h"
 #include "dds__participant.h"
+#include "dds__querycond.h"
 #include "dds__readcond.h"
 #include "dds__init.h"
 #include "dds__subscriber.h" // only for (de)materializing data_on_readers
@@ -64,9 +66,8 @@ static dds_return_t dds_waitset_wait_impl (dds_entity_t waitset, dds_attach_t *x
 
   /* Move any previously but no longer triggering entities back to the observed list */
   ddsrt_mutex_lock (&ws->wait_lock);
-  size_t previous_ntriggered = ws->ntriggered;
   ws->ntriggered = 0;
-  for (size_t i = 0; i < previous_ntriggered; i++)
+  for (size_t i = 0; i < ws->nentities; i++)
   {
     if (is_triggered (ws->entities[i].entity))
     {
@@ -140,8 +141,7 @@ const struct dds_entity_deriver dds_entity_deriver_waitset = {
   .set_qos = dds_entity_deriver_dummy_set_qos,
   .validate_status = dds_entity_deriver_dummy_validate_status,
   .create_statistics = dds_entity_deriver_dummy_create_statistics,
-  .refresh_statistics = dds_entity_deriver_dummy_refresh_statistics,
-  .invoke_cbs_for_pending_events = dds_entity_deriver_dummy_invoke_cbs_for_pending_events
+  .refresh_statistics = dds_entity_deriver_dummy_refresh_statistics
 };
 
 dds_entity_t dds_create_waitset (dds_entity_t owner)
@@ -219,8 +219,10 @@ dds_return_t dds_waitset_get_entities (dds_entity_t waitset, dds_entity_t *entit
 }
 
 /* This is called when the observed entity signals a status change. */
-static void dds_waitset_observer (struct dds_waitset *ws, dds_entity_t observed)
+static void dds_waitset_observer (struct dds_waitset *ws, dds_entity_t observed, uint32_t status)
 {
+  (void) status;
+
   ddsrt_mutex_lock (&ws->wait_lock);
   /* Move observed entity to triggered list. */
   size_t i;
@@ -315,7 +317,7 @@ dds_return_t dds_waitset_attach (dds_entity_t waitset, dds_entity_t entity, dds_
       ret = DDS_RETCODE_BAD_PARAMETER;
       goto err_scope;
     }
-
+    
     // Attaching a subscriber to a waitset forces materialization of DATA_ON_READERS
     // subscribers have no other statuses, so no point in also looking at the status mask
     // note: no locks held
@@ -325,7 +327,7 @@ dds_return_t dds_waitset_attach (dds_entity_t waitset, dds_entity_t entity, dds_
     /* This will fail if given entity is already attached (or deleted). */
     struct dds_waitset_attach_observer_arg attach_arg = { .x = x };
     ret = dds_entity_observer_register (e, ws, dds_waitset_observer, dds_waitset_attach_observer, &attach_arg, dds_waitset_delete_observer);
-
+    
     // If it failed for a subscriber, undo the DATA_ON_READERS materialize changes
     // note: no locks held
     if (ret < 0 && dds_entity_kind (e) == DDS_KIND_SUBSCRIBER)
@@ -411,7 +413,7 @@ dds_return_t dds_waitset_set_trigger (dds_entity_t waitset, bool trigger)
       oldst = ddsrt_atomic_ld32 (&ent->m_status.m_trigger);
     } while (!ddsrt_atomic_cas32 (&ent->m_status.m_trigger, oldst, trigger));
     if (oldst == 0 && trigger != 0)
-      dds_entity_observers_signal (ent);
+      dds_entity_observers_signal (ent, trigger);
     ddsrt_mutex_unlock (&ent->m_observers_lock);
     dds_entity_unpin (ent);
     return DDS_RETCODE_OK;

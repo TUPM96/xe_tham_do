@@ -1,21 +1,23 @@
-// Copyright(c) 2019 to 2022 ZettaScale Technology and others
-//
-// This program and the accompanying materials are made available under the
-// terms of the Eclipse Public License v. 2.0 which is available at
-// http://www.eclipse.org/legal/epl-2.0, or the Eclipse Distribution License
-// v. 1.0 which is available at
-// http://www.eclipse.org/org/documents/edl-v10.php.
-//
-// SPDX-License-Identifier: EPL-2.0 OR BSD-3-Clause
+/*
+ * Copyright(c) 2019 to 2022 ZettaScale Technology and others
+ *
+ * This program and the accompanying materials are made available under the
+ * terms of the Eclipse Public License v. 2.0 which is available at
+ * http://www.eclipse.org/legal/epl-2.0, or the Eclipse Distribution License
+ * v. 1.0 which is available at
+ * http://www.eclipse.org/org/documents/edl-v10.php.
+ *
+ * SPDX-License-Identifier: EPL-2.0 OR BSD-3-Clause
+ */
 
 #include "CUnit/Theory.h"
 #include "dds/ddsrt/heap.h"
 #include "dds/ddsrt/string.h"
-#include "ddsi__security_msg.h"
+#include "dds/ddsi/ddsi_security_msg.h"
 #include "mem_ser.h"
 #include <assert.h>
 
-static ddsi_participant_generic_message_t test_msg_in =
+static nn_participant_generic_message_t test_msg_in =
 {
   .message_identity             = { {{.u={1,2,3}},{4}}, 5 },
   .related_message_identity     = { {{.u={5,4,3}},{2}}, 1 },
@@ -25,7 +27,7 @@ static ddsi_participant_generic_message_t test_msg_in =
   .message_class_id             = "testing message",
   .message_data                 = {
      .n = 4,
-     .tags = (ddsi_dataholder_t[]) {
+     .tags = (nn_dataholder_t[]) {
        {
          .class_id = "holder0",
          .properties = {
@@ -143,7 +145,7 @@ static ddsi_participant_generic_message_t test_msg_in =
 };
 
 /* Same as test_msg_in, excluding the non-propagated properties. */
-static ddsi_participant_generic_message_t test_msg_out =
+static nn_participant_generic_message_t test_msg_out =
 {
   .message_identity             = { {{.u={1,2,3}},{4}}, 5 },
   .related_message_identity     = { {{.u={5,4,3}},{2}}, 1 },
@@ -153,7 +155,7 @@ static ddsi_participant_generic_message_t test_msg_out =
   .message_class_id             = "testing message",
   .message_data                 = {
      .n = 4,
-     .tags = (ddsi_dataholder_t[]) {
+     .tags = (nn_dataholder_t[]) {
        {
          .class_id = "holder0",
          .properties = {
@@ -270,15 +272,15 @@ static unsigned char test_msg_ser[] = {
 
 CU_Test (ddsi_security_msg, serializer)
 {
-  ddsi_participant_generic_message_t msg_in;
-  ddsi_participant_generic_message_t msg_ser;
+  nn_participant_generic_message_t msg_in;
+  nn_participant_generic_message_t msg_ser;
   unsigned char *data = NULL;
   dds_return_t ret;
   size_t len;
   bool equal;
 
   /* Create the message (normally with various arguments). */
-  ddsi_participant_generic_message_init(
+  nn_participant_generic_message_init(
               &msg_in,
               &test_msg_in.message_identity.source_guid,
                test_msg_in.message_identity.sequence_number,
@@ -290,17 +292,18 @@ CU_Test (ddsi_security_msg, serializer)
               &test_msg_in.related_message_identity);
 
   /* Check creation result. */
-  equal = ddsi_plist_equal_generic (&msg_in, &test_msg_in, ddsi_pserop_participant_generic_message);
+  equal = plist_equal_generic(&msg_in, &test_msg_in, pserop_participant_generic_message);
   CU_ASSERT_FATAL(equal == true);
 
   /* Serialize the message. */
-  ret = ddsi_participant_generic_message_serialize(&msg_in, &data, &len);
+  ret = nn_participant_generic_message_serialize(&msg_in, &data, &len);
   CU_ASSERT_FATAL (ret == DDS_RETCODE_OK);
   CU_ASSERT_PTR_NOT_NULL_FATAL(data);
   CU_ASSERT(len > 0);
 
   /* Check serialization result. */
   size_t cmpsize = (len < sizeof(test_msg_ser)) ? len : sizeof(test_msg_ser);
+  assert(data != NULL); /* for Clang static analyzer */
   if (memcmp (data, test_msg_ser, cmpsize) != 0)
   {
     printf ("memcmp(%d)\n", (int)cmpsize);
@@ -313,15 +316,15 @@ CU_Test (ddsi_security_msg, serializer)
   CU_ASSERT_FATAL (len == sizeof(test_msg_ser));
 
   /* Deserialize the message. */
-  ret = ddsi_participant_generic_message_deseralize(&msg_ser, data, len, false);
+  ret = nn_participant_generic_message_deseralize(&msg_ser, data, len, false);
   CU_ASSERT_FATAL (ret == DDS_RETCODE_OK);
 
   /* Check deserialization result. */
-  equal = ddsi_plist_equal_generic (&msg_ser, &test_msg_out, ddsi_pserop_participant_generic_message);
+  equal = plist_equal_generic(&msg_ser, &test_msg_out, pserop_participant_generic_message);
   CU_ASSERT_FATAL(equal == true);
 
   /* Cleanup. */
-  ddsi_participant_generic_message_deinit(&msg_in);
-  ddsi_participant_generic_message_deinit(&msg_ser);
+  nn_participant_generic_message_deinit(&msg_in);
+  nn_participant_generic_message_deinit(&msg_ser);
   ddsrt_free(data);
 }

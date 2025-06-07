@@ -1,14 +1,14 @@
-// Copyright(c) 2021 to 2022 ZettaScale Technology and others
-//
-// This program and the accompanying materials are made available under the
-// terms of the Eclipse Public License v. 2.0 which is available at
-// http://www.eclipse.org/legal/epl-2.0, or the Eclipse Distribution License
-// v. 1.0 which is available at
-// http://www.eclipse.org/org/documents/edl-v10.php.
-//
-// SPDX-License-Identifier: EPL-2.0 OR BSD-3-Clause
-
-#include <wchar.h>
+/*
+ * Copyright(c) 2021 to 2022 ZettaScale Technology and others
+ *
+ * This program and the accompanying materials are made available under the
+ * terms of the Eclipse Public License v. 2.0 which is available at
+ * http://www.eclipse.org/legal/epl-2.0, or the Eclipse Distribution License
+ * v. 1.0 which is available at
+ * http://www.eclipse.org/org/documents/edl-v10.php.
+ *
+ * SPDX-License-Identifier: EPL-2.0 OR BSD-3-Clause
+ */
 
 #include "CUnit/Theory.h"
 #include "dds/dds.h"
@@ -17,23 +17,13 @@
 #include "dds/ddsrt/io.h"
 #include "dds/ddsrt/random.h"
 #include "dds/ddsrt/string.h"
-#include "dds/ddsrt/countargs.h"
-#include "dds/ddsrt/foreach.h"
-#include "dds/ddsi/ddsi_serdata.h"
 #include "dds/ddsc/dds_public_impl.h"
-#include "dds/ddsc/dds_internal_api.h"
-#include "dds/cdr/dds_cdrstream.h"
 #include "dds__topic.h"
+#include "dds/ddsi/ddsi_serdata.h"
+#include "dds/ddsi/ddsi_cdrstream.h"
 #include "test_util.h"
 #include "MinXcdrVersion.h"
 #include "CdrStreamOptimize.h"
-#include "CdrStreamSkipDefault.h"
-#include "CdrStreamKeySize.h"
-#include "CdrStreamKeyExt.h"
-#include "CdrStreamDataTypeInfo.h"
-#include "CdrStreamChecking.h"
-#include "CdrStreamWstring.h"
-#include "mem_ser.h"
 
 #define DDS_DOMAINID1 0
 #define DDS_DOMAINID2 1
@@ -49,8 +39,8 @@
 #define RND_STR32 (ddsrt_random () % 2 ? (char []){ 't', RND_CHAR4, 0 } : (char []){ 't', 'e', 's', 't', RND_CHAR8, RND_CHAR8, RND_CHAR8, RND_CHAR4, 0 })
 #define RND_STR5 (ddsrt_random () % 2 ? (char []){ 't', RND_CHAR, 0 } : (char []){ 't', RND_CHAR4, 0 })
 
-#define XCDR1 DDSI_RTPS_CDR_ENC_VERSION_1
-#define XCDR2 DDSI_RTPS_CDR_ENC_VERSION_2
+#define XCDR1 CDR_ENC_VERSION_1
+#define XCDR2 CDR_ENC_VERSION_2
 
 typedef void * (*sample_empty) (void);
 typedef void * (*sample_init) (void);
@@ -267,7 +257,7 @@ static const uint32_t TestIdl_MsgUnion_ops [] =
   DDS_OP_RTS
 };
 
-const dds_topic_descriptor_t TestIdl_MsgUnion_desc = { sizeof (TestIdl_MsgUnion), 4u, 0u, 0u, "TestIdl::MsgUnion", NULL, 3, TestIdl_MsgUnion_ops, "" };
+const dds_topic_descriptor_t TestIdl_MsgUnion_desc = { sizeof (TestIdl_MsgUnion), 4u, DDS_TOPIC_CONTAINS_UNION, 0u, "TestIdl::MsgUnion", NULL, 3, TestIdl_MsgUnion_ops, "" };
 
 static void * sample_init_union (void)
 {
@@ -433,7 +423,7 @@ static void * sample_init_ext (void)
   TestIdl_MsgExt *msg = ddsrt_malloc (sizeof (*msg));
   msg->f1 = ddsrt_strdup (RND_STR32);
 
-  msg->f2 = ddsrt_malloc (sizeof (*msg->f2));
+  msg->f2 = ddsrt_malloc (sizeof (*msg->f2) + 1);
   ddsrt_strlcpy (*msg->f2, RND_STR32, sizeof (*msg->f2));
 
   msg->f3 = ddsrt_malloc (sizeof (*msg->f3));
@@ -494,7 +484,7 @@ static bool sample_equal_ext (void *s1, void *s2)
 
 static void sample_free_ext (void *s)
 {
-  dds_stream_free_sample (s, &dds_cdrstream_default_allocator, TestIdl_MsgExt_desc.m_ops);
+  dds_stream_free_sample (s, TestIdl_MsgExt_desc.m_ops);
   ddsrt_free (s);
 }
 
@@ -565,7 +555,7 @@ static void * sample_init_opt (void)
   }
   if (RND_INT32 % 2)
   {
-    msg->f4 = ddsrt_malloc (sizeof (*msg->f4));
+    msg->f4 = ddsrt_malloc (sizeof (*msg->f4) + 1);
     ddsrt_strlcpy (*msg->f4, RND_STR32, sizeof (*msg->f4));
   }
   if (RND_INT32 % 2)
@@ -630,7 +620,7 @@ static bool sample_equal_opt (void *s1, void *s2)
 
 static void sample_free_opt (void *s)
 {
-  dds_stream_free_sample (s, &dds_cdrstream_default_allocator, TestIdl_MsgOpt_desc.m_ops);
+  dds_stream_free_sample (s, TestIdl_MsgOpt_desc.m_ops);
   ddsrt_free (s);
 }
 
@@ -641,7 +631,7 @@ static void sample_free_opt (void *s)
 /* @appendable */
 typedef struct TestIdl_AppendableUnion0
 {
-  int8_t _d;
+  int32_t _d;
   union
   {
     uint32_t field1;
@@ -859,7 +849,7 @@ static const dds_key_descriptor_t TestIdl_MsgKeysNested_keys[3] =
   { "msg_field1.submsg_field4.submsg2_field2", 37, 2 }
 };
 
-const dds_topic_descriptor_t TestIdl_MsgKeysNested_desc = { sizeof (TestIdl_MsgKeysNested), sizeof (char *), 0u, 3u, "TestIdl::MsgKeysNested", TestIdl_MsgKeysNested_keys, 8, TestIdl_MsgKeysNested_ops, "" };
+const dds_topic_descriptor_t TestIdl_MsgKeysNested_desc = { sizeof (TestIdl_MsgKeysNested), sizeof (char *), DDS_TOPIC_FIXED_KEY | DDS_TOPIC_FIXED_KEY_XCDR2, 3u, "TestIdl::MsgKeysNested", TestIdl_MsgKeysNested_keys, 8, TestIdl_MsgKeysNested_ops, "" };
 
 static void * sample_empty_keysnested (void)
 {
@@ -963,7 +953,7 @@ static const uint32_t TestIdl_MsgArr_ops [] =
   DDS_OP_RTS
 };
 
-const dds_topic_descriptor_t TestIdl_MsgArr_desc = { sizeof (TestIdl_MsgArr), sizeof (char *), 0u, 0u, "TestIdl::MsgArr", NULL, 6, TestIdl_MsgArr_ops, "" };
+const dds_topic_descriptor_t TestIdl_MsgArr_desc = { sizeof (TestIdl_MsgArr), sizeof (char *), DDS_TOPIC_CONTAINS_UNION, 0u, "TestIdl::MsgArr", NULL, 6, TestIdl_MsgArr_ops, "" };
 
 static void * sample_init_arr (void)
 {
@@ -1229,7 +1219,7 @@ static const uint32_t TestIdl_MsgAppendDefaults2_ops [] =
 };
 
 const dds_topic_descriptor_t TestIdl_MsgAppendDefaults1_desc = { sizeof (TestIdl_MsgAppendDefaults1), 4u, 0u, 0u, "TestIdl::MsgAppendDefaults1", NULL, 0, TestIdl_MsgAppendDefaults1_ops, "" };
-const dds_topic_descriptor_t TestIdl_MsgAppendDefaults2_desc = { sizeof (TestIdl_MsgAppendDefaults2), 4u, 0u, 0u, "TestIdl::MsgAppendDefaults2", NULL, 0, TestIdl_MsgAppendDefaults2_ops, "" };
+const dds_topic_descriptor_t TestIdl_MsgAppendDefaults2_desc = { sizeof (TestIdl_MsgAppendDefaults2), 4u, DDS_TOPIC_CONTAINS_UNION, 0u, "TestIdl::MsgAppendDefaults2", NULL, 0, TestIdl_MsgAppendDefaults2_ops, "" };
 
 static void * sample_init_appenddefaults1 (void)
 {
@@ -1686,7 +1676,7 @@ CU_Theory ((const char *descr, const dds_topic_descriptor_t *desc, sample_empty 
     CU_ASSERT_EQUAL_FATAL (ret, 1);
     ret = dds_read (rd, rds, si, 1, 1);
     CU_ASSERT_EQUAL_FATAL (ret, 1);
-    CU_ASSERT_EQUAL_FATAL (si->instance_state, DDS_NOT_ALIVE_DISPOSED_INSTANCE_STATE);
+    CU_ASSERT_EQUAL_FATAL (si->instance_state, DDS_IST_NOT_ALIVE_DISPOSED);
     dds_return_loan (rd, rds, 1);
   }
 
@@ -1765,30 +1755,30 @@ CU_Theory ((const char *descr, const dds_topic_descriptor_t *desc1, const dds_to
   {
     tprintf ("Running test appendable_mutable: %s (run %d/2)\n", descr, t + 1);
 
-    const dds_topic_descriptor_t *topic_desc_wr = t ? desc2 : desc1;
-    const dds_topic_descriptor_t *topic_desc_rd = t ? desc1 : desc2;
+    const dds_topic_descriptor_t *desc_wr = t ? desc2 : desc1;
+    const dds_topic_descriptor_t *desc_rd = t ? desc1 : desc2;
 
     /* Write data */
     dds_ostream_t os;
     os.m_buffer = NULL;
     os.m_index = 0;
     os.m_size = 0;
-    os.m_xcdr_version = DDSI_RTPS_CDR_ENC_VERSION_2;
+    os.m_xcdr_version = CDR_ENC_VERSION_2;
 
-    struct dds_cdrstream_desc desc_wr;
-    memset (&desc_wr, 0, sizeof (desc_wr));
-    desc_wr = (struct dds_cdrstream_desc) {
-      .size = topic_desc_wr->m_size,
-      .align = topic_desc_wr->m_align,
-      .flagset = topic_desc_wr->m_flagset,
+    struct ddsi_sertype_default tp_wr;
+    memset (&tp_wr, 0, sizeof (tp_wr));
+    tp_wr.type = (struct ddsi_sertype_default_desc) {
+      .size = desc_wr->m_size,
+      .align = desc_wr->m_align,
+      .flagset = desc_wr->m_flagset,
       .keys.nkeys = 0,
       .keys.keys = NULL,
-      .ops.nops = dds_stream_countops (topic_desc_wr->m_ops, topic_desc_wr->m_nkeys, topic_desc_wr->m_keys),
-      .ops.ops = (uint32_t *) topic_desc_wr->m_ops
+      .ops.nops = dds_stream_countops (desc_wr->m_ops, desc_wr->m_nkeys, desc_wr->m_keys),
+      .ops.ops = (uint32_t *) desc_wr->m_ops
     };
 
     void * msg_wr = t ? sample_init_fn2 () : sample_init_fn1 ();
-    bool ret = dds_stream_write_sample (&os, &dds_cdrstream_default_allocator, msg_wr, &desc_wr);
+    bool ret = dds_stream_write_sample (&os, msg_wr, &tp_wr);
     CU_ASSERT_FATAL (ret);
 
     /* Read data */
@@ -1796,22 +1786,22 @@ CU_Theory ((const char *descr, const dds_topic_descriptor_t *desc1, const dds_to
     is.m_buffer = os.m_buffer;
     is.m_index = 0;
     is.m_size = os.m_size;
-    is.m_xcdr_version = DDSI_RTPS_CDR_ENC_VERSION_2;
+    is.m_xcdr_version = CDR_ENC_VERSION_2;
 
-    struct dds_cdrstream_desc desc_rd;
-    memset (&desc_rd, 0, sizeof (desc_rd));
-    desc_rd = (struct dds_cdrstream_desc) {
-      .size = topic_desc_rd->m_size,
-      .align = topic_desc_rd->m_align,
-      .flagset = topic_desc_rd->m_flagset,
+    struct ddsi_sertype_default tp_rd;
+    memset (&tp_rd, 0, sizeof (tp_rd));
+    tp_rd.type = (struct ddsi_sertype_default_desc) {
+      .size = desc_rd->m_size,
+      .align = desc_rd->m_align,
+      .flagset = desc_rd->m_flagset,
       .keys.nkeys = 0,
       .keys.keys = NULL,
-      .ops.nops = dds_stream_countops (topic_desc_rd->m_ops, topic_desc_rd->m_nkeys, topic_desc_rd->m_keys),
-      .ops.ops = (uint32_t *) topic_desc_rd->m_ops
+      .ops.nops = dds_stream_countops (desc_rd->m_ops, desc_rd->m_nkeys, desc_rd->m_keys),
+      .ops.ops = (uint32_t *) desc_rd->m_ops
     };
 
-    void *msg_rd = ddsrt_calloc (1, desc_rd.size);
-    dds_stream_read_sample (&is, msg_rd, &dds_cdrstream_default_allocator, &desc_rd);
+    void *msg_rd = ddsrt_calloc (1, desc_rd->m_size);
+    dds_stream_read_sample (&is, msg_rd, &tp_rd);
 
     /* Check for expected result */
     bool eq = t ? sample_equal_fn2 (msg_wr, msg_rd) : sample_equal_fn1 (msg_wr, msg_rd);
@@ -1820,7 +1810,7 @@ CU_Theory ((const char *descr, const dds_topic_descriptor_t *desc1, const dds_to
     /* print result */
     char buf[5000];
     is.m_index = 0;
-    dds_stream_print_sample (&is, &desc_rd, buf, 5000);
+    dds_stream_print_sample (&is, &tp_rd, buf, 5000);
     printf ("read sample: %s\n\n", buf);
 
     // cleanup
@@ -1874,13 +1864,11 @@ CU_Test (ddsc_cdrstream, check_optimize)
     { D(t5),    16,    0, "XCDR2 uses 4 byte alignment for 64 bits types" },
     { D(t5a),    0,    0, "array of non-primitive type is currently not optimized (FIXME: could be optimized for XCDR1?)" },
     { D(t6),    16,   16, "CDR and memory have equal alignment" },
-    { D(t6a),    0,    0, "CDR and memory have equal alignment but boolean prevents optimization" },
     { D(t7),     0,    0, "field f2 is 1-byte aligned in CDR (because of 1-byte type in nested type), but 2-byte in memory" },
     { D(t8),     0,    0, "type of f2 is appendable" },
     { D(t9),     3,    0, "bitmask (bit bound 8) array (dheader in v2)" },
     { D(t10),   12,    0, "enum (bit bound 32) array (dheader in v2)" },
     { D(t11),  410,  410, "final type with array" },
-    { D(t11a),   0,    0, "final type with array but boolean prevents optimization" },
     { D(t12),    4,    4, "32 bits bitmask" },
     { D(t13),    1,    1, "8 bit bitmask" },
     { D(t14),    8,    8, "64 bits bitmask" },
@@ -1897,15 +1885,12 @@ CU_Test (ddsc_cdrstream, check_optimize)
     { D(t25),    0,    0, "union type currently not optimized" },
     { D(t26),    0,    0, "union type member currently not optimized" },
     { D(t27),   16,    0, "inheritance, base members before derived type members, xcdr2 has 4 byte alignment for long long" },
-    { D(t28),    0,    0, "array of booleans" },
-    { D(t29),    0,    0, "boolean in extended struct" },
-    { D(t30),    0,    0, "boolean in base struct" }
   };
 
   for (uint32_t i = 0; i < sizeof (tests) / sizeof (tests[0]); i++)
   {
     printf("running test for desc %s: %s ", tests[i].desc->m_typename, tests[i].description);
-    struct dds_cdrstream_desc ddsi_desc = { .ops.nops = tests[i].desc->m_nops, .ops.ops = (uint32_t *) tests[i].desc->m_ops, .size = tests[i].desc->m_size };
+    struct ddsi_sertype_default_desc ddsi_desc = { .ops.nops = tests[i].desc->m_nops, .ops.ops = (uint32_t *) tests[i].desc->m_ops, .size = tests[i].desc->m_size };
     size_t opt1 = dds_stream_check_optimize (&ddsi_desc, XCDR1);
     size_t opt2 = dds_stream_check_optimize (&ddsi_desc, XCDR2);
     printf ("(opt cdr1: %zu, cdr2: %zu)\n", opt1, opt2);
@@ -1915,755 +1900,5 @@ CU_Test (ddsc_cdrstream, check_optimize)
 }
 #undef D
 
-
-#define D(n) (&CdrStreamDataTypeInfo_ ## n ## _desc)
-CU_Test (ddsc_cdrstream, data_type_info)
-{
-  static const struct {
-    const dds_topic_descriptor_t *desc;
-    uint64_t data_types;
-  } tests[] = {
-    { D(dti_struct),   DDS_DATA_TYPE_CONTAINS_STRUCT | DDS_DATA_TYPE_IS_MEMCPY_SAFE },
-    { D(dti_string),   DDS_DATA_TYPE_CONTAINS_STRUCT | DDS_DATA_TYPE_CONTAINS_STRING },
-    { D(dti_bstring),  DDS_DATA_TYPE_CONTAINS_STRUCT | DDS_DATA_TYPE_CONTAINS_BSTRING | DDS_DATA_TYPE_IS_MEMCPY_SAFE },
-    { D(dti_seq),      DDS_DATA_TYPE_CONTAINS_STRUCT | DDS_DATA_TYPE_CONTAINS_SEQUENCE },
-    { D(dti_bseq),     DDS_DATA_TYPE_CONTAINS_STRUCT | DDS_DATA_TYPE_CONTAINS_BSEQUENCE },
-    { D(dti_seq_str),  DDS_DATA_TYPE_CONTAINS_STRUCT | DDS_DATA_TYPE_CONTAINS_SEQUENCE | DDS_DATA_TYPE_CONTAINS_STRING },
-    { D(dti_arr),      DDS_DATA_TYPE_CONTAINS_STRUCT | DDS_DATA_TYPE_CONTAINS_ARRAY | DDS_DATA_TYPE_IS_MEMCPY_SAFE },
-    { D(dti_arr_bstr), DDS_DATA_TYPE_CONTAINS_STRUCT | DDS_DATA_TYPE_CONTAINS_ARRAY | DDS_DATA_TYPE_CONTAINS_BSTRING | DDS_DATA_TYPE_IS_MEMCPY_SAFE },
-    { D(dti_opt),      DDS_DATA_TYPE_CONTAINS_STRUCT | DDS_DATA_TYPE_CONTAINS_OPTIONAL | DDS_DATA_TYPE_CONTAINS_EXTERNAL },
-    { D(dti_ext),      DDS_DATA_TYPE_CONTAINS_STRUCT | DDS_DATA_TYPE_CONTAINS_EXTERNAL },
-    { D(dti_struct_key),          DDS_DATA_TYPE_CONTAINS_STRUCT | DDS_DATA_TYPE_CONTAINS_KEY | DDS_DATA_TYPE_IS_MEMCPY_SAFE },
-    { D(dti_struct_nested_key),   DDS_DATA_TYPE_CONTAINS_STRUCT | DDS_DATA_TYPE_CONTAINS_KEY | DDS_DATA_TYPE_IS_MEMCPY_SAFE },
-    { D(dti_struct_nested_nokey), DDS_DATA_TYPE_CONTAINS_STRUCT | DDS_DATA_TYPE_IS_MEMCPY_SAFE },
-    { D(dti_union),    DDS_DATA_TYPE_CONTAINS_UNION | DDS_DATA_TYPE_IS_MEMCPY_SAFE },
-    { D(dti_union_string),  DDS_DATA_TYPE_CONTAINS_UNION | DDS_DATA_TYPE_CONTAINS_STRING },
-    { D(dti_union_enum),    DDS_DATA_TYPE_CONTAINS_UNION | DDS_DATA_TYPE_CONTAINS_ENUM | DDS_DATA_TYPE_IS_MEMCPY_SAFE },
-    { D(dti_union_seq),     DDS_DATA_TYPE_CONTAINS_UNION | DDS_DATA_TYPE_CONTAINS_SEQUENCE },
-    { D(dti_union_arr),     DDS_DATA_TYPE_CONTAINS_UNION | DDS_DATA_TYPE_CONTAINS_ARRAY | DDS_DATA_TYPE_IS_MEMCPY_SAFE },
-    { D(dti_union_struct),  DDS_DATA_TYPE_CONTAINS_UNION | DDS_DATA_TYPE_CONTAINS_STRUCT | DDS_DATA_TYPE_IS_MEMCPY_SAFE }
-  };
-
-  for (uint32_t i = 0; i < sizeof (tests) / sizeof (tests[0]); i++)
-  {
-    printf("running test for desc %s ", tests[i].desc->m_typename);
-    uint64_t data_types = dds_stream_data_types (tests[i].desc->m_ops);
-    printf ("(data types actual %"PRIu64", expected %"PRIu64")\n", data_types, tests[i].data_types);
-    CU_ASSERT_EQUAL_FATAL (data_types, tests[i].data_types);
-  }
-}
-#undef D
-
-
-
 #undef XCDR1
 #undef XCDR2
-
-
-// Skip-default tests
-typedef void sample_init_fn (uint8_t *data);
-typedef void default_check_fn (uint8_t *data);
-
-static void init_sub1 (uint8_t *data)
-{
-  struct CdrStreamSkipDefault_t1_sub *t1 = (struct CdrStreamSkipDefault_t1_sub *) data;
-  t1->f2.s2 = NULL;
-  t1->f2.s3 = (dds_sequence_string) { ._length = 1, ._maximum = 1, ._release = true, ._buffer = ddsrt_malloc (1 * sizeof (*t1->f2.s3._buffer)) };
-  t1->f2.s3._buffer[0] = ddsrt_strdup ("test");
-}
-
-static void check_t1 (uint8_t *data)
-{
-  struct CdrStreamSkipDefault_t1_sub *t1 = (struct CdrStreamSkipDefault_t1_sub *) data;
-  CU_ASSERT_EQUAL_FATAL (t1->f2.s1, 0);
-  CU_ASSERT_EQUAL_FATAL (strlen (t1->f2.s2), 0);
-  CU_ASSERT_EQUAL_FATAL (t1->f2.s3._length, 0);
-  CU_ASSERT_EQUAL_FATAL (t1->f2.s3._maximum, 1);
-  CU_ASSERT_EQUAL_FATAL (t1->f2.s3._release, true);
-  CU_ASSERT_NOT_EQUAL_FATAL (t1->f2.s3._buffer, NULL);
-}
-
-static void init_sub2 (uint8_t *data)
-{
-  struct CdrStreamSkipDefault_t2_sub *t2 = (struct CdrStreamSkipDefault_t2_sub *) data;
-  t2->f2.s2 = ddsrt_strdup ("test");
-  t2->f2.s4 = NULL;
-}
-
-static void check_t2 (uint8_t *data)
-{
-  struct CdrStreamSkipDefault_t2_sub *t2 = (struct CdrStreamSkipDefault_t2_sub *) data;
-  CU_ASSERT_EQUAL_FATAL (t2->f2.s1, 0);
-  CU_ASSERT_EQUAL_FATAL (strlen (t2->f2.s2), 0);
-  CU_ASSERT_EQUAL_FATAL (t2->f2.s3, 0);
-  CU_ASSERT_PTR_NOT_NULL_FATAL (t2->f2.s4);
-  CU_ASSERT_EQUAL_FATAL (*t2->f2.s4, 0);
-  CU_ASSERT_EQUAL_FATAL (t2->f3, 0.0);
-}
-
-static void init_sub3 (uint8_t *data)
-{
-  struct CdrStreamSkipDefault_t3_sub *t3 = (struct CdrStreamSkipDefault_t3_sub *) data;
-  t3->f2.s2.s1 = NULL;
-  t3->f2.s2.s2 = (dds_sequence_long) { ._length = 0, ._maximum = 0, ._release = false };
-  t3->f4.s1 = NULL;
-  t3->f4.s2 = (dds_sequence_long) { ._length = 2, ._maximum = 2, ._release = true, ._buffer = ddsrt_malloc (2 * sizeof (*t3->f4.s2._buffer)) };
-}
-
-static void check_t3 (uint8_t *data)
-{
-  struct CdrStreamSkipDefault_t3_sub *t3 = (struct CdrStreamSkipDefault_t3_sub *) data;
-  CU_ASSERT_EQUAL_FATAL (t3->f2.s1, 0);
-  CU_ASSERT_EQUAL_FATAL (strlen (t3->f2.s2.s1), 0);
-  CU_ASSERT_EQUAL_FATAL (t3->f2.s2.s2._length, 0);
-  CU_ASSERT_EQUAL_FATAL (t3->f2.s2.s2._maximum, 0);
-  CU_ASSERT_EQUAL_FATAL (t3->f3, 0);
-  CU_ASSERT_EQUAL_FATAL (strlen (t3->f4.s1), 0);
-  CU_ASSERT_EQUAL_FATAL (t3->f4.s2._length, 0);
-  CU_ASSERT_EQUAL_FATAL (t3->f4.s2._maximum, 2);
-  CU_ASSERT_EQUAL_FATAL (t3->f4.s2._release, true);
-  CU_ASSERT_NOT_EQUAL_FATAL (t3->f4.s2._buffer, NULL);
-}
-
-static void init_sub4 (uint8_t *data)
-{
-  struct CdrStreamSkipDefault_t4_sub *t4 = (struct CdrStreamSkipDefault_t4_sub *) data;
-  t4->f2.s2.s2 = ddsrt_malloc (sizeof (*t4->f2.s2.s2));
-  (*t4->f2.s2.s2) = (dds_sequence_long) { ._length = 3, ._maximum = 3, ._release = true, ._buffer = ddsrt_malloc (3 * sizeof (*t4->f2.s2.s2->_buffer)) };
-  t4->f4.s2 = ddsrt_malloc (sizeof (*t4->f2.s2.s2));
-  (*t4->f4.s2) = (dds_sequence_long) { ._length = 1, ._maximum = 4, ._release = true, ._buffer = ddsrt_malloc (4 * sizeof (*t4->f4.s2->_buffer)) };
-}
-
-static void check_t4 (uint8_t *data)
-{
-  struct CdrStreamSkipDefault_t4_sub *t4 = (struct CdrStreamSkipDefault_t4_sub *) data;
-  CU_ASSERT_EQUAL_FATAL (t4->f2.s1, 0);
-  CU_ASSERT_EQUAL_FATAL (t4->f2.s2.s1, 0);
-  CU_ASSERT_PTR_NOT_NULL_FATAL (t4->f2.s2.s2);
-  CU_ASSERT_EQUAL_FATAL (t4->f2.s2.s2->_length, 0); // only length is reset, buffer and max are retained
-  CU_ASSERT_EQUAL_FATAL (t4->f4.s1, 0);
-  CU_ASSERT_PTR_NOT_NULL_FATAL (t4->f4.s2);
-  CU_ASSERT_EQUAL_FATAL (t4->f4.s2->_length, 0);
-}
-
-
-static void init_sub5 (uint8_t *data)
-{
-  struct CdrStreamSkipDefault_t5_sub *t5 = (struct CdrStreamSkipDefault_t5_sub *) data;
-  t5->f2.s2.s2 = (dds_sequence_long) { ._release = false, ._length = 0, ._maximum = 0 };
-}
-
-static void check_t5 (uint8_t *data)
-{
-  struct CdrStreamSkipDefault_t5_sub *t5 = (struct CdrStreamSkipDefault_t5_sub *) data;
-  CU_ASSERT_EQUAL_FATAL (t5->f2.s2.s1, 0);
-  CU_ASSERT_EQUAL_FATAL (t5->f2.s2.s2._length, 0);
-  CU_ASSERT_EQUAL_FATAL (t5->f2.s2.s2._maximum, 0);
-}
-
-#define D(n) (&CdrStreamSkipDefault_ ## n ## _desc)
-CU_Test (ddsc_cdrstream, skip_default)
-{
-  static const struct {
-    const dds_topic_descriptor_t *desc_pub;
-    const dds_topic_descriptor_t *desc_sub;
-    sample_init_fn *init_sub;
-    default_check_fn *check_sub;
-    const char *description;
-  } tests[] = {
-    { D(t1_pub), D(t1_sub), init_sub1, check_t1, "appendable top-level, appendable member" },
-    { D(t2_pub), D(t2_sub), init_sub2, check_t2, "appendable top-level, mutable member" },
-    { D(t3_pub), D(t3_sub), init_sub3, check_t3, "mutable top-level, nested mutable member" },
-    { D(t4_pub), D(t4_sub), init_sub4, check_t4, "mutable top-level, nested appendable member" },
-    { D(t5_pub), D(t5_sub), init_sub5, check_t5, "top-level equal, mutable member different" }
-  };
-
-  for (uint32_t i = 0; i < sizeof (tests) / sizeof (tests[0]); i++)
-  {
-    printf("running test for desc %s/%s: %s\n", tests[i].desc_pub->m_typename, tests[i].desc_sub->m_typename, tests[i].description);
-
-    struct dds_cdrstream_desc desc_pub, desc_sub;
-    dds_cdrstream_desc_from_topic_desc (&desc_pub, tests[i].desc_pub);
-    assert (desc_pub.ops.ops);
-    dds_cdrstream_desc_from_topic_desc (&desc_sub, tests[i].desc_sub);
-    assert (desc_sub.ops.ops);
-
-    dds_ostream_t os = { .m_xcdr_version = DDSI_RTPS_CDR_ENC_VERSION_2 };
-    uint8_t *sample_pub = ddsrt_malloc (desc_pub.size);
-    memset (sample_pub, 0xef, desc_pub.size); // assumes no pointers (strings, sequences, @external, @optional) in pub type
-    bool ret = dds_stream_write_sample (&os, &dds_cdrstream_default_allocator, sample_pub, &desc_pub);
-    CU_ASSERT_FATAL (ret);
-
-    uint8_t *sample_sub = ddsrt_malloc (desc_sub.size);
-    memset (sample_sub, 0xbe, desc_sub.size);
-    tests[i].init_sub (sample_sub);
-    dds_istream_t is = { .m_buffer = os.m_buffer, .m_index = 0, .m_size = os.m_size, .m_xcdr_version = os.m_xcdr_version };
-    dds_stream_read_sample (&is, sample_sub, &dds_cdrstream_default_allocator, &desc_sub);
-    tests[i].check_sub (sample_sub);
-
-    // clean-up
-    dds_ostream_fini (&os, &dds_cdrstream_default_allocator);
-    ddsrt_free (sample_pub);
-    dds_stream_free_sample (sample_sub, &dds_cdrstream_default_allocator, desc_sub.ops.ops);
-    ddsrt_free (sample_sub);
-
-    dds_cdrstream_desc_fini (&desc_pub, &dds_cdrstream_default_allocator);
-    dds_cdrstream_desc_fini (&desc_sub, &dds_cdrstream_default_allocator);
-  }
-}
-#undef D
-
-#define VAR (DDS_FIXED_KEY_MAX_SIZE + 1)
-#define D(n) (&CdrStreamKeySize_ ## n ## _desc)
-CU_Test(ddsc_cdrstream, key_size)
-{
-  static const struct {
-    const dds_topic_descriptor_t *desc;
-    bool fixed_key_xcdr1;
-    bool fixed_key_xcdr2;
-    uint32_t keysz_xcdr1;
-    uint32_t keysz_xcdr2;
-    bool fixed_key_xcdrv2_keyhash;
-  } tests[] = {
-    { D(t1), true, true, 6, 6, true },   // key size: 4 + 2
-    { D(t2), false, true, VAR, 14, true },  // key size: 1 + 7/3 (pad) + 8 + 2
-    { D(t3), false, true, VAR, 14, true },  // key size: 1 + 7/3 (pad) + 8 + 2
-    { D(t4), false, true, VAR, 13, true },  // key size: 1 + 1 (pad) + 2 + 4/0 (pad) + 8 + 1
-    { D(t5), false, false, VAR, VAR, false },
-    { D(t6), true, true, 16, 16, true }, // key size: 8 + 1 + 3 (pad) + 4
-    { D(t7), false, true, VAR, 16, true }, // key size: 2 + 6/2 (pad) + 8 + 1 + 1 (pad) 2
-    { D(t8), true, true, 15, 15, true },
-    { D(t9), true, true, 12, 12, true },
-    { D(t10), true, true, 8, 8, true }, // key size: 8
-    { D(t11), true, true, 16, 16, true }, // key size: 8 + 8
-    { D(t12), true, true, 16, 16, true }, // key size: 1 + 3 (pad) + 8 + 4
-    { D(t13), true, true, 16, 16, true }, // key size XCDR1: 4 + 1 + 3 (pad) + 8 / XCDR2: 8 + 1 + 3 (pad) + 4
-    { D(t14), false, true, VAR, 16, true }, // key size XCDR1: 1 + 7 (pad) + 8 + 4 / XCDR2: 1 + 3 (pad) + 8 + 4
-    { D(t15), true, true, 12, 12, false }, // key size XCDR1: 1 + 1 + 1 + 1 (pad) + 4 + 4 / XCDR2: 1 + 1 + 1 + 1 (pad) + 4 + 4 / XCDR2_KH: 1 + 3 (pad) + 4 + 1 + 3 (pad) + 4 + 1
-    { D(t16), true, true, 4, 4, true }, // key size: 4
-    { D(t17), true, true, 1, 1, true }, // key size: 1
-    { D(t18), true, true, 10, 16, true }, // key size XCDR1: 1 + 1 (pad) + 4 * 2 / XCDR2: 1 + 3 (pad) + 4 (dheader) + 4 * 2
-    { D(t19), true, true, 4, 4, true }, // key size: 4
-    { D(t20), true, true, 1, 1, true }, // key size: 1
-    { D(t21), true, true, 16, 16, true }, // key size XCDR1: 1 + 7 (pad) + 1 * 8 / XCDR2: 1 + 3 (pad) + 4 (dheader) + 1 * 8 /
-
-    { D(t22), false, true, 0, 8, true }, // key size: XCDR2: 4 (dh) + 4
-    { D(t23), false, true, 0, 12, true }, // key size: XCDR2: 4 (dh) + 4 (emh) + 4
-    { D(t24), false, true, 0, 12, true }, // key size: XCDR2: 4 (dh) + 4 (dh) + 4
-    { D(t25), false, false, 0, VAR, true }, // key size: XCDR2: 4 (dh) + 4 (emh) + 4 (dh) + 4 (emh) + 4
-    { D(t26), false, false, 0, VAR, true }, // key size: XCDR2: 4 (dh) + 4 (emh) + 4 (emh-nextint) + 4 (dh) + 1
-    { D(t27), false, true, 0, 9, true }, // key size: XCDR2: 4 (dh) + 4 (dh) + 1
-    { D(t28), false, true, 0, 14, true }, // key size: XCDR2: 4 (dh) + 4 (emh) + 4 (dh) + 2 * 1
-    { D(t29), false, true, 0, 12, true }, // key size: XCDR2: 4 (dh) + 4 (emh) + 4
-
-    { D(t30), false, false, VAR, VAR, false },
-    { D(t31), true, true, 16, 16, true }, // key size: 4 (length) + 3 * 4
-    { D(t32), true, true, 11, 11, true }, // key size: 1 + 3 (pad) + 4 (length) + 3 * 1
-    { D(t33), true, true, 6, 10, true }, // key size: XCDR1: 4 (length) + 2 * 1 / XCDR2: 4 (dh) + 4 (length) + 2 * 1
-    { D(t34), false, false, VAR, VAR, false },
-    { D(t35), false, true, 0, 13, true }, // key size: XCDR2: 4 (dh) + 4 (length) + 4 (dh) + 1
-    { D(t36), true, true, 16, 16, true }, // key size: 4 (length) + 12 * 1
-    { D(t37), false, true, 0, 16, true }, // key size: XCDR2: 4 (dh) + 4 (emh) + 4 (length) + 4
-    { D(t38), true, true, 12, 16, true }, // key size: XCDR1: 4 (length) + 2 * (1 + 1 (pad) + 2) / XCDR2: 4 (dh) + 4 (length) + 2 * (1 + 1 (pad) + 2)
-
-    { D(t39), true, true, 2, 6, true }, // key size: XCDR1: 2 * 1 / XCDR2: 4 (dh) + 2 * 1
-    { D(t40), true, true, 4, 8, true }, // key size: XCDR1: 4 * 1 / XCDR2: 4 (dh) + 4 * 1
-    { D(t41), false, true, 0, 9, true }, // key size: XCDR2: 4 (dh) + 4 (dh) + 1
-    { D(t42), false, true, 0, 16, true }, // key size: XCDR2: 4 (dh) + 4 (emh) + 4 (dh) + 4
-    { D(t43), true, true, 8, 12, true }, // key size: XCDR1: 2 * (1 + 1 (pad) + 2) / XCDR2: 4 (dh) + 2 * (1 + 1 (pad) + 2)
-
-    { D(t44), false, false, VAR, VAR, false },
-    { D(t45), false, false, VAR, VAR, false },
-    { D(t46), false, false, VAR, VAR, false },
-  };
-
-  for (size_t i = 0; i < sizeof (tests) / sizeof (tests[0]); i++) {
-    printf ("running test for type: %s\n", tests[i].desc->m_typename);
-
-    uint32_t keysz_xcdrv1 = 0, keysz_xcdrv2 = 0;
-    struct dds_cdrstream_desc desc;
-    dds_cdrstream_desc_from_topic_desc (&desc, tests[i].desc);
-    uint32_t key_flags = dds_stream_key_flags (&desc, &keysz_xcdrv1, &keysz_xcdrv2);
-    CU_ASSERT_EQUAL_FATAL ((key_flags & DDS_TOPIC_FIXED_KEY) != 0, tests[i].fixed_key_xcdr1);
-    CU_ASSERT_EQUAL_FATAL ((key_flags & DDS_TOPIC_FIXED_KEY_XCDR2) != 0, tests[i].fixed_key_xcdr2);
-    CU_ASSERT_EQUAL_FATAL (keysz_xcdrv1, tests[i].keysz_xcdr1);
-    CU_ASSERT_EQUAL_FATAL (keysz_xcdrv2, tests[i].keysz_xcdr2);
-    CU_ASSERT_EQUAL_FATAL ((key_flags & DDS_TOPIC_FIXED_KEY_XCDR2_KEYHASH) != 0, tests[i].fixed_key_xcdrv2_keyhash);
-    dds_cdrstream_desc_fini (&desc, &dds_cdrstream_default_allocator);
-  }
-}
-#undef VAR
-#undef D
-
-#define D(n) (&CdrStreamKeyExt_ ## n ## _desc)
-CU_Test(ddsc_cdrstream, key_flags_ext)
-{
-  static const struct {
-    const dds_topic_descriptor_t *desc;
-    bool key_appendable;
-    bool key_mutable;
-  } tests[] = {
-    { D(t1), false, false },
-    { D(t1a), false, false },
-    { D(t2), true, false },
-    { D(t3), false, true },
-    { D(t4), false, false },
-    { D(t4a), true, false },
-    { D(t4b), true, false },
-    { D(t5), false, false },
-    { D(t5a), false, true },
-    { D(t5b), false, true },
-    { D(t6), true, false },
-    { D(t6a), true, true },
-    { D(t6b), true, true },
-  };
-
-  for (size_t i = 0; i < sizeof (tests) / sizeof (tests[0]); i++) {
-    printf ("running test for type: %s\n", tests[i].desc->m_typename);
-    struct dds_cdrstream_desc desc;
-    dds_cdrstream_desc_from_topic_desc (&desc, tests[i].desc);
-    uint32_t key_flags = dds_stream_key_flags (&desc, NULL, NULL);
-    CU_ASSERT_EQUAL_FATAL ((key_flags & DDS_TOPIC_KEY_APPENDABLE) != 0, tests[i].key_appendable);
-    CU_ASSERT_EQUAL_FATAL ((key_flags & DDS_TOPIC_KEY_MUTABLE) != 0, tests[i].key_mutable);
-    dds_cdrstream_desc_fini (&desc, &dds_cdrstream_default_allocator);
-  }
-}
-#undef D
-
-typedef struct MutStructSeq
-{
-  dds_sequence_long b;
-  uint8_t c;
-} MutStructSeq;
-
-typedef struct ExternMutStructSeq
-{
-  struct MutStructSeq * x;
-} ExternMutStructSeq;
-
-static const uint32_t ExternMutStructSeq_ops [] =
-{
-  /* ExternMutStructSeq */
-  DDS_OP_DLC,
-  DDS_OP_ADR | DDS_OP_FLAG_OPT | DDS_OP_FLAG_EXT | DDS_OP_TYPE_EXT, offsetof (ExternMutStructSeq, x), (4u << 16u) + 5u /* MutStructSeq */, sizeof (MutStructSeq),
-  DDS_OP_RTS,
-
-  /* MutStructSeq */
-  DDS_OP_PLC,
-  DDS_OP_PLM | 5, 1u,
-  DDS_OP_PLM | 6, 2u,
-  DDS_OP_RTS,
-  DDS_OP_ADR | DDS_OP_TYPE_SEQ | DDS_OP_SUBTYPE_4BY | DDS_OP_FLAG_SGN, offsetof (MutStructSeq, b),
-  DDS_OP_RTS,
-  DDS_OP_ADR | DDS_OP_TYPE_1BY, offsetof (MutStructSeq, c),
-  DDS_OP_RTS
-};
-
-CU_Test(ddsc_cdrstream, init_sequence_in_external_struct)
-{
-  static uint8_t cdr[] = {
-    0x0d, 0x00, 0x00, 0x00, // 13 bytes follow for ExternMutStructSeq
-    0x01, 0x00, 0x00, 0x00, // optional member present + 3x pad
-    0x05, 0x00, 0x00, 0x00, // 5 bytes follow for MutStructSeq
-    0x02, 0x00, 0x00, 0x00, // EM: id=2, length code 0 = 1B
-    0x7b                    // 123: magic value for "c"
-  };
-  struct dds_cdrstream_desc descr;
-  memset (&descr, 0, sizeof (descr));
-  dds_cdrstream_desc_init (&descr, &dds_cdrstream_default_allocator, sizeof (ExternMutStructSeq), dds_alignof (ExternMutStructSeq), 0, ExternMutStructSeq_ops, NULL, 0);
-  uint32_t actual_size;
-  const bool byteswap = (DDSRT_ENDIAN != DDSRT_LITTLE_ENDIAN);
-  const bool norm_ok = dds_stream_normalize (cdr, sizeof (cdr), byteswap, DDSI_RTPS_CDR_ENC_VERSION_2, &descr, false, &actual_size);
-  CU_ASSERT_FATAL (norm_ok && actual_size == sizeof (cdr));
-  dds_istream_t is;
-  dds_istream_init (&is, sizeof (cdr), cdr, DDSI_RTPS_CDR_ENC_VERSION_2);
-  ExternMutStructSeq * sample = ddsrt_calloc (1, sizeof (*sample));
-  dds_stream_read_sample (&is, sample, &dds_cdrstream_default_allocator, &descr);
-  dds_stream_free_sample (sample, &dds_cdrstream_default_allocator, descr.ops.ops);
-  ddsrt_free (sample);
-  dds_cdrstream_desc_fini (&descr, &dds_cdrstream_default_allocator);
-}
-
-
-#define D(n) (&CdrStreamChecking_ ## n ## _desc)
-#define C(n) &(CdrStreamChecking_ ## n)
-CU_Test (ddsc_cdrstream, check_write_reject)
-{
-  // Most are for checking it rejects something, but for example with @external
-  // it needs to accept null pointers in some cases.  Hence the handful of cases
-  // that are expected to result in correct CDR
-  const union { CdrStreamChecking_en2 u; int i; } out_of_range_enum = { .i = 1 };
-  const struct {
-    const dds_topic_descriptor_t *desc;
-    const void *sample;
-    const char *description;
-    uint32_t cdrsize_if_ok;
-    const uint8_t *cdr_if_ok;
-  } tests[] = {
-    { D(t1), C(t1){.f1={._length=2,._buffer=(uint8_t[]){1,2}}}, "oversize sequence" },
-    { D(t1), C(t1){.f1={._length=1,._buffer=NULL}}, "non-empty sequence with null pointer" },
-    { D(t2), C(t2){.f1=out_of_range_enum.u}, "out-of-range enum" },
-    { D(t3), C(t3){.f1=2}, "out-of-range bitmask" },
-    { D(t4), C(t4){.f1=NULL}, "@external w/ null pointer" },
-    { D(t4a), C(t4a){.f1=NULL}, "@external @optional w/ null pointer", 1, (uint8_t[]){0} },
-    { D(t4b), C(t4b){.f1=NULL}, "@external string w/ null pointer", 5, (uint8_t[]){SER32(1),0} },
-    { D(t5), C(t5){.f1={._d=0,._u={.c0=NULL}}}, "union with @external w/ null pointer" },
-    { D(t5), C(t5){.f1={._d=1,._u={.c1=NULL}}}, "union with @external string w/ null pointer", 9, (uint8_t[]){1, 0,0,0, SER32(1),0} },
-    { D(t6), C(t6x){.f1=0}, "boolean 0", 1, (uint8_t[]){0} },
-    { D(t6), C(t6x){.f1=1}, "boolean 1", 1, (uint8_t[]){1} },
-    { D(t6), C(t6x){.f1=2}, "boolean 2", 1, (uint8_t[]){1} },
-    { D(t6), C(t6x){.f1=255}, "boolean 255", 1, (uint8_t[]){1} },
-    { D(t7), C(t7x){.f1={._d=0,._u={.c1=3}}}, "disc bool 0", 1, (uint8_t[]){0} },
-    { D(t7), C(t7x){.f1={._d=1,._u={.c1=3}}}, "disc bool 1", 2, (uint8_t[]){1,1} },
-    { D(t7), C(t7x){.f1={._d=2,._u={.c1=3}}}, "disc bool 2", 2, (uint8_t[]){1,1} },
-    { D(t7), C(t7x){.f1={._d=255,._u={.c1=3}}}, "disc bool 255", 2, (uint8_t[]){1,1} },
-    { D(t8), C(t8x){.f1={0,0}}, "boolean arr 0", 2, (uint8_t[]){0,0} },
-    { D(t8), C(t8x){.f1={1,1}}, "boolean arr 1", 2, (uint8_t[]){1,1} },
-    { D(t8), C(t8x){.f1={1,2}}, "boolean arr 2", 2, (uint8_t[]){1,1} },
-    { D(t8), C(t8x){.f1={255,2}}, "boolean arr 255", 2, (uint8_t[]){1,1} }
-  };
-
-  for (uint32_t i = 0; i < sizeof (tests) / sizeof (tests[0]); i++)
-  {
-    const uint32_t xcdr_version = DDSI_RTPS_CDR_ENC_VERSION_2;
-    printf("running test for desc %s: %s\n", tests[i].desc->m_typename, tests[i].description);
-
-    struct dds_cdrstream_desc desc;
-    dds_cdrstream_desc_from_topic_desc (&desc, tests[i].desc);
-    assert (desc.ops.ops);
-
-    size_t size = dds_stream_getsize_sample (tests[i].sample, &desc, xcdr_version);
-    dds_ostream_t os = { .m_xcdr_version = xcdr_version };
-    bool ret = dds_stream_write_sample (&os, &dds_cdrstream_default_allocator, tests[i].sample, &desc);
-    CU_ASSERT_FATAL (ret == (tests[i].cdr_if_ok != NULL));
-    if (tests[i].cdr_if_ok)
-    {
-      CU_ASSERT_FATAL (size == os.m_index);
-      CU_ASSERT_FATAL (os.m_index == tests[i].cdrsize_if_ok);
-      CU_ASSERT_FATAL (memcmp (tests[i].cdr_if_ok, os.m_buffer, os.m_index) == 0);
-    }
-
-    if (desc.keys.nkeys)
-    {
-      // Repeat with key serialization: type and data are so simple that the result should
-      // be exactly the same as for the full sample. The point is to check that the key
-      // serialization handling also handles these edge cases correctly.
-      size = dds_stream_getsize_key (tests[i].sample, &desc, xcdr_version);
-      os.m_index = 0;
-      ret = dds_stream_write_key (&os, DDS_CDR_KEY_SERIALIZATION_SAMPLE, &dds_cdrstream_default_allocator, tests[i].sample, &desc);
-      CU_ASSERT_FATAL (ret == (tests[i].cdr_if_ok != NULL));
-      if (tests[i].cdr_if_ok)
-      {
-        CU_ASSERT_FATAL (size == os.m_index);
-        CU_ASSERT_FATAL (os.m_index == tests[i].cdrsize_if_ok);
-        CU_ASSERT_FATAL (memcmp (tests[i].cdr_if_ok, os.m_buffer, os.m_index) == 0);
-      }
-    }
-
-    dds_ostream_fini (&os, &dds_cdrstream_default_allocator);
-    dds_cdrstream_desc_fini (&desc, &dds_cdrstream_default_allocator);
-  }
-}
-#undef C
-#undef D
-
-
-#define D(n) (&CdrStreamChecking_ ## n ## _desc)
-CU_Test (ddsc_cdrstream, check_normalize_boolean)
-{
-  // Need to verify that stream_normalize cleans up the booleans
-  const struct {
-    const dds_topic_descriptor_t *desc;
-    const char *description;
-    uint32_t cdrsize;
-    const uint8_t *cdr;
-    const uint8_t *ncdr;
-  } tests[] = {
-    { D(t6), "boolean 0", 1, (uint8_t[]){0}, (uint8_t[]){0} },
-    { D(t6), "boolean 1", 1, (uint8_t[]){1}, (uint8_t[]){1} },
-    { D(t6), "boolean 2", 1, (uint8_t[]){2}, (uint8_t[]){1} },
-    { D(t6), "boolean 255", 1, (uint8_t[]){255}, (uint8_t[]){1} },
-    { D(t7), "disc bool 0", 1, (uint8_t[]){0}, (uint8_t[]){0} },
-    // also check correct label is entered by checking it normalizes the bool there, too
-    { D(t7), "disc bool 1", 2, (uint8_t[]){1,3}, (uint8_t[]){1,1} },
-    { D(t7), "disc bool 2", 2, (uint8_t[]){2,3}, (uint8_t[]){1,1} },
-    { D(t7), "disc bool 255", 2, (uint8_t[]){255,3}, (uint8_t[]){1,1} },
-    { D(t8), "boolean arr 0", 2, (uint8_t[]){0,0}, (uint8_t[]){0,0} },
-    { D(t8), "boolean arr 1", 2, (uint8_t[]){1,1}, (uint8_t[]){1,1} },
-    { D(t8), "boolean arr 2", 2, (uint8_t[]){1,2}, (uint8_t[]){1,1} },
-    { D(t8), "boolean arr 255", 2, (uint8_t[]){255,1}, (uint8_t[]){1,1} }
-  };
-
-  for (uint32_t i = 0; i < sizeof (tests) / sizeof (tests[0]); i++)
-  {
-    printf("running test for desc %s: %s\n", tests[i].desc->m_typename, tests[i].description);
-
-    struct dds_cdrstream_desc desc;
-    dds_cdrstream_desc_from_topic_desc (&desc, tests[i].desc);
-    assert (desc.ops.ops);
-
-    void *cdr = ddsrt_memdup (tests[i].cdr, tests[i].cdrsize);
-    uint32_t act_size;
-    bool ret = dds_stream_normalize (cdr, tests[i].cdrsize, false, DDSI_RTPS_CDR_ENC_VERSION_2, &desc, false, &act_size);
-    CU_ASSERT_FATAL (ret && act_size == tests[i].cdrsize);
-    CU_ASSERT_FATAL (memcmp (cdr, tests[i].ncdr, tests[i].cdrsize) == 0);
-    if (desc.keys.nkeys)
-    {
-      ret = dds_stream_normalize (cdr, tests[i].cdrsize, true, DDSI_RTPS_CDR_ENC_VERSION_2, &desc, false, &act_size);
-      CU_ASSERT_FATAL (ret && act_size == tests[i].cdrsize);
-      CU_ASSERT_FATAL (memcmp (cdr, tests[i].ncdr, tests[i].cdrsize) == 0);
-    }
-    ddsrt_free (cdr);
-    dds_cdrstream_desc_fini (&desc, &dds_cdrstream_default_allocator);
-  }
-}
-#undef D
-
-static bool eq_CdrStreamWstring_t1 (const void *va, const void *vb)
-{
-  const CdrStreamWstring_t1 *a = va;
-  const CdrStreamWstring_t1 *b = vb;
-  return wcscmp (a->ws, b->ws) == 0 && a->k == b->k;
-}
-
-static bool eq_CdrStreamWstring_t2 (const void *va, const void *vb)
-{
-  const CdrStreamWstring_t2 *a = va;
-  const CdrStreamWstring_t2 *b = vb;
-  return wcscmp (a->ws1, b->ws1) == 0 && wcscmp (a->ws2, b->ws2) == 0 && a->k == b->k;
-}
-
-static bool eq_CdrStreamWstring_t3 (const void *va, const void *vb)
-{
-  const CdrStreamWstring_t3 *a = va;
-  const CdrStreamWstring_t3 *b = vb;
-  return wcscmp (a->ws1a[0], b->ws1a[0]) == 0 && wcscmp (a->ws1a[1], b->ws1a[1]) == 0 && a->k == b->k;
-}
-
-static bool eq_CdrStreamWstring_t4 (const void *va, const void *vb)
-{
-  const CdrStreamWstring_t4 *a = va;
-  const CdrStreamWstring_t4 *b = vb;
-  if (a->ws1s._length != b->ws1s._length)
-    return false;
-  for (uint32_t i = 0; i < a->ws1s._length; i++)
-    if (wcscmp (a->ws1s._buffer[i], b->ws1s._buffer[i]) != 0)
-      return false;
-  if (a->ws1bs._length != b->ws1bs._length)
-    return false;
-  for (uint32_t i = 0; i < a->ws1bs._length; i++)
-    if (wcscmp (a->ws1bs._buffer[i], b->ws1bs._buffer[i]) != 0)
-      return false;
-  if (a->k != b->k)
-    return false;
-  return true;
-}
-
-static bool eq_CdrStreamWstring_t5 (const void *va, const void *vb)
-{
-  const CdrStreamWstring_t5 *a = va;
-  const CdrStreamWstring_t5 *b = vb;
-  if (a->u._d != b->u._d)
-    return false;
-  switch (a->u._d)
-  {
-    case 1:
-      if (wcscmp (a->u._u.ws, b->u._u.ws) != 0)
-        return false;
-      break;
-    case 2:
-      if (wcscmp (a->u._u.ws1, b->u._u.ws1) != 0)
-        return false;
-      break;
-    case 3:
-      if (a->u._u.wss._length != b->u._u.wss._length)
-        return false;
-      for (uint32_t i = 0; i < a->u._u.wss._length; i++)
-        if (wcscmp (a->u._u.wss._buffer[i], b->u._u.wss._buffer[i]) != 0)
-          return false;
-      break;
-    case 4:
-      if (a->u._u.ws1bs._length != b->u._u.ws1bs._length)
-        return false;
-      for (uint32_t i = 0; i < a->u._u.ws1bs._length; i++)
-        if (wcscmp (a->u._u.ws1bs._buffer[i], b->u._u.ws1bs._buffer[i]) != 0)
-          return false;
-      break;
-    case 5:
-      if (wcscmp (a->u._u.ws1a[0], b->u._u.ws1a[0]) != 0)
-        return false;
-      if (wcscmp (a->u._u.ws1a[1], b->u._u.ws1a[1]) != 0)
-        return false;
-      break;
-    case 6:
-      for (uint32_t j = 0; j < 2; j++)
-      {
-        if (a->u._u.ws1abs[j]._length != b->u._u.ws1abs[j]._length)
-          return false;
-        for (uint32_t i = 0; i < a->u._u.ws1abs[j]._length; i++)
-          if (wcscmp (a->u._u.ws1abs[j]._buffer[i], b->u._u.ws1abs[j]._buffer[i]) != 0)
-            return false;
-      }
-      break;
-    default:
-      break;
-  }
-  if (a->k != b->k)
-    return false;
-  return true;
-}
-
-#define IDENT(x_) x_
-#define FIRST(w_, v_) w_
-#define PLUS() +
-#define MAKE_SER(w_, v_) SER##w_(v_)
-#define COMMA() ,
-#define SERSIZE(...) ((DDSRT_FOREACH_PAIR_WRAP (FIRST, PLUS, __VA_ARGS__)) / 8)
-#define CDR(...) SERSIZE(__VA_ARGS__), (uint8_t[]){ DDSRT_FOREACH_PAIR_WRAP (MAKE_SER, COMMA, __VA_ARGS__) }
-
-#define UTF16(x_) 16,x_
-#define WSTR0 32,0
-#define WSTR(...) 32,(2*DDSRT_COUNT_ARGS(__VA_ARGS__)), DDSRT_FOREACH_WRAP(UTF16, COMMA, __VA_ARGS__)
-#define PAD2 16,0
-#define DHDR(...) 32,(SERSIZE(__VA_ARGS__)), __VA_ARGS__
-
-#define CSEQ0 { ._length = 0, ._buffer = NULL }
-#define CSEQ(type_, ...) { \
-    ._length = DDSRT_COUNT_ARGS(__VA_ARGS__), \
-    ._buffer = (type_ *)&(type_[]){ DDSRT_FOREACH_WRAP (IDENT, COMMA, __VA_ARGS__) } \
-  }
-#define WSS(...) CSEQ(wchar_t *, __VA_ARGS__)
-#define WSSB(...) CSEQ(CdrStreamWstring_wstring1, __VA_ARGS__)
-
-#define D(n, ...) (&CdrStreamWstring_ ## n ## _desc), eq_CdrStreamWstring_ ## n, (&(CdrStreamWstring_ ## n){ __VA_ARGS__ })
-CU_Test (ddsc_cdrstream, check_wstring_valid)
-{
-  const struct {
-    const dds_topic_descriptor_t *desc;
-    bool (*eq) (const void *a, const void *b);
-    const void *data;
-    uint32_t cdrsize;
-    const uint8_t *cdr;
-  } tests[] = {
-    /* 0 */
-    { D(t1, L"",   2),  CDR(32,0, 32,2) },
-    { D(t1, L"a",  3),  CDR(WSTR('a'), PAD2, 32,3) },
-    { D(t1, L"ab", 5),  CDR(WSTR('a','b'), 32,5) },
-    { D(t2, L"",   L"",    2), CDR(WSTR0, WSTR0, 32,2) },
-    { D(t2, L"a",  L"",    3), CDR(WSTR('a'), PAD2, WSTR0, 32,3) },
-    /* 5 */
-    { D(t2, L"",   L"c",   5), CDR(WSTR0, WSTR('c'), PAD2, 32,5) },
-    { D(t2, L"",   L"cd",  7), CDR(WSTR0, WSTR('c','d'), 32,7) },
-    { D(t2, L"a",  L"c",  11), CDR(WSTR('a'), PAD2, WSTR('c'), PAD2, 32,11) },
-    { D(t2, L"a",  L"cd", 13), CDR(WSTR('a'), PAD2, WSTR('c','d'), 32,13) },
-    { D(t3, {L"", L""},    2), CDR(DHDR(WSTR0, WSTR0), 32,2) },
-    /* 10 */
-    { D(t3, {L"a", L""},   3), CDR(DHDR(WSTR('a'), PAD2, WSTR0), 32,3) },
-    { D(t3, {L"", L"c"},   5), CDR(DHDR(WSTR0, WSTR('c')), PAD2, 32,5) },
-    { D(t3, {L"a", L"c"},  7), CDR(DHDR(WSTR('a'), PAD2, WSTR('c')), PAD2, 32,7) },
-    { D(t4, CSEQ0, CSEQ0, 2), CDR(DHDR(32,0), DHDR(32,0), 32,2) },
-    { D(t4, WSS(L"a"), CSEQ0, 3), CDR(DHDR(32,1, WSTR('a')), PAD2, DHDR(32,0), 32,3) },
-    /* 15 */
-    { D(t4, WSS(L"a", L"b"), CSEQ0, 5), CDR(DHDR(32,2, WSTR('a'), PAD2, WSTR('b')), PAD2, DHDR(32,0), 32,5) },
-    { D(t4, CSEQ0, WSSB(L"c"), 7), CDR(DHDR(32,0), DHDR(32,1, WSTR('c')), PAD2, 32,7) },
-    { D(t4, CSEQ0, WSSB(L"c",L"d"), 11), CDR(DHDR(32,0), DHDR(32,2, WSTR('c'), PAD2, WSTR('d')), PAD2, 32,11) },
-    { D(t4, WSS(L"a"), WSSB(L"c"), 13), CDR(DHDR(32,1, WSTR('a')), PAD2, DHDR(32,1, WSTR('c')), PAD2, 32,13) },
-    { D(t4, WSS(L"a"), WSSB(L"c",L"d"), 17), CDR(DHDR(32,1, WSTR('a')), PAD2, DHDR(32,2, WSTR('c'), PAD2, WSTR('d')), PAD2, 32,17) },
-    /* 20 */
-    { D(t4, WSS(L"a", L"b"), WSSB(L"c"), 19), CDR(DHDR(32,2, WSTR('a'), PAD2, WSTR('b')), PAD2, DHDR(32,1, WSTR('c')), PAD2, 32,19) },
-    { D(t4, WSS(L"a", L"b"), WSSB(L"c",L"d"), 23), CDR(DHDR(32,2, WSTR('a'), PAD2, WSTR('b')), PAD2, DHDR(32,2, WSTR('c'), PAD2, WSTR('d')), PAD2, 32,23) },
-    { D(t5, {0}, 2), CDR(32,0, 32,2) },
-    { D(t5, {1,{.ws=L"abcd"}}, 3), CDR(32,1, WSTR('a','b','c','d'), 32,3) },
-    { D(t5, {2,{.ws1=L"a"}}, 5), CDR(32,2, WSTR('a'), PAD2, 32,5) },
-    /* 25 */
-    { D(t5, {3,{.wss=CSEQ0}}, 7), CDR(32,3, DHDR(WSTR0), 32,7) },
-    { D(t5, {3,{.wss=WSS(L"a",L"b")}}, 11), CDR(32,3, DHDR(32,2, WSTR('a'), PAD2, WSTR('b')), PAD2, 32,11) },
-    { D(t5, {4,{.ws1bs=WSSB(L"a",L"b")}}, 13), CDR(32,4, DHDR(32,2, WSTR('a'), PAD2, WSTR('b')), PAD2, 32,13) },
-    { D(t5, {5,{.ws1a={L"a",L"b"}}}, 17), CDR(32,5, DHDR(WSTR('a'), PAD2, WSTR('b')), PAD2, 32,17) },
-    { D(t5, {6,{.ws1abs={WSSB(L"a",L"b"),WSSB(L"c",L"d")}}}, 19),
-      CDR(32,6,
-        DHDR(DHDR(32,2, WSTR('a'), PAD2, WSTR('b')), PAD2,
-             DHDR(32,2, WSTR('c'), PAD2, WSTR('d'))),
-        PAD2, 32,19) },
-  };
-
-  for (uint32_t i = 0; i < sizeof (tests) / sizeof (tests[0]); i++)
-  {
-    printf("running test %"PRIu32" for desc %s\n", i, tests[i].desc->m_typename);
-
-    struct dds_cdrstream_desc desc;
-    dds_cdrstream_desc_from_topic_desc (&desc, tests[i].desc);
-    assert (desc.ops.ops);
-
-    dds_ostream_t os;
-    dds_ostream_init (&os, &dds_cdrstream_default_allocator, 0, DDSI_RTPS_CDR_ENC_VERSION_2);
-    const bool wok = dds_stream_write (&os, &dds_cdrstream_default_allocator, tests[i].data, desc.ops.ops);
-    CU_ASSERT_FATAL (wok);
-
-    CU_ASSERT_FATAL (os.m_index == tests[i].cdrsize);
-    CU_ASSERT_FATAL (memcmp (os.m_buffer, tests[i].cdr, tests[i].cdrsize) == 0);
-
-    uint32_t act_size;
-    const bool nok = dds_stream_normalize (os.m_buffer, tests[i].cdrsize, false, DDSI_RTPS_CDR_ENC_VERSION_2, &desc, false, &act_size);
-    CU_ASSERT_FATAL (nok);
-    CU_ASSERT_FATAL (act_size == tests[i].cdrsize);
-    CU_ASSERT_FATAL (memcmp (os.m_buffer, tests[i].cdr, tests[i].cdrsize) == 0); // nothing should've changed
-
-    dds_istream_t is;
-    dds_ostream_t osk;
-    dds_istream_init (&is, os.m_index, os.m_buffer, os.m_xcdr_version);
-    dds_ostream_init (&osk, &dds_cdrstream_default_allocator, 0, DDSI_RTPS_CDR_ENC_VERSION_2);
-    const bool kok = dds_stream_extract_key_from_data (&is, &osk, &dds_cdrstream_default_allocator, &desc);
-    CU_ASSERT_FATAL (kok);
-    // key is a 32-bit int at the end, so need to consume all input and result must match tail of expected CDR
-    CU_ASSERT_FATAL (is.m_index == os.m_index);
-    CU_ASSERT_FATAL (osk.m_index == 4 && memcmp (osk.m_buffer, tests[i].cdr + tests[i].cdrsize - 4, 4) == 0);
-    dds_ostream_fini (&osk, &dds_cdrstream_default_allocator);
-
-    dds_istream_init (&is, os.m_index, os.m_buffer, os.m_xcdr_version);
-    void *data = dds_alloc (desc.size);
-    dds_stream_read (&is, data, &dds_cdrstream_default_allocator, desc.ops.ops);
-    CU_ASSERT_FATAL (tests[i].eq (tests[i].data, data));
-    dds_stream_free_sample (data, &dds_cdrstream_default_allocator, desc.ops.ops);
-    dds_free (data);
-
-    dds_ostream_fini (&os, &dds_cdrstream_default_allocator);
-    dds_cdrstream_desc_fini (&desc, &dds_cdrstream_default_allocator);
-  }
-}
-#undef D
-
-CU_Test (ddsc_cdrstream, check_wstring_normalize)
-{
-  // all illegal inputs, no need to worry much about unbounded/bounded, arrays or sequences:
-  // they all pass through the same functions, so "t2" suffices
-  const struct {
-    uint32_t cdrsize;
-    const uint8_t *cdr;
-  } tests[] = {
-    { CDR(32,2) }, // insufficient data
-    { CDR(32,1, 8,0, 8,0,8,0,8,0, 32,0) }, // odd length
-    { CDR(32,2, 16,0xc800, PAD2, 32,0) }, // unpaired surrogate
-    { CDR(32,2, 16,0xefff, PAD2, 32,0) }, // unpaired
-    { CDR(32,4, 16,0xc800, 16,0xc800, 32,0) }, // unpaired
-    { CDR(32,4, 16,0xe000, 16,0xe000, 32,0) }, // unpaired
-    { CDR(32,4, 16,0xc800, 16,0xe000, 32,0) }, // wrong order
-    { CDR(WSTR('a','b'), WSTR('a','b')) } // oversize bounded string
-  };
-
-  for (uint32_t i = 0; i < sizeof (tests) / sizeof (tests[0]); i++)
-  {
-    printf("running test %"PRIu32" \n", i);
-    struct dds_cdrstream_desc desc;
-    dds_cdrstream_desc_from_topic_desc (&desc, &CdrStreamWstring_t2_desc);
-    assert (desc.ops.ops);
-    dds_ostream_t os;
-    dds_ostream_init (&os, &dds_cdrstream_default_allocator, 0, DDSI_RTPS_CDR_ENC_VERSION_2);
-    uint32_t act_size;
-    void *cdr = ddsrt_memdup (tests[i].cdr, tests[i].cdrsize);
-    const bool nok = dds_stream_normalize (cdr, tests[i].cdrsize, false, DDSI_RTPS_CDR_ENC_VERSION_2, &desc, false, &act_size);
-    CU_ASSERT_FATAL (!nok);
-    ddsrt_free (cdr);
-    dds_cdrstream_desc_fini (&desc, &dds_cdrstream_default_allocator);
-  }
-}

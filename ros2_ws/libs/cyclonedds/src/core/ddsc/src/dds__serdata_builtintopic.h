@@ -1,13 +1,14 @@
-// Copyright(c) 2006 to 2021 ZettaScale Technology and others
-//
-// This program and the accompanying materials are made available under the
-// terms of the Eclipse Public License v. 2.0 which is available at
-// http://www.eclipse.org/legal/epl-2.0, or the Eclipse Distribution License
-// v. 1.0 which is available at
-// http://www.eclipse.org/org/documents/edl-v10.php.
-//
-// SPDX-License-Identifier: EPL-2.0 OR BSD-3-Clause
-
+/*
+ * Copyright(c) 2006 to 2021 ZettaScale Technology and others
+ *
+ * This program and the accompanying materials are made available under the
+ * terms of the Eclipse Public License v. 2.0 which is available at
+ * http://www.eclipse.org/legal/epl-2.0, or the Eclipse Distribution License
+ * v. 1.0 which is available at
+ * http://www.eclipse.org/org/documents/edl-v10.php.
+ *
+ * SPDX-License-Identifier: EPL-2.0 OR BSD-3-Clause
+ */
 #ifndef DDS__SERDATA_BUILTINTYPE_H
 #define DDS__SERDATA_BUILTINTYPE_H
 
@@ -60,23 +61,14 @@ struct ddsi_sertype_builtintopic {
 extern const struct ddsi_sertype_ops ddsi_sertype_ops_builtintopic;
 extern const struct ddsi_serdata_ops ddsi_serdata_ops_builtintopic;
 
-/** @component typesupport_builtin */
-struct ddsi_sertype *dds_new_sertype_builtintopic (enum ddsi_sertype_builtintopic_entity_kind entity_kind, const char *typename);
-
-/** @component typesupport_builtin */
+struct ddsi_sertype *new_sertype_builtintopic (enum ddsi_sertype_builtintopic_entity_kind entity_kind, const char *typename);
 struct ddsi_serdata *dds_serdata_builtin_from_endpoint (const struct ddsi_sertype *tpcmn, const ddsi_guid_t *guid, struct ddsi_entity_common *entity, enum ddsi_serdata_kind kind);
-
 
 #ifdef DDS_HAS_TOPIC_DISCOVERY
 extern const struct ddsi_serdata_ops ddsi_serdata_ops_builtintopic_topic;
-
-/** @component typesupport_builtin */
-struct ddsi_sertype *dds_new_sertype_builtintopic_topic (enum ddsi_sertype_builtintopic_entity_kind entity_kind, const char *typename);
-
-/** @component typesupport_builtin */
+struct ddsi_sertype *new_sertype_builtintopic_topic (enum ddsi_sertype_builtintopic_entity_kind entity_kind, const char *typename);
 struct ddsi_serdata *dds_serdata_builtin_from_topic_definition (const struct ddsi_sertype *tpcmn, const dds_builtintopic_topic_key_t *key, const struct ddsi_topic_definition *tpd, enum ddsi_serdata_kind kind);
-
-#endif /* DDS_HAS_TOPIC_DISCOVERY */
+#endif
 
 
 #if defined (__cplusplus)

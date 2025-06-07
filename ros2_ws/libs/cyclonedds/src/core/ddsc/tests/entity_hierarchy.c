@@ -1,13 +1,14 @@
-// Copyright(c) 2006 to 2020 ZettaScale Technology and others
-//
-// This program and the accompanying materials are made available under the
-// terms of the Eclipse Public License v. 2.0 which is available at
-// http://www.eclipse.org/legal/epl-2.0, or the Eclipse Distribution License
-// v. 1.0 which is available at
-// http://www.eclipse.org/org/documents/edl-v10.php.
-//
-// SPDX-License-Identifier: EPL-2.0 OR BSD-3-Clause
-
+/*
+ * Copyright(c) 2006 to 2020 ZettaScale Technology and others
+ *
+ * This program and the accompanying materials are made available under the
+ * terms of the Eclipse Public License v. 2.0 which is available at
+ * http://www.eclipse.org/legal/epl-2.0, or the Eclipse Distribution License
+ * v. 1.0 which is available at
+ * http://www.eclipse.org/org/documents/edl-v10.php.
+ *
+ * SPDX-License-Identifier: EPL-2.0 OR BSD-3-Clause
+ */
 #include <limits.h>
 
 #include "dds/dds.h"
@@ -306,7 +307,9 @@ CU_Test(ddsc_entity_get_parent, participant, .init=hierarchy_init, .fini=hierarc
     parent = dds_get_parent(g_participant);
     CU_ASSERT_NOT_EQUAL_FATAL(parent, DDS_ENTITY_NIL);
     parent = dds_get_parent(parent);
-    CU_ASSERT_EQUAL_FATAL(parent, DDS_CYCLONEDDS_HANDLE);
+    CU_ASSERT_NOT_EQUAL_FATAL(parent, DDS_ENTITY_NIL);
+    parent = dds_get_parent(parent);
+    CU_ASSERT_NOT_EQUAL_FATAL(parent, DDS_CYCLONEDDS_HANDLE);
 }
 /*************************************************************************************************/
 
@@ -468,8 +471,9 @@ CU_TheoryDataPoints(ddsc_entity_get_children, deleted_entities) = {
 CU_Theory((dds_entity_t *entity), ddsc_entity_get_children, deleted_entities, .init=hierarchy_init, .fini=hierarchy_fini)
 {
     dds_return_t ret;
+    dds_entity_t children[4];
     dds_delete(*entity);
-    ret = dds_get_children(*entity, NULL, 0);
+    ret = dds_get_children(*entity, children, 4);
     CU_ASSERT_EQUAL_FATAL(ret, DDS_RETCODE_BAD_PARAMETER);
 }
 /*************************************************************************************************/
@@ -590,7 +594,7 @@ CU_Theory((dds_entity_t entity), ddsc_entity_get_publisher, invalid_writers, .in
 
 /*************************************************************************************************/
 CU_TheoryDataPoints(ddsc_entity_get_publisher, non_writers) = {
-        CU_DataPoints(dds_entity_t*, &g_subscriber, &g_reader, &g_publisher, &g_topic, &g_participant),
+        CU_DataPoints(dds_entity_t*, &g_publisher, &g_reader, &g_publisher, &g_topic, &g_participant),
 };
 CU_Theory((dds_entity_t *cond), ddsc_entity_get_publisher, non_writers, .init=hierarchy_init, .fini=hierarchy_fini)
 {

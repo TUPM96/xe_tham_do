@@ -1,13 +1,14 @@
-// Copyright(c) 2006 to 2022 ZettaScale Technology and others
-//
-// This program and the accompanying materials are made available under the
-// terms of the Eclipse Public License v. 2.0 which is available at
-// http://www.eclipse.org/legal/epl-2.0, or the Eclipse Distribution License
-// v. 1.0 which is available at
-// http://www.eclipse.org/org/documents/edl-v10.php.
-//
-// SPDX-License-Identifier: EPL-2.0 OR BSD-3-Clause
-
+/*
+ * Copyright(c) 2006 to 2022 ZettaScale Technology and others
+ *
+ * This program and the accompanying materials are made available under the
+ * terms of the Eclipse Public License v. 2.0 which is available at
+ * http://www.eclipse.org/legal/epl-2.0, or the Eclipse Distribution License
+ * v. 1.0 which is available at
+ * http://www.eclipse.org/org/documents/edl-v10.php.
+ *
+ * SPDX-License-Identifier: EPL-2.0 OR BSD-3-Clause
+ */
 #include <FreeRTOS.h>
 #include <task.h>
 #include <string.h>
@@ -103,7 +104,7 @@ bool ddsrt_thread_equal(ddsrt_thread_t a, ddsrt_thread_t b)
 }
 
 size_t
-ddsrt_thread_getname(char *name, size_t size)
+ddsrt_thread_getname(char *__restrict name, size_t size)
 {
   char *ptr;
 
@@ -378,11 +379,6 @@ ddsrt_thread_create(
              attr->schedPriority > (configMAX_PRIORITIES - 1))
   {
     return DDS_RETCODE_BAD_PARAMETER;
-  }
-  /* Didn't implement setting thread affinity on FreeRTOS yet */
-  if (attr->schedAffinityN > 0)
-  {
-    return DDS_RETCODE_ERROR;
   }
 
   /* Stack size is quietly increased to match at least the minimum. */

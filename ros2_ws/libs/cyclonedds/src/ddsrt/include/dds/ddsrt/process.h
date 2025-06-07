@@ -1,13 +1,14 @@
-// Copyright(c) 2006 to 2021 ZettaScale Technology and others
-//
-// This program and the accompanying materials are made available under the
-// terms of the Eclipse Public License v. 2.0 which is available at
-// http://www.eclipse.org/legal/epl-2.0, or the Eclipse Distribution License
-// v. 1.0 which is available at
-// http://www.eclipse.org/org/documents/edl-v10.php.
-//
-// SPDX-License-Identifier: EPL-2.0 OR BSD-3-Clause
-
+/*
+ * Copyright(c) 2006 to 2021 ZettaScale Technology and others
+ *
+ * This program and the accompanying materials are made available under the
+ * terms of the Eclipse Public License v. 2.0 which is available at
+ * http://www.eclipse.org/legal/epl-2.0, or the Eclipse Distribution License
+ * v. 1.0 which is available at
+ * http://www.eclipse.org/org/documents/edl-v10.php.
+ *
+ * SPDX-License-Identifier: EPL-2.0 OR BSD-3-Clause
+ */
 #ifndef DDSRT_PROCESS_H
 #define DDSRT_PROCESS_H
 
@@ -33,10 +34,6 @@ typedef uint32_t ddsrt_pid_t;
 #if defined(_WRS_KERNEL)
 typedef RTP_ID ddsrt_pid_t; /* typedef struct wind_rtp *RTP_ID */
 #define PRIdPID PRIuPTR
-#define DDSRT_HAVE_MULTI_PROCESS 0
-#elif defined(__ZEPHYR__)
-typedef int ddsrt_pid_t;
-#define PRIdPID "d"
 #define DDSRT_HAVE_MULTI_PROCESS 0
 #else
 typedef pid_t ddsrt_pid_t;

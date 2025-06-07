@@ -1,22 +1,23 @@
-// Copyright(c) 2006 to 2022 ZettaScale Technology and others
-//
-// This program and the accompanying materials are made available under the
-// terms of the Eclipse Public License v. 2.0 which is available at
-// http://www.eclipse.org/legal/epl-2.0, or the Eclipse Distribution License
-// v. 1.0 which is available at
-// http://www.eclipse.org/org/documents/edl-v10.php.
-//
-// SPDX-License-Identifier: EPL-2.0 OR BSD-3-Clause
-
+/*
+ * Copyright(c) 2006 to 2022 ZettaScale Technology and others
+ *
+ * This program and the accompanying materials are made available under the
+ * terms of the Eclipse Public License v. 2.0 which is available at
+ * http://www.eclipse.org/legal/epl-2.0, or the Eclipse Distribution License
+ * v. 1.0 which is available at
+ * http://www.eclipse.org/org/documents/edl-v10.php.
+ *
+ * SPDX-License-Identifier: EPL-2.0 OR BSD-3-Clause
+ */
 #include <assert.h>
 #include <string.h>
 
+#include "dds__alloc.h"
 #include "dds/ddsrt/heap.h"
-#include "dds/cdr/dds_cdrstream.h"
+#include "dds/ddsi/ddsi_config_impl.h"
+#include "dds/ddsi/ddsi_cdrstream.h"
 
 static dds_allocator_t dds_allocator_fns = { ddsrt_malloc, ddsrt_realloc, ddsrt_free };
-
-const struct dds_cdrstream_allocator dds_cdrstream_default_allocator = { ddsrt_malloc, ddsrt_realloc, ddsrt_free };
 
 void * dds_alloc (size_t size)
 {
@@ -93,7 +94,7 @@ void dds_sample_free (void * sample, const struct dds_topic_descriptor * desc, d
   if (sample)
   {
     if (op & DDS_FREE_CONTENTS_BIT)
-      dds_stream_free_sample (sample, &dds_cdrstream_default_allocator, desc->m_ops);
+      dds_stream_free_sample (sample, desc->m_ops);
     else if (op & DDS_FREE_KEY_BIT)
       dds_sample_free_key (sample, desc);
 

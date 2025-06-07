@@ -1,21 +1,14 @@
-// Copyright(c) 2006 to 2022 ZettaScale Technology and others
-//
-// This program and the accompanying materials are made available under the
-// terms of the Eclipse Public License v. 2.0 which is available at
-// http://www.eclipse.org/legal/epl-2.0, or the Eclipse Distribution License
-// v. 1.0 which is available at
-// http://www.eclipse.org/org/documents/edl-v10.php.
-//
-// SPDX-License-Identifier: EPL-2.0 OR BSD-3-Clause
-
-// The in6_pktinfo is somewhat fussy, but these seem to do the trick ...
-#define __APPLE_USE_RFC_3542
-#define _GNU_SOURCE
-
-#ifdef __APPLE__
-#include <AvailabilityMacros.h>
-#endif
-
+/*
+ * Copyright(c) 2006 to 2022 ZettaScale Technology and others
+ *
+ * This program and the accompanying materials are made available under the
+ * terms of the Eclipse Public License v. 2.0 which is available at
+ * http://www.eclipse.org/legal/epl-2.0, or the Eclipse Distribution License
+ * v. 1.0 which is available at
+ * http://www.eclipse.org/org/documents/edl-v10.php.
+ *
+ * SPDX-License-Identifier: EPL-2.0 OR BSD-3-Clause
+ */
 #include <assert.h>
 #include <string.h>
 #include "dds/ddsrt/atomics.h"
@@ -25,39 +18,15 @@
 #include "dds/ddsrt/sockets.h"
 #include "dds/ddsrt/string.h"
 #include "dds/ddsrt/static_assert.h"
-#include "dds/ddsi/ddsi_log.h"
+#include "ddsi_eth.h"
+#include "dds/ddsi/ddsi_tran.h"
+#include "dds/ddsi/ddsi_udp.h"
+#include "dds/ddsi/ddsi_ipaddr.h"
+#include "dds/ddsi/ddsi_mcgroup.h"
+#include "dds/ddsi/ddsi_config_impl.h"
+#include "dds/ddsi/q_log.h"
+#include "dds/ddsi/q_pcap.h"
 #include "dds/ddsi/ddsi_domaingv.h"
-#include "dds/ddsi/ddsi_protocol.h"
-#include "ddsi__eth.h"
-#include "ddsi__tran.h"
-#include "ddsi__udp.h"
-#include "ddsi__ipaddr.h"
-#include "ddsi__mcgroup.h"
-#include "ddsi__pcap.h"
-
-// Make sure that the size of the index that can be stored in a cover_info_t fits in the UDP multicast address range
-#define UDP_MC_ADDRESS_PREFIX_BITS 4
-DDSRT_STATIC_ASSERT (DDSI_LOCATOR_UDPv4MCGEN_INDEX_MASK_BITS <= 32 - UDP_MC_ADDRESS_PREFIX_BITS);
-
-// At some point, macOS added "struct in_pktinfo", but I don't know exactly when.  Snow Leopard doesn't have it
-// so let's set the cutoff at 10.7
-//
-// The remaining logic seems to work well for the supported platforms
-#if defined __APPLE__
-#  if defined MAC_OS_X_VERSION_MIN_REQUIRED && MAC_OS_X_VERSION_MIN_REQUIRED < 1070
-#    define PACKET_DESTINATION_INFO 0
-#  endif
-#endif
-#ifndef PACKET_DESTINATION_INFO
-#  if defined (__MINGW32__) && !defined (CMSG_SPACE)
-#    define PACKET_DESTINATION_INFO 0
-#  endif
-#  if defined CMSG_SPACE && (defined IP_PKTINFO || (DDSRT_HAVE_IPV6 && defined IPV6_PKTINFO))
-#    define PACKET_DESTINATION_INFO 1
-#  else
-#    define PACKET_DESTINATION_INFO 0
-#  endif
-#endif
 
 union addr {
   struct sockaddr_storage x;
@@ -70,7 +39,7 @@ union addr {
 
 typedef struct ddsi_udp_conn {
   struct ddsi_tran_conn m_base;
-  ddsrt_socket_ext_t m_sockext;
+  ddsrt_socket_t m_sock;
 #if defined _WIN32
   WSAEVENT m_sockEvent;
 #endif
@@ -89,84 +58,14 @@ typedef struct ddsi_udp_tran_factory {
 static void addr_to_loc (const struct ddsi_tran_factory *tran, ddsi_locator_t *dst, const union addr *src)
 {
   (void) tran;
-  ddsi_ipaddr_to_loc (dst, &src->a, (src->a.sa_family == AF_INET) ? DDSI_LOCATOR_KIND_UDPv4 : DDSI_LOCATOR_KIND_UDPv6);
+  ddsi_ipaddr_to_loc (dst, &src->a, (src->a.sa_family == AF_INET) ? NN_LOCATOR_KIND_UDPv4 : NN_LOCATOR_KIND_UDPv6);
 }
 
-static void translate_pktinfo (struct ddsi_network_packet_info *pktinfo, ddsrt_msghdr_t *msghdr_in, uint32_t port, bool ipv6)
-{
-#if PACKET_DESTINATION_INFO
-  // msghdr_in is not const .... because ... Linux ...
-  // for the rest: I hate Windows, with good reason.
-#ifndef _WIN32
-  ddsrt_msghdr_t *msghdr = msghdr_in;
-#else
-  WSAMSG msghdr_tmp = { .Control = { .len = (DWORD) msghdr_in->msg_controllen, .buf = msghdr_in->msg_control } };
-  WSAMSG *msghdr = &msghdr_tmp;
-#ifndef CMSG_DATA
-#define CMSG_DATA WSA_CMSG_DATA
-#endif
-#endif
-  // in_addr / in6_addr, so the conversion functions that deal with sockaddr are not applicable
-#if DDSRT_HAVE_IPV6 && defined IPV6_PKTINFO
-  if (ipv6)
-  {
-    for (struct cmsghdr *cmsg = CMSG_FIRSTHDR (msghdr); cmsg != NULL; cmsg = CMSG_NXTHDR (msghdr, cmsg))
-    {
-      if (cmsg->cmsg_level == IPPROTO_IPV6 && cmsg->cmsg_type == IPV6_PKTINFO)
-      {
-        struct in6_pktinfo const * const pkt6 = (const struct in6_pktinfo *) CMSG_DATA (cmsg);
-        pktinfo->dst.kind = DDSI_LOCATOR_KIND_UDPv6;
-        pktinfo->dst.port = port;
-        memcpy (pktinfo->dst.address, &pkt6->ipi6_addr, 16);
-        pktinfo->if_index = pkt6->ipi6_ifindex;
-        return;
-      }
-    }
-  }
-#else
-  (void) ipv6;
-#endif // DDSRT_HAVE_IPV6 && defined IPV6_PKTINFO
-#if defined IP_PKTINFO
-  for (struct cmsghdr *cmsg = CMSG_FIRSTHDR (msghdr); cmsg != NULL; cmsg = CMSG_NXTHDR (msghdr, cmsg))
-  {
-    if (cmsg->cmsg_level == IPPROTO_IP && cmsg->cmsg_type == IP_PKTINFO)
-    {
-      struct in_pktinfo const * const pkt4 = (const struct in_pktinfo *) CMSG_DATA (cmsg);
-      pktinfo->dst.kind = DDSI_LOCATOR_KIND_UDPv4;
-      pktinfo->dst.port = port;
-      memset (pktinfo->dst.address, 0, 12);
-      memcpy (pktinfo->dst.address + 12, &pkt4->ipi_addr, 4);
-      pktinfo->if_index = (uint32_t) pkt4->ipi_ifindex;
-      return;
-    }
-  }
-#endif // defined IP_PKTINFO
-#else // PACKET_DESTINATION_INFO
-  (void) ipv6;
-  (void) msghdr_in;
-  (void) port;
-#endif // PACKET_DESTINATION_INFO
-  // early outs as soon as packet info has been set, so if we get here, we don't know anything
-  pktinfo->dst.kind = DDSI_LOCATOR_KIND_INVALID;
-  pktinfo->if_index = 0;
-}
-
-static ssize_t ddsi_udp_conn_read (struct ddsi_tran_conn * conn_cmn, unsigned char * buf, size_t len, bool allow_spurious, struct ddsi_network_packet_info *pktinfo)
+static ssize_t ddsi_udp_conn_read (ddsi_tran_conn_t conn_cmn, unsigned char * buf, size_t len, bool allow_spurious, ddsi_locator_t *srcloc)
 {
   ddsi_udp_conn_t conn = (ddsi_udp_conn_t) conn_cmn;
   struct ddsi_domaingv * const gv = conn->m_base.m_base.gv;
   union addr src;
-#if PACKET_DESTINATION_INFO
-  union in_pktinfo_4_6 {
-#if defined IP_PKTINFO
-    struct in_pktinfo ip4;
-#endif
-#if DDSRT_HAVE_IPV6 && defined IPV6_PKTINFO
-    struct in6_pktinfo ip6;
-#endif
-  };
-  char incmsg[CMSG_SPACE (sizeof (union in_pktinfo_4_6))];
-#endif // PACKET_DESTINATION_INFO
   ddsrt_iovec_t msg_iov = {
     .iov_base = (void *) buf,
     .iov_len = (ddsrt_iov_len_t) len /* Windows uses unsigned, POSIX (except Linux) int */
@@ -176,65 +75,55 @@ static ssize_t ddsi_udp_conn_read (struct ddsi_tran_conn * conn_cmn, unsigned ch
     .msg_namelen = (socklen_t) sizeof (src),
     .msg_iov = &msg_iov,
     .msg_iovlen = 1
-#if PACKET_DESTINATION_INFO
-    ,
-      .msg_controllen = sizeof (incmsg),
-      .msg_control = incmsg
-#endif // PACKET_DESTINATION_INFO
     // accrights/control implicitly initialised to 0
     // msg_flags is an out parameter anyway
   };
   (void) allow_spurious;
 
   dds_return_t rc;
-  ssize_t nrecv;
+  ssize_t nrecv = 0;
   do {
-    rc = ddsrt_recvmsg (&conn->m_sockext, &msghdr, 0, &nrecv);
+    rc = ddsrt_recvmsg (conn->m_sock, &msghdr, 0, &nrecv);
   } while (rc == DDS_RETCODE_INTERRUPTED);
 
-  if (rc != DDS_RETCODE_OK)
+  if (nrecv > 0)
   {
-    if (rc != DDS_RETCODE_BAD_PARAMETER && rc != DDS_RETCODE_NO_CONNECTION)
-      GVERROR ("UDP recvmsg sock %d: ret %d retcode %"PRId32"\n", (int) conn->m_sockext.sock, (int) nrecv, rc);
-    return -1;
-  }
+    if (srcloc)
+      addr_to_loc (conn->m_base.m_factory, srcloc, &src);
 
-  assert (rc == DDS_RETCODE_OK && nrecv >= 0);
-  if (pktinfo)
-  {
-    addr_to_loc (conn->m_base.m_factory, &pktinfo->src, &src);
-    translate_pktinfo (pktinfo, &msghdr, conn->m_base.m_base.m_port, src.a.sa_family == AF_INET6);
-  }
+    if (gv->pcap_fp)
+    {
+      union addr dest;
+      socklen_t dest_len = sizeof (dest);
+      if (ddsrt_getsockname (conn->m_sock, &dest.a, &dest_len) != DDS_RETCODE_OK)
+        memset (&dest, 0, sizeof (dest));
+      write_pcap_received (gv, ddsrt_time_wallclock (), &src.x, &dest.x, buf, (size_t) nrecv);
+    }
 
-  if (gv->pcap_fp)
-  {
-    union addr dest;
-    socklen_t dest_len = sizeof (dest);
-    if (ddsrt_getsockname (conn->m_sockext.sock, &dest.a, &dest_len) != DDS_RETCODE_OK)
-      memset (&dest, 0, sizeof (dest));
-    ddsi_write_pcap_received (gv, ddsrt_time_wallclock (), &src.x, &dest.x, buf, (size_t) nrecv);
-  }
-
-  /* Check for udp packet truncation */
-#if ! DDSRT_MSGHDR_FLAGS
-  const bool trunc_flag = false;
-#elif defined MSG_CTRUNC
-  const bool trunc_flag = (msghdr.msg_flags & (MSG_TRUNC | MSG_CTRUNC)) != 0;
+    /* Check for udp packet truncation */
+#if DDSRT_MSGHDR_FLAGS
+    const bool trunc_flag = (msghdr.msg_flags & MSG_TRUNC) != 0;
 #else
-  const bool trunc_flag = (msghdr.msg_flags & MSG_TRUNC) != 0;
+    const bool trunc_flag = false;
 #endif
-  if ((size_t) nrecv > len || trunc_flag)
+    if ((size_t) nrecv > len || trunc_flag)
+    {
+      char addrbuf[DDSI_LOCSTRLEN];
+      ddsi_locator_t tmp;
+      addr_to_loc (conn->m_base.m_factory, &tmp, &src);
+      ddsi_locator_to_string (addrbuf, sizeof (addrbuf), &tmp);
+      GVWARNING ("%s => %d truncated to %d\n", addrbuf, (int) nrecv, (int) len);
+    }
+  }
+  else if (rc != DDS_RETCODE_BAD_PARAMETER && rc != DDS_RETCODE_NO_CONNECTION)
   {
-    char addrbuf[DDSI_LOCSTRLEN];
-    ddsi_locator_t tmp;
-    addr_to_loc (conn->m_base.m_factory, &tmp, &src);
-    ddsi_locator_to_string (addrbuf, sizeof (addrbuf), &tmp);
-    GVWARNING ("%s => %d truncated to %d\n", addrbuf, (int) nrecv, (int) len);
+    GVERROR ("UDP recvmsg sock %d: ret %d retcode %"PRId32"\n", (int) conn->m_sock, (int) nrecv, rc);
+    nrecv = -1;
   }
   return nrecv;
 }
 
-static ssize_t ddsi_udp_conn_write (struct ddsi_tran_conn * conn_cmn, const ddsi_locator_t *dst, const ddsi_tran_write_msgfrags_t *msgfrags, uint32_t flags)
+static ssize_t ddsi_udp_conn_write (ddsi_tran_conn_t conn_cmn, const ddsi_locator_t *dst, size_t niov, const ddsrt_iovec_t *iov, uint32_t flags)
 {
   ddsi_udp_conn_t conn = (ddsi_udp_conn_t) conn_cmn;
   struct ddsi_domaingv * const gv = conn->m_base.m_base.gv;
@@ -247,13 +136,13 @@ static ssize_t ddsi_udp_conn_write (struct ddsi_tran_conn * conn_cmn, const ddsi
   ddsrt_mtime_t tnow = { 0 };
 #endif
   union addr dstaddr;
-  assert (msgfrags->niov <= INT_MAX);
+  assert (niov <= INT_MAX);
   ddsi_ipaddr_from_loc (&dstaddr.x, dst);
   ddsrt_msghdr_t msg = {
     .msg_name = &dstaddr.x,
     .msg_namelen = (socklen_t) ddsrt_sockaddr_get_size (&dstaddr.a),
-    .msg_iov = (ddsrt_iovec_t *) msgfrags->iov,
-    .msg_iovlen = (ddsrt_msg_iovlen_t) msgfrags->niov
+    .msg_iov = (ddsrt_iovec_t *) iov,
+    .msg_iovlen = (ddsrt_msg_iovlen_t) niov
 #if DDSRT_MSGHDR_FLAGS
     , .msg_flags = (int) flags
 #endif
@@ -264,7 +153,7 @@ static ssize_t ddsi_udp_conn_write (struct ddsi_tran_conn * conn_cmn, const ddsi
 #if MSG_NOSIGNAL && !LWIP_SOCKET
   sendflags |= MSG_NOSIGNAL;
 #endif
-  rc = ddsrt_sendmsg (conn->m_sockext.sock, &msg, sendflags, &nsent);
+  rc = ddsrt_sendmsg (conn->m_sock, &msg, sendflags, &nsent);
   if (rc != DDS_RETCODE_OK)
   {
     // IIRC, NOT_ALLOWED is something that spuriously happens on some old versions of Linux i.c.w. firewalls
@@ -291,10 +180,10 @@ static ssize_t ddsi_udp_conn_write (struct ddsi_tran_conn * conn_cmn, const ddsi
           break;
         WSANETWORKEVENTS ev;
         WaitForSingleObject (conn->m_sockEvent, 5);
-        WSAEnumNetworkEvents (conn->m_sockext.sock, conn->m_sockEvent, &ev);
+        WSAEnumNetworkEvents (conn->m_sock, conn->m_sockEvent, &ev);
       }
 #endif
-      rc = ddsrt_sendmsg (conn->m_sockext.sock, &msg, sendflags, &nsent);
+      rc = ddsrt_sendmsg (conn->m_sock, &msg, sendflags, &nsent);
     }
   }
 
@@ -302,9 +191,9 @@ static ssize_t ddsi_udp_conn_write (struct ddsi_tran_conn * conn_cmn, const ddsi
   {
     union addr sa;
     socklen_t alen = sizeof (sa);
-    if (ddsrt_getsockname (conn->m_sockext.sock, &sa.a, &alen) != DDS_RETCODE_OK)
+    if (ddsrt_getsockname (conn->m_sock, &sa.a, &alen) != DDS_RETCODE_OK)
       memset(&sa, 0, sizeof(sa));
-    ddsi_write_pcap_sent (gv, ddsrt_time_wallclock (), &sa.x, &msg, (size_t) nsent);
+    write_pcap_sent (gv, ddsrt_time_wallclock (), &sa.x, &msg, (size_t) nsent);
   }
   else if (rc != DDS_RETCODE_OK && rc != DDS_RETCODE_NOT_ALLOWED && rc != DDS_RETCODE_NO_CONNECTION)
   {
@@ -314,37 +203,37 @@ static ssize_t ddsi_udp_conn_write (struct ddsi_tran_conn * conn_cmn, const ddsi
   return (rc == DDS_RETCODE_OK) ? nsent : -1;
 }
 
-static void ddsi_udp_disable_multiplexing (struct ddsi_tran_conn * conn_cmn)
+static void ddsi_udp_disable_multiplexing (ddsi_tran_conn_t conn_cmn)
 {
 #if defined _WIN32 && !defined WINCE
   ddsi_udp_conn_t conn = (ddsi_udp_conn_t) conn_cmn;
   uint32_t zero = 0;
   DWORD dummy;
-  WSAEventSelect (conn->m_sockext.sock, 0, 0);
-  WSAIoctl (conn->m_sockext.sock, FIONBIO, &zero,sizeof(zero), NULL,0, &dummy, NULL,NULL);
+  WSAEventSelect (conn->m_sock, 0, 0);
+  WSAIoctl (conn->m_sock, FIONBIO, &zero,sizeof(zero), NULL,0, &dummy, NULL,NULL);
 #else
   (void) conn_cmn;
 #endif
 }
 
-static ddsrt_socket_t ddsi_udp_conn_handle (struct ddsi_tran_base * conn_cmn)
+static ddsrt_socket_t ddsi_udp_conn_handle (ddsi_tran_base_t conn_cmn)
 {
   ddsi_udp_conn_t conn = (ddsi_udp_conn_t) conn_cmn;
-  return conn->m_sockext.sock;
+  return conn->m_sock;
 }
 
 static bool ddsi_udp_supports (const struct ddsi_tran_factory *fact_cmn, int32_t kind)
 {
   struct ddsi_udp_tran_factory const * const fact = (const struct ddsi_udp_tran_factory *) fact_cmn;
-  return kind == fact->m_kind || (kind == DDSI_LOCATOR_KIND_UDPv4MCGEN && fact->m_kind == DDSI_LOCATOR_KIND_UDPv4);
+  return kind == fact->m_kind || (kind == NN_LOCATOR_KIND_UDPv4MCGEN && fact->m_kind == NN_LOCATOR_KIND_UDPv4);
 }
 
-static int ddsi_udp_conn_locator (struct ddsi_tran_factory * fact_cmn, struct ddsi_tran_base * conn_cmn, ddsi_locator_t *loc)
+static int ddsi_udp_conn_locator (ddsi_tran_factory_t fact_cmn, ddsi_tran_base_t conn_cmn, ddsi_locator_t *loc)
 {
   struct ddsi_udp_tran_factory const * const fact = (const struct ddsi_udp_tran_factory *) fact_cmn;
   ddsi_udp_conn_t conn = (ddsi_udp_conn_t) conn_cmn;
   int ret = -1;
-  if (conn->m_sockext.sock != DDSRT_INVALID_SOCKET)
+  if (conn->m_sock != DDSRT_INVALID_SOCKET)
   {
     loc->kind = fact->m_kind;
     loc->port = conn->m_base.m_base.m_port;
@@ -388,39 +277,6 @@ static dds_return_t set_dont_route (struct ddsi_domaingv const * const gv, ddsrt
   return rc;
 }
 
- // Perhaps not all platforms support this, so only log errors on setting in the trace
-static dds_return_t setsockopt_pktinfo (struct ddsi_domaingv const * const gv, ddsrt_socket_t socket, bool ipv6)
-{
-  dds_return_t rc = DDS_RETCODE_UNSUPPORTED;
-#if DDSRT_HAVE_IPV6
-  if (ipv6)
-  {
-    const int yes = 1;
-#if defined IPV6_RECVPKTINFO // must come first for macOS
-    if ((rc = ddsrt_setsockopt (socket, IPPROTO_IPV6, IPV6_RECVPKTINFO, &yes, sizeof (yes))) != DDS_RETCODE_OK)
-      GVTRACE ("ddsi_udp_create_conn: set IPV6_RECVPKTINFO = 1 failed: %s\n", dds_strretcode (rc));
-#elif defined IPV6_PKTINFO
-    if ((rc = ddsrt_setsockopt (socket, IPPROTO_IPV6, IPV6_PKTINFO, &yes, sizeof (yes))) != DDS_RETCODE_OK)
-      GVTRACE ("ddsi_udp_create_conn: set IPV6_PKTINFO = 1 failed: %s\n", dds_strretcode (rc));
-#else
-    (void)yes;
-    GVTRACE ("ddsi_udp_create_conn: IPV6_RECVPKTINFO, IPV6_PKTINFO not defined\n");
-#endif
-    return rc;
-  }
-#else
-  (void) ipv6;
-#endif
-#ifdef IP_PKTINFO
-  const int yes = 1;
-  if ((rc = ddsrt_setsockopt (socket, IPPROTO_IP, IP_PKTINFO, &yes, sizeof (yes))) != DDS_RETCODE_OK)
-    GVTRACE ("ddsi_udp_create_conn: set IP_PKTINFO = 1 failed: %s\n", dds_strretcode (rc));
-#else
-  GVTRACE ("ddsi_udp_create_conn: set IP_PKTINFO not defined\n");
-#endif
-  return rc;
-}
-
 static dds_return_t set_socket_buffer (struct ddsi_domaingv const * const gv, ddsrt_socket_t sock, int32_t socket_option, const char *socket_option_name, const char *name, const struct ddsi_config_socket_buf_size *config, uint32_t default_min_size)
 {
   // if (min, max)=   and   initbuf=   then  request=  and  result=
@@ -445,7 +301,7 @@ static dds_return_t set_socket_buffer (struct ddsi_domaingv const * const gv, dd
   dds_return_t rc;
 
   rc = ddsrt_getsockopt (sock, SOL_SOCKET, socket_option, &actsize, &optlen);
-  if (rc == DDS_RETCODE_BAD_PARAMETER || rc == DDS_RETCODE_UNSUPPORTED)
+  if (rc == DDS_RETCODE_BAD_PARAMETER)
   {
     /* not all stacks support getting/setting RCVBUF */
     GVLOG (DDS_LC_CONFIG, "cannot retrieve socket %s buffer size\n", name);
@@ -500,7 +356,7 @@ static dds_return_t set_sndbuf (struct ddsi_domaingv const * const gv, ddsrt_soc
   return set_socket_buffer (gv, sock, SO_SNDBUF, "SO_SNDBUF", "send", config, 65536);
 }
 
-static dds_return_t set_mc_options_transmit_ipv6 (struct ddsi_domaingv const * const gv, struct ddsi_network_interface const * const intf, ddsrt_socket_t sock)
+static dds_return_t set_mc_options_transmit_ipv6 (struct ddsi_domaingv const * const gv, struct nn_interface const * const intf, ddsrt_socket_t sock)
 {
   /* Function is a never-called no-op if IPv6 is not supported to keep the call-site a bit cleaner  */
 #if DDSRT_HAVE_IPV6
@@ -527,11 +383,9 @@ static dds_return_t set_mc_options_transmit_ipv6 (struct ddsi_domaingv const * c
 #endif
 }
 
-static dds_return_t set_mc_options_transmit_ipv4_if (struct ddsi_domaingv const * const gv, struct ddsi_network_interface const * const intf, ddsrt_socket_t sock)
+static dds_return_t set_mc_options_transmit_ipv4_if (struct ddsi_domaingv const * const gv, struct nn_interface const * const intf, ddsrt_socket_t sock)
 {
-/* ip_mreqn is available on macOS 10.7+ */
-#if ((defined(__APPLE__) && defined(MAC_OS_X_VERSION_10_7) && (MAC_OS_X_VERSION_MIN_REQUIRED >= MAC_OS_X_VERSION_10_7)) \
-  || defined(__linux)) && !LWIP_SOCKET
+#if (defined(__linux) || defined(__APPLE__)) && !LWIP_SOCKET
   if (gv->config.use_multicast_if_mreqn)
   {
     struct ip_mreqn mreqn;
@@ -551,7 +405,7 @@ static dds_return_t set_mc_options_transmit_ipv4_if (struct ddsi_domaingv const 
   return ddsrt_setsockopt (sock, IPPROTO_IP, IP_MULTICAST_IF, intf->loc.address + 12, 4);
 }
 
-static dds_return_t set_mc_options_transmit_ipv4 (struct ddsi_domaingv const * const gv, struct ddsi_network_interface const * const intf, ddsrt_socket_t sock)
+static dds_return_t set_mc_options_transmit_ipv4 (struct ddsi_domaingv const * const gv, struct nn_interface const * const intf, ddsrt_socket_t sock)
 {
   const unsigned char ttl = (unsigned char) gv->config.multicast_ttl;
   const unsigned char loop = (unsigned char) !!gv->config.enableMulticastLoopback;
@@ -571,11 +425,11 @@ static dds_return_t set_mc_options_transmit_ipv4 (struct ddsi_domaingv const * c
   return DDS_RETCODE_OK;
 }
 
-static dds_return_t ddsi_udp_create_conn (struct ddsi_tran_conn **conn_out, struct ddsi_tran_factory * fact_cmn, uint32_t port, const struct ddsi_tran_qos *qos)
+static dds_return_t ddsi_udp_create_conn (ddsi_tran_conn_t *conn_out, ddsi_tran_factory_t fact_cmn, uint32_t port, const ddsi_tran_qos_t *qos)
 {
   struct ddsi_udp_tran_factory *fact = (struct ddsi_udp_tran_factory *) fact_cmn;
   struct ddsi_domaingv const * const gv = fact->fact.gv;
-  struct ddsi_network_interface const * const intf = qos->m_interface ? qos->m_interface : &gv->interfaces[0];
+  struct nn_interface const * const intf = qos->m_interface ? qos->m_interface : &gv->interfaces[0];
 
   dds_return_t rc;
   ddsrt_socket_t sock;
@@ -613,7 +467,7 @@ static dds_return_t ddsi_udp_create_conn (struct ddsi_tran_conn **conn_out, stru
 
   union addr socketname;
   ddsi_locator_t ownloc_w_port = intf->loc;
-  assert (ownloc_w_port.port == DDSI_LOCATOR_PORT_INVALID);
+  assert (ownloc_w_port.port == NN_LOCATOR_PORT_INVALID);
   if (port) {
     /* PORT_INVALID maps to 0 in ipaddr_from_loc */
     ownloc_w_port.port = port;
@@ -621,12 +475,12 @@ static dds_return_t ddsi_udp_create_conn (struct ddsi_tran_conn **conn_out, stru
   ddsi_ipaddr_from_loc (&socketname.x, &ownloc_w_port);
   switch (fact->m_kind)
   {
-    case DDSI_LOCATOR_KIND_UDPv4:
+    case NN_LOCATOR_KIND_UDPv4:
       if (bind_to_any)
         socketname.a4.sin_addr.s_addr = htonl (INADDR_ANY);
       break;
 #if DDSRT_HAVE_IPV6
-    case DDSI_LOCATOR_KIND_UDPv6:
+    case NN_LOCATOR_KIND_UDPv6:
       ipv6 = true;
       if (bind_to_any)
         socketname.a6.sin6_addr = ddsrt_in6addr_any;
@@ -672,13 +526,6 @@ static dds_return_t ddsi_udp_create_conn (struct ddsi_tran_conn **conn_out, stru
   if (gv->config.dontRoute && set_dont_route (gv, sock, ipv6) != DDS_RETCODE_OK)
     goto fail_w_socket;
 
-  // IP_PKTINFO on socket so we get to know the destination address and the interface
-  // on which the packet was received.  If it doesn't work, we don't mind: it simply
-  // means there is slightly less information available for making sense of addresses
-  // or deciding whether multicast SPDP packet really is to be processed
-  if (gv->config.extended_packet_info)
-    (void) setsockopt_pktinfo (gv, sock, ipv6);
-
   if ((rc = ddsrt_bind (sock, &socketname.a, ddsrt_sockaddr_get_size (&socketname.a))) != DDS_RETCODE_OK)
   {
     /* PRECONDITION_NOT_MET (= EADDRINUSE) is expected if reuse_addr isn't set, should be handled at
@@ -703,14 +550,25 @@ static dds_return_t ddsi_udp_create_conn (struct ddsi_tran_conn **conn_out, stru
       goto fail_w_socket;
   }
 
+#ifdef DDS_HAS_NETWORK_CHANNELS
+  if (qos->m_diffserv != 0 && fact->m_kind == NN_LOCATOR_KIND_UDPv4)
+  {
+    if ((rc = ddsrt_setsockopt (sock, IPPROTO_IP, IP_TOS, &qos->m_diffserv, sizeof (qos->m_diffserv))) != DDS_RETCODE_OK)
+    {
+      GVERROR ("ddsi_udp_create_conn: set diffserv retcode %"PRId32"\n", rc);
+      goto fail_w_socket;
+    }
+  }
+#endif
+
   ddsi_udp_conn_t conn = ddsrt_malloc (sizeof (*conn));
   memset (conn, 0, sizeof (*conn));
 
-  ddsrt_socket_ext_init (&conn->m_sockext, sock);
+  conn->m_sock = sock;
   conn->m_diffserv = qos->m_diffserv;
 #if defined _WIN32 && !defined WINCE
   conn->m_sockEvent = WSACreateEvent ();
-  WSAEventSelect (conn->m_sockext.sock, conn->m_sockEvent, FD_WRITE);
+  WSAEventSelect (conn->m_sock, conn->m_sockEvent, FD_WRITE);
 #endif
 
   ddsi_factory_conn_init (&fact->fact, intf, &conn->m_base);
@@ -724,7 +582,7 @@ static dds_return_t ddsi_udp_create_conn (struct ddsi_tran_conn **conn_out, stru
   conn->m_base.m_disable_multiplexing_fn = ddsi_udp_disable_multiplexing;
   conn->m_base.m_locator_fn = ddsi_udp_conn_locator;
 
-  GVTRACE ("ddsi_udp_create_conn %s socket %"PRIdSOCK" port %"PRIu32"\n", purpose_str, conn->m_sockext.sock, conn->m_base.m_base.m_port);
+  GVTRACE ("ddsi_udp_create_conn %s socket %"PRIdSOCK" port %"PRIu32"\n", purpose_str, conn->m_sock, conn->m_base.m_base.m_port);
   *conn_out = &conn->m_base;
   return DDS_RETCODE_OK;
 
@@ -738,57 +596,43 @@ fail_addrinuse:
   return DDS_RETCODE_PRECONDITION_NOT_MET;
 }
 
-static int joinleave_asm_mcgroup (ddsrt_socket_t socket, int join, const ddsi_locator_t *mcloc, const struct ddsi_network_interface *interf)
+static int joinleave_asm_mcgroup (ddsrt_socket_t socket, int join, const ddsi_locator_t *mcloc, const struct nn_interface *interf)
 {
   dds_return_t rc;
   union addr mcip;
   ddsi_ipaddr_from_loc (&mcip.x, mcloc);
 #if DDSRT_HAVE_IPV6
-  if (mcloc->kind == DDSI_LOCATOR_KIND_UDPv6)
+  if (mcloc->kind == NN_LOCATOR_KIND_UDPv6)
   {
     struct ipv6_mreq ipv6mreq;
     memset (&ipv6mreq, 0, sizeof (ipv6mreq));
     ipv6mreq.ipv6mr_multiaddr = mcip.a6.sin6_addr;
-#if __ZEPHYR__
-    ipv6mreq.ipv6mr_ifindex = interf ? interf->if_index : 0;
-#else
     ipv6mreq.ipv6mr_interface = interf ? interf->if_index : 0;
-#endif
     rc = ddsrt_setsockopt (socket, IPPROTO_IPV6, join ? IPV6_JOIN_GROUP : IPV6_LEAVE_GROUP, &ipv6mreq, sizeof (ipv6mreq));
   }
   else
-#endif /* DDSRT_HAVE_IPV6 */
+#endif
   {
-#if __ZEPHYR__
-    struct ip_mreqn mreq;
-    mreq.imr_ifindex = 0;
-    if (interf)
-      memcpy (&mreq.imr_address, interf->loc.address + 12, sizeof (mreq.imr_address));
-    else
-      mreq.imr_address.s_addr = htonl (INADDR_ANY);
-#else
     struct ip_mreq mreq;
+    mreq.imr_multiaddr = mcip.a4.sin_addr;
     if (interf)
       memcpy (&mreq.imr_interface, interf->loc.address + 12, sizeof (mreq.imr_interface));
     else
       mreq.imr_interface.s_addr = htonl (INADDR_ANY);
-#endif
-
-    mreq.imr_multiaddr = mcip.a4.sin_addr;
     rc = ddsrt_setsockopt (socket, IPPROTO_IP, join ? IP_ADD_MEMBERSHIP : IP_DROP_MEMBERSHIP, &mreq, sizeof (mreq));
   }
   return (rc == DDS_RETCODE_OK) ? 0 : -1;
 }
 
-#ifdef DDSRT_HAVE_SSM
-static int joinleave_ssm_mcgroup (ddsrt_socket_t socket, int join, const ddsi_locator_t *srcloc, const ddsi_locator_t *mcloc, const struct ddsi_network_interface *interf)
+#ifdef DDS_HAS_SSM
+static int joinleave_ssm_mcgroup (ddsrt_socket_t socket, int join, const ddsi_locator_t *srcloc, const ddsi_locator_t *mcloc, const struct nn_interface *interf)
 {
   dds_return_t rc;
   union addr mcip, srcip;
   ddsi_ipaddr_from_loc (&mcip.x, mcloc);
   ddsi_ipaddr_from_loc (&srcip.x, srcloc);
 #if DDSRT_HAVE_IPV6
-  if (mcloc->kind == DDSI_LOCATOR_KIND_UDPv6)
+  if (mcloc->kind == NN_LOCATOR_KIND_UDPv6)
   {
     struct group_source_req gsr;
     memset (&gsr, 0, sizeof (gsr));
@@ -814,39 +658,38 @@ static int joinleave_ssm_mcgroup (ddsrt_socket_t socket, int join, const ddsi_lo
 }
 #endif
 
-static int ddsi_udp_join_mc (struct ddsi_tran_conn * conn_cmn, const ddsi_locator_t *srcloc, const ddsi_locator_t *mcloc, const struct ddsi_network_interface *interf)
+static int ddsi_udp_join_mc (ddsi_tran_conn_t conn_cmn, const ddsi_locator_t *srcloc, const ddsi_locator_t *mcloc, const struct nn_interface *interf)
 {
   ddsi_udp_conn_t conn = (ddsi_udp_conn_t) conn_cmn;
   (void) srcloc;
-#ifdef DDSRT_HAVE_SSM
+#ifdef DDS_HAS_SSM
   if (srcloc)
-    return joinleave_ssm_mcgroup (conn->m_sockext.sock, 1, srcloc, mcloc, interf);
+    return joinleave_ssm_mcgroup (conn->m_sock, 1, srcloc, mcloc, interf);
   else
 #endif
-    return joinleave_asm_mcgroup (conn->m_sockext.sock, 1, mcloc, interf);
+    return joinleave_asm_mcgroup (conn->m_sock, 1, mcloc, interf);
 }
 
-static int ddsi_udp_leave_mc (struct ddsi_tran_conn * conn_cmn, const ddsi_locator_t *srcloc, const ddsi_locator_t *mcloc, const struct ddsi_network_interface *interf)
+static int ddsi_udp_leave_mc (ddsi_tran_conn_t conn_cmn, const ddsi_locator_t *srcloc, const ddsi_locator_t *mcloc, const struct nn_interface *interf)
 {
   ddsi_udp_conn_t conn = (ddsi_udp_conn_t) conn_cmn;
   (void) srcloc;
-#ifdef DDSRT_HAVE_SSM
+#ifdef DDS_HAS_SSM
   if (srcloc)
-    return joinleave_ssm_mcgroup (conn->m_sockext.sock, 0, srcloc, mcloc, interf);
+    return joinleave_ssm_mcgroup (conn->m_sock, 0, srcloc, mcloc, interf);
   else
 #endif
-    return joinleave_asm_mcgroup (conn->m_sockext.sock, 0, mcloc, interf);
+    return joinleave_asm_mcgroup (conn->m_sock, 0, mcloc, interf);
 }
 
-static void ddsi_udp_release_conn (struct ddsi_tran_conn * conn_cmn)
+static void ddsi_udp_release_conn (ddsi_tran_conn_t conn_cmn)
 {
   ddsi_udp_conn_t conn = (ddsi_udp_conn_t) conn_cmn;
   struct ddsi_domaingv const * const gv = conn->m_base.m_base.gv;
   GVTRACE ("ddsi_udp_release_conn %s socket %"PRIdSOCK" port %"PRIu32"\n",
            conn_cmn->m_base.m_multicast ? "multicast" : "unicast",
-           conn->m_sockext.sock, conn->m_base.m_base.m_port);
-  ddsrt_socket_ext_fini (&conn->m_sockext);
-  ddsrt_close (conn->m_sockext.sock);
+           conn->m_sock, conn->m_base.m_base.m_port);
+  ddsrt_close (conn->m_sock);
 #if defined _WIN32 && !defined WINCE
   WSACloseEvent (conn->m_sockEvent);
 #endif
@@ -858,14 +701,14 @@ static int ddsi_udp_is_loopbackaddr (const struct ddsi_tran_factory *tran, const
   (void) tran;
   switch (loc->kind)
   {
-    case DDSI_LOCATOR_KIND_UDPv4: {
+    case NN_LOCATOR_KIND_UDPv4: {
       return loc->address[12] == 127;
     }
-    case DDSI_LOCATOR_KIND_UDPv4MCGEN: {
+    case NN_LOCATOR_KIND_UDPv4MCGEN: {
       return false;
     }
 #if DDSRT_HAVE_IPV6
-    case DDSI_LOCATOR_KIND_UDPv6: {
+    case NN_LOCATOR_KIND_UDPv6: {
       const struct in6_addr *ipv6 = (const struct in6_addr *) loc->address;
       return IN6_IS_ADDR_LOOPBACK (ipv6);
     }
@@ -881,20 +724,20 @@ static int ddsi_udp_is_mcaddr (const struct ddsi_tran_factory *tran, const ddsi_
   (void) tran;
   switch (loc->kind)
   {
-    case DDSI_LOCATOR_KIND_UDPv4: {
+    case NN_LOCATOR_KIND_UDPv4: {
       const struct in_addr *ipv4 = (const struct in_addr *) (loc->address + 12);
       DDSRT_WARNING_GNUC_OFF(sign-conversion)
       return IN_MULTICAST (ntohl (ipv4->s_addr));
       DDSRT_WARNING_GNUC_ON(sign-conversion)
     }
-    case DDSI_LOCATOR_KIND_UDPv4MCGEN: {
-      const ddsi_udpv4mcgen_address_t *mcgen = (const ddsi_udpv4mcgen_address_t *) loc->address;
+    case NN_LOCATOR_KIND_UDPv4MCGEN: {
+      const nn_udpv4mcgen_address_t *mcgen = (const nn_udpv4mcgen_address_t *) loc->address;
       DDSRT_WARNING_GNUC_OFF(sign-conversion)
       return IN_MULTICAST (ntohl (mcgen->ipv4.s_addr));
       DDSRT_WARNING_GNUC_ON(sign-conversion)
     }
 #if DDSRT_HAVE_IPV6
-    case DDSI_LOCATOR_KIND_UDPv6: {
+    case NN_LOCATOR_KIND_UDPv6: {
       const struct in6_addr *ipv6 = (const struct in6_addr *) loc->address;
       return IN6_IS_ADDR_MULTICAST (ipv6);
     }
@@ -905,18 +748,18 @@ static int ddsi_udp_is_mcaddr (const struct ddsi_tran_factory *tran, const ddsi_
   }
 }
 
-#ifdef DDSRT_HAVE_SSM
+#ifdef DDS_HAS_SSM
 static int ddsi_udp_is_ssm_mcaddr (const struct ddsi_tran_factory *tran, const ddsi_locator_t *loc)
 {
   (void) tran;
   switch (loc->kind)
   {
-    case DDSI_LOCATOR_KIND_UDPv4: {
+    case NN_LOCATOR_KIND_UDPv4: {
       const struct in_addr *x = (const struct in_addr *) (loc->address + 12);
       return (((uint32_t) ntohl (x->s_addr)) >> 24) == 232;
     }
 #if DDSRT_HAVE_IPV6
-    case DDSI_LOCATOR_KIND_UDPv6: {
+    case NN_LOCATOR_KIND_UDPv6: {
       const struct in6_addr *x = (const struct in6_addr *) loc->address;
       return x->s6_addr[0] == 0xff && (x->s6_addr[1] & 0xf0) == 0x30;
     }
@@ -942,7 +785,7 @@ static enum ddsi_locator_from_string_result mcgen_address_from_string (const str
     return AFSR_INVALID;
   else if (str[pos] != 0 && str[pos] != ':')
     return AFSR_INVALID;
-  else if (!(count > 0 && base < (32 - UDP_MC_ADDRESS_PREFIX_BITS) && count < DDSI_LOCATOR_UDPv4MCGEN_INDEX_MASK_BITS && base + count < (32 - UDP_MC_ADDRESS_PREFIX_BITS) && idx < count))
+  else if (!(count > 0 && base < 28 && count < 28 && base + count < 28 && idx < count))
     return AFSR_INVALID;
   if (str[pos] == ':')
   {
@@ -960,11 +803,11 @@ static enum ddsi_locator_from_string_result mcgen_address_from_string (const str
   enum ddsi_locator_from_string_result res = ddsi_ipaddr_from_string (loc, ipstr, tran->m_kind);
   if (res != AFSR_OK)
     return res;
-  assert (loc->kind == DDSI_LOCATOR_KIND_UDPv4);
+  assert (loc->kind == NN_LOCATOR_KIND_UDPv4);
   if (!ddsi_udp_is_mcaddr (tran_cmn, loc))
     return AFSR_INVALID;
 
-  ddsi_udpv4mcgen_address_t x;
+  nn_udpv4mcgen_address_t x;
   DDSRT_STATIC_ASSERT (sizeof (x) <= sizeof (loc->address));
   memset (&x, 0, sizeof(x));
   memcpy (&x.ipv4, loc->address + 12, 4);
@@ -973,7 +816,7 @@ static enum ddsi_locator_from_string_result mcgen_address_from_string (const str
   x.idx = (unsigned char) idx;
   memset (loc->address, 0, sizeof (loc->address));
   memcpy (loc->address, &x, sizeof (x));
-  loc->kind = DDSI_LOCATOR_KIND_UDPv4MCGEN;
+  loc->kind = NN_LOCATOR_KIND_UDPv4MCGEN;
   return AFSR_OK;
   DDSRT_WARNING_MSVC_ON(4996);
 }
@@ -987,13 +830,13 @@ static enum ddsi_locator_from_string_result ddsi_udp_address_from_string (const 
     return ddsi_ipaddr_from_string (loc, str, tran->m_kind);
 }
 
-static char *ddsi_udp_locator_to_string (char *dst, size_t sizeof_dst, const ddsi_locator_t *loc, struct ddsi_tran_conn * conn, int with_port)
+static char *ddsi_udp_locator_to_string (char *dst, size_t sizeof_dst, const ddsi_locator_t *loc, ddsi_tran_conn_t conn, int with_port)
 {
-  if (loc->kind != DDSI_LOCATOR_KIND_UDPv4MCGEN) {
+  if (loc->kind != NN_LOCATOR_KIND_UDPv4MCGEN) {
     return ddsi_ipaddr_to_string(dst, sizeof_dst, loc, with_port, conn ? conn->m_interf : NULL);
   } else {
     struct sockaddr_in src;
-    ddsi_udpv4mcgen_address_t mcgen;
+    nn_udpv4mcgen_address_t mcgen;
     size_t pos;
     int cnt;
     assert(sizeof_dst > 1);
@@ -1015,7 +858,7 @@ static char *ddsi_udp_locator_to_string (char *dst, size_t sizeof_dst, const dds
   }
 }
 
-static void ddsi_udp_fini (struct ddsi_tran_factory * fact_cmn)
+static void ddsi_udp_fini (ddsi_tran_factory_t fact_cmn)
 {
   struct ddsi_udp_tran_factory *fact = (struct ddsi_udp_tran_factory *) fact_cmn;
   struct ddsi_domaingv const * const gv = fact->fact.gv;
@@ -1026,7 +869,7 @@ static void ddsi_udp_fini (struct ddsi_tran_factory * fact_cmn)
 static int ddsi_udp_is_valid_port (const struct ddsi_tran_factory *fact, uint32_t port)
 {
   (void) fact;
-  return (0 < port && port <= 65535);
+  return (port <= 65535);
 }
 
 static uint32_t ddsi_udp_receive_buffer_size (const struct ddsi_tran_factory *fact_cmn)
@@ -1041,11 +884,11 @@ static int ddsi_udp_locator_from_sockaddr (const struct ddsi_tran_factory *tran_
   switch (sockaddr->sa_family)
   {
     case AF_INET:
-      if (tran->m_kind != DDSI_LOCATOR_KIND_UDPv4)
+      if (tran->m_kind != NN_LOCATOR_KIND_UDPv4)
         return -1;
       break;
     case AF_INET6:
-      if (tran->m_kind != DDSI_LOCATOR_KIND_UDPv6)
+      if (tran->m_kind != NN_LOCATOR_KIND_UDPv6)
         return -1;
       break;
   }
@@ -1057,7 +900,7 @@ int ddsi_udp_init (struct ddsi_domaingv*gv)
 {
   struct ddsi_udp_tran_factory *fact = ddsrt_malloc (sizeof (*fact));
   memset (fact, 0, sizeof (*fact));
-  fact->m_kind = DDSI_LOCATOR_KIND_UDPv4;
+  fact->m_kind = NN_LOCATOR_KIND_UDPv4;
   fact->fact.gv = gv;
   fact->fact.m_free_fn = ddsi_udp_fini;
   fact->fact.m_typename = "udp";
@@ -1071,7 +914,7 @@ int ddsi_udp_init (struct ddsi_domaingv*gv)
   fact->fact.m_leave_mc_fn = ddsi_udp_leave_mc;
   fact->fact.m_is_loopbackaddr_fn = ddsi_udp_is_loopbackaddr;
   fact->fact.m_is_mcaddr_fn = ddsi_udp_is_mcaddr;
-#ifdef DDSRT_HAVE_SSM
+#ifdef DDS_HAS_SSM
   fact->fact.m_is_ssm_mcaddr_fn = ddsi_udp_is_ssm_mcaddr;
 #endif
   fact->fact.m_is_nearby_address_fn = ddsi_ipaddr_is_nearby_address;
@@ -1084,7 +927,7 @@ int ddsi_udp_init (struct ddsi_domaingv*gv)
 #if DDSRT_HAVE_IPV6
   if (gv->config.transport_selector == DDSI_TRANS_UDP6)
   {
-    fact->m_kind = DDSI_LOCATOR_KIND_UDPv6;
+    fact->m_kind = NN_LOCATOR_KIND_UDPv6;
     fact->fact.m_typename = "udp6";
     fact->fact.m_default_spdp_address = "udp6/ff02::ffff:239.255.0.1";
   }

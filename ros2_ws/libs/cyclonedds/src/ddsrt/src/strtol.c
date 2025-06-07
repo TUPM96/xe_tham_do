@@ -1,13 +1,14 @@
-// Copyright(c) 2006 to 2019 ZettaScale Technology and others
-//
-// This program and the accompanying materials are made available under the
-// terms of the Eclipse Public License v. 2.0 which is available at
-// http://www.eclipse.org/legal/epl-2.0, or the Eclipse Distribution License
-// v. 1.0 which is available at
-// http://www.eclipse.org/org/documents/edl-v10.php.
-//
-// SPDX-License-Identifier: EPL-2.0 OR BSD-3-Clause
-
+/*
+ * Copyright(c) 2006 to 2019 ZettaScale Technology and others
+ *
+ * This program and the accompanying materials are made available under the
+ * terms of the Eclipse Public License v. 2.0 which is available at
+ * http://www.eclipse.org/legal/epl-2.0, or the Eclipse Distribution License
+ * v. 1.0 which is available at
+ * http://www.eclipse.org/org/documents/edl-v10.php.
+ *
+ * SPDX-License-Identifier: EPL-2.0 OR BSD-3-Clause
+ */
 #include <assert.h>
 #include <ctype.h>
 #include <limits.h>
@@ -18,11 +19,11 @@
 int32_t ddsrt_todigit(const int chr)
 {
   if (chr >= '0' && chr <= '9') {
-    return (char) chr - '0';
+    return chr - '0';
   } else if (chr >= 'a' && chr <= 'z') {
-    return 10 + ((char) chr - 'a');
+    return 10 + (chr - 'a');
   } else if (chr >= 'A' && chr <= 'Z') {
-    return 10 + ((char) chr - 'A');
+    return 10 + (chr - 'A');
   }
 
   return -1;
@@ -94,7 +95,7 @@ ddsrt_strtoll(
 {
   dds_return_t rc = DDS_RETCODE_OK;
   size_t cnt = 0;
-  int sign = 1;
+  long long tot = 1;
   unsigned long long ullng = 0, max = INT64_MAX;
 
   assert(str != NULL);
@@ -105,7 +106,7 @@ ddsrt_strtoll(
   }
 
   if (str[cnt] == '-') {
-    sign = -1;
+    tot = -1;
     max++;
     cnt++;
   } else if (str[cnt] == '+') {
@@ -115,11 +116,9 @@ ddsrt_strtoll(
   rc = ullfstr(str + cnt, endptr, base, &ullng, max);
   if (endptr && *endptr == (str + cnt))
     *endptr = (char *)str;
-  if (rc != DDS_RETCODE_BAD_PARAMETER) {
-    *llng = (long long)ullng;
-    if (sign == -1 && *llng != INT64_MIN)
-      *llng = - *llng;
-  }
+  if (rc != DDS_RETCODE_BAD_PARAMETER)
+    *llng = tot * (long long)ullng;
+
   return rc;
 }
 

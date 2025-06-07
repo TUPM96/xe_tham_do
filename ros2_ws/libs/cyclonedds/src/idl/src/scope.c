@@ -1,38 +1,24 @@
-// Copyright(c) 2021 to 2022 ZettaScale Technology and others
-//
-// This program and the accompanying materials are made available under the
-// terms of the Eclipse Public License v. 2.0 which is available at
-// http://www.eclipse.org/legal/epl-2.0, or the Eclipse Distribution License
-// v. 1.0 which is available at
-// http://www.eclipse.org/org/documents/edl-v10.php.
-//
-// SPDX-License-Identifier: EPL-2.0 OR BSD-3-Clause
-
+/*
+ * Copyright(c) 2021 to 2022 ZettaScale Technology and others
+ *
+ * This program and the accompanying materials are made available under the
+ * terms of the Eclipse Public License v. 2.0 which is available at
+ * http://www.eclipse.org/legal/epl-2.0, or the Eclipse Distribution License
+ * v. 1.0 which is available at
+ * http://www.eclipse.org/org/documents/edl-v10.php.
+ *
+ * SPDX-License-Identifier: EPL-2.0 OR BSD-3-Clause
+ */
 #include <assert.h>
 #include <stdlib.h>
 #include <string.h>
 #include <stdio.h>
 
 #include "idl/retcode.h"
-#include "idl/heap.h"
 #include "idl/string.h"
 #include "symbol.h"
 #include "scope.h"
 #include "tree.h"
-
-static int namecmp(const idl_name_t *n1, const idl_name_t *n2)
-{
-  if (n1->is_annotation != n2->is_annotation)
-    return n1->is_annotation ? -1 : 1;
-  return strcmp(n1->identifier, n2->identifier);
-}
-
-static int namecasecmp(const idl_name_t *n1, const idl_name_t *n2)
-{
-  if (n1->is_annotation != n2->is_annotation)
-    return n1->is_annotation ? -1 : 1;
-  return idl_strcasecmp(n1->identifier, n2->identifier);
-}
 
 static idl_retcode_t
 create_declaration(
@@ -44,19 +30,19 @@ create_declaration(
   char *identifier;
   idl_declaration_t *declaration;
 
-  if (!(declaration = idl_calloc(1, sizeof(*declaration))))
+  if (!(declaration = calloc(1, sizeof(*declaration))))
     goto err_declaration;
   declaration->kind = kind;
   if (!(identifier = idl_strdup(name->identifier)))
     goto err_identifier;
-  if (idl_create_name(pstate, idl_location(name), identifier, name->is_annotation, &declaration->name))
+  if (idl_create_name(pstate, idl_location(name), identifier, &declaration->name))
     goto err_name;
   *declarationp = declaration;
   return IDL_RETCODE_OK;
 err_name:
-  idl_free(identifier);
+  free(identifier);
 err_identifier:
-  idl_free(declaration);
+  free(declaration);
 err_declaration:
   return IDL_RETCODE_NO_MEMORY;
 }
@@ -68,12 +54,12 @@ static void delete_declaration(idl_declaration_t *declaration)
       idl_delete_name(declaration->name);
     if (declaration->scoped_name) {
       if (declaration->scoped_name->identifier)
-        idl_free(declaration->scoped_name->identifier);
+        free(declaration->scoped_name->identifier);
       if (declaration->scoped_name->names)
-        idl_free(declaration->scoped_name->names);
-      idl_free(declaration->scoped_name);
+        free(declaration->scoped_name->names);
+      free(declaration->scoped_name);
     }
-    idl_free(declaration);
+    free(declaration);
   }
 }
 
@@ -94,7 +80,7 @@ idl_create_scope(
   if (create_declaration(pstate, IDL_SCOPE_DECLARATION, name, &entry))
     goto err_declaration;
   entry->node = node;
-  if (!(scope = idl_malloc(sizeof(*scope))))
+  if (!(scope = malloc(sizeof(*scope))))
     goto err_scope;
   scope->parent = pstate->scope;
   scope->kind = kind;
@@ -109,7 +95,7 @@ err_declaration:
   return IDL_RETCODE_NO_MEMORY;
 }
 
-/* idl_free scopes, not nodes */
+/* free scopes, not nodes */
 void idl_delete_scope(idl_scope_t *scope)
 {
   if (scope) {
@@ -121,9 +107,9 @@ void idl_delete_scope(idl_scope_t *scope)
     }
     for (idl_import_t *q, *p = scope->imports.first; p; p = q) {
       q = p->next;
-      idl_free(p);
+      free(p);
     }
-    idl_free(scope);
+    free(scope);
   }
 }
 
@@ -142,7 +128,7 @@ idl_import(
       return IDL_RETCODE_OK;
   }
 
-  if (!(entry = idl_malloc(sizeof(*entry))))
+  if (!(entry = malloc(sizeof(*entry))))
     return IDL_RETCODE_NO_MEMORY;
   entry->next = NULL;
   entry->scope = imported_scope;
@@ -183,16 +169,16 @@ idl_declare(
   idl_declaration_t **declarationp)
 {
   idl_declaration_t *entry = NULL, *last = NULL;
-  int (*cmp)(const idl_name_t *, const idl_name_t *);
+  int (*cmp)(const char *, const char *);
 
   assert(pstate && pstate->scope);
-  cmp = (pstate->config.flags & IDL_FLAG_CASE_SENSITIVE) ? &namecmp : &namecasecmp;
+  cmp = (pstate->config.flags & IDL_FLAG_CASE_SENSITIVE) ? &strcmp : &idl_strcasecmp;
 
   /* ensure there is no collision with an earlier declaration */
   for (entry = pstate->scope->declarations.first; entry; entry = entry->next) {
     /* identifiers that differ only in case collide, and will yield a
        compilation error under certain circumstances */
-    if (cmp(name, entry->name) == 0) {
+    if (cmp(name->identifier, entry->name->identifier) == 0) {
       last = entry;
       switch (entry->kind) {
         case IDL_SCOPE_DECLARATION:
@@ -211,8 +197,6 @@ idl_declare(
           /* modules can be reopened. a module is considered to be defined by
              its first occurrence in a scope */
           if (kind == IDL_MODULE_DECLARATION)
-            goto exists;
-          if (kind == IDL_USE_DECLARATION)
             goto exists;
           goto clash;
         case IDL_FORWARD_DECLARATION:
@@ -264,9 +248,9 @@ idl_declare(
         default:
 clash:
           idl_error(pstate, idl_location(node),
-            "Declaration '%s%s' collides with an earlier declaration of '%s%s'",
+            "Declaration '%s%s' collides with earlier an declaration of '%s%s'",
             kind == IDL_ANNOTATION_DECLARATION ? "@" : "", name->identifier,
-            entry->kind == IDL_ANNOTATION_DECLARATION ? "@" : "", entry->name->identifier);
+            kind == IDL_ANNOTATION_DECLARATION ? "@" : "", entry->name->identifier);
           return IDL_RETCODE_SEMANTIC_ERROR;
       }
     }
@@ -312,14 +296,14 @@ clash:
         len += strlen(sep) + strlen(s->name->identifier);
       }
 
-      if (!(scoped_name = idl_calloc(1, sizeof(*scoped_name))) ||
-          !(scoped_name->names = idl_calloc(cnt, sizeof(*scoped_name->names))) ||
-          !(scoped_name->identifier = idl_malloc(len + 1)))
+      if (!(scoped_name = calloc(1, sizeof(*scoped_name))) ||
+          !(scoped_name->names = calloc(cnt, sizeof(*scoped_name->names))) ||
+          !(scoped_name->identifier = malloc(len + 1)))
       {
         if (scoped_name && scoped_name->names)
-          idl_free(scoped_name->names);
+          free(scoped_name->names);
         if (scoped_name)
-          idl_free(scoped_name);
+          free(scoped_name);
         return IDL_RETCODE_NO_MEMORY;
       }
 
@@ -362,6 +346,16 @@ exists:
   if (declarationp)
     *declarationp = last;
   return IDL_RETCODE_OK;
+}
+
+static int namecmp(const idl_name_t *n1, const idl_name_t *n2)
+{
+  return strcmp(n1->identifier, n2->identifier);
+}
+
+static int namecasecmp(const idl_name_t *n1, const idl_name_t *n2)
+{
+  return idl_strcasecmp(n1->identifier, n2->identifier);
 }
 
 static bool
@@ -438,7 +432,6 @@ idl_find_scoped_name(
 
   for (size_t i=0; i < scoped_name->length && scope;) {
     const idl_name_t *name = scoped_name->names[i];
-    assert(name->is_annotation == ((i == scoped_name->length - 1) && flags & IDL_FIND_ANNOTATION));
     entry = idl_find(pstate, scope, name, (flags|IDL_FIND_IGNORE_CASE|IDL_FIND_SCOPE_DECLARATION));
     if (entry && entry->kind != IDL_USE_DECLARATION) {
       if (cmp(name, entry->name) != 0)

@@ -1,12 +1,14 @@
-// Copyright(c) 2006 to 2021 ZettaScale Technology and others
-//
-// This program and the accompanying materials are made available under the
-// terms of the Eclipse Public License v. 2.0 which is available at
-// http://www.eclipse.org/legal/epl-2.0, or the Eclipse Distribution License
-// v. 1.0 which is available at
-// http://www.eclipse.org/org/documents/edl-v10.php.
-//
-// SPDX-License-Identifier: EPL-2.0 OR BSD-3-Clause
+/*
+ * Copyright(c) 2006 to 2021 ZettaScale Technology and others
+ *
+ * This program and the accompanying materials are made available under the
+ * terms of the Eclipse Public License v. 2.0 which is available at
+ * http://www.eclipse.org/legal/epl-2.0, or the Eclipse Distribution License
+ * v. 1.0 which is available at
+ * http://www.eclipse.org/org/documents/edl-v10.php.
+ *
+ * SPDX-License-Identifier: EPL-2.0 OR BSD-3-Clause
+ */
 
 #include <stdio.h>
 #include <stdlib.h>
@@ -33,8 +35,8 @@
 struct dds_security_timed_dispatcher
 {
   ddsrt_mutex_t lock;
-  struct ddsi_xeventq *evq;
-  struct ddsi_xevent *evt;
+  struct xeventq *evq;
+  struct xevent *evt;
   ddsrt_avl_tree_t events;
   ddsrt_fibheap_t timers;
   dds_security_time_event_handle_t next_timer;
@@ -94,16 +96,9 @@ static ddsrt_mtime_t calc_tsched (const struct dds_security_timed_event *ev, dds
   }
 }
 
-struct timed_event_cb_arg {
-  struct dds_security_timed_dispatcher *dispatcher;
-};
-
-static void timed_event_cb (struct ddsi_domaingv *gv, struct ddsi_xevent *xev, struct ddsi_xpack *xp, void *varg, ddsrt_mtime_t tnow)
+static void timed_event_cb (struct xevent *xev, void *arg, ddsrt_mtime_t tnow)
 {
-  struct timed_event_cb_arg * const arg = varg;
-  struct dds_security_timed_dispatcher * const dispatcher = arg->dispatcher;
-  (void) gv;
-  (void) xp;
+  struct dds_security_timed_dispatcher * const dispatcher = arg;
   (void) tnow;
 
   ddsrt_mutex_lock (&dispatcher->lock);
@@ -125,11 +120,11 @@ static void timed_event_cb (struct ddsi_domaingv *gv, struct ddsi_xevent *xev, s
   // disabled (in which case the latter may be a null pointer) or
   // even a different event (in case it is already being re-enabled),
   // and so we must use xev.
-  (void) ddsi_resched_xevent_if_earlier (xev, calc_tsched (ev, tnow_wc));
+  (void) resched_xevent_if_earlier (xev, calc_tsched (ev, tnow_wc));
   ddsrt_mutex_unlock (&dispatcher->lock);
 }
 
-struct dds_security_timed_dispatcher *dds_security_timed_dispatcher_new (struct ddsi_xeventq *evq)
+struct dds_security_timed_dispatcher *dds_security_timed_dispatcher_new (struct xeventq *evq)
 {
   struct dds_security_timed_dispatcher *d = ddsrt_malloc (sizeof (*d));
   ddsrt_mutex_init (&d->lock);
@@ -147,17 +142,16 @@ void dds_security_timed_dispatcher_enable (struct dds_security_timed_dispatcher 
   if (d->evt == NULL)
   {
     struct dds_security_timed_event const * const ev = ddsrt_fibheap_min (&timed_cb_queue_fhdef, &d->timers);
-    struct timed_event_cb_arg arg = { .dispatcher = d };
-    d->evt = ddsi_qxev_callback (d->evq, calc_tsched (ev, dds_time ()), timed_event_cb, &arg, sizeof (arg), true);
+    d->evt = qxev_callback (d->evq, calc_tsched (ev, dds_time ()), timed_event_cb, d);
   }
   ddsrt_mutex_unlock (&d->lock);
 }
 
 bool dds_security_timed_dispatcher_disable (struct dds_security_timed_dispatcher *d)
 {
-  // ddsi_delete_xevent_callback() blocks while a possible concurrent
+  // delete_xevent_callback() blocks while a possible concurrent
   // callback invocation completes, and so disable() can't hold the
-  // dispatcher lock when it calls ddsi_delete_xevent_callback().
+  // dispatcher lock when it calls delete_xevent_callback().
   //
   // Two obvious ways of dealing with this are:
   //
@@ -166,7 +160,7 @@ bool dds_security_timed_dispatcher_disable (struct dds_security_timed_dispatcher
   //   calls but without interfering with callback execution.
   //
   // - Have just one lock protecting all state (including "evt"),
-  //   but call ddsi_delete_xevent_callback outside it.  This means
+  //   but call delete_xevent_callback outside it.  This means
   //   the callbacks can execute while "evt" is a null pointer,
   //   and that enable() can be called, installing a new callback
   //   event while the "old" one is still executing.
@@ -180,7 +174,7 @@ bool dds_security_timed_dispatcher_disable (struct dds_security_timed_dispatcher
   // of superfluous work, provided they don't depend on "evt", and
   // the case of two concurrent calls to disable() doesn't seem to
   // be an issue.  So the second option is sufficient.
-  struct ddsi_xevent *evt;
+  struct xevent *evt;
 
   ddsrt_mutex_lock (&d->lock);
   evt = d->evt;
@@ -188,7 +182,7 @@ bool dds_security_timed_dispatcher_disable (struct dds_security_timed_dispatcher
   ddsrt_mutex_unlock (&d->lock);
 
   if (evt != NULL)
-    ddsi_delete_xevent (evt);
+    delete_xevent_callback (evt);
   return (evt != NULL);
 }
 
@@ -217,16 +211,13 @@ dds_security_time_event_handle_t dds_security_timed_dispatcher_add (struct dds_s
 {
   ddsrt_mutex_lock (&d->lock);
   struct dds_security_timed_event * const ev = timed_event_new (d->next_timer, cb, trigger_time, arg);
-  // cache the (unique) timer handle for the return because we can't guarantee that we return
-  // from this function before the newly created timer fires and is freed
-  const dds_security_time_event_handle_t timer_handle = ev->handle;
   ddsrt_avl_insert (&timed_event_treedef, &d->events, ev);
   ddsrt_fibheap_insert (&timed_cb_queue_fhdef, &d->timers, ev);
   d->next_timer++;
   if (d->evt != NULL)
-    (void) ddsi_resched_xevent_if_earlier (d->evt, calc_tsched (ev, dds_time ()));
+    (void) resched_xevent_if_earlier (d->evt, calc_tsched (ev, dds_time ()));
   ddsrt_mutex_unlock (&d->lock);
-  return timer_handle;
+  return ev->handle;
 }
 
 void dds_security_timed_dispatcher_remove (struct dds_security_timed_dispatcher *d, dds_security_time_event_handle_t timer)

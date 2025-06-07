@@ -1,13 +1,14 @@
-// Copyright(c) 2006 to 2022 ZettaScale Technology and others
-//
-// This program and the accompanying materials are made available under the
-// terms of the Eclipse Public License v. 2.0 which is available at
-// http://www.eclipse.org/legal/epl-2.0, or the Eclipse Distribution License
-// v. 1.0 which is available at
-// http://www.eclipse.org/org/documents/edl-v10.php.
-//
-// SPDX-License-Identifier: EPL-2.0 OR BSD-3-Clause
-
+/*
+ * Copyright(c) 2006 to 2022 ZettaScale Technology and others
+ *
+ * This program and the accompanying materials are made available under the
+ * terms of the Eclipse Public License v. 2.0 which is available at
+ * http://www.eclipse.org/legal/epl-2.0, or the Eclipse Distribution License
+ * v. 1.0 which is available at
+ * http://www.eclipse.org/org/documents/edl-v10.php.
+ *
+ * SPDX-License-Identifier: EPL-2.0 OR BSD-3-Clause
+ */
 #define _GNU_SOURCE
 
 #include <assert.h>
@@ -29,11 +30,11 @@
 # endif /* _WIN32 */
 #endif /* LWIP_SOCKET */
 
-#if defined(__APPLE__) || defined(__FreeBSD__)
+#if defined __APPLE__
 #include <net/if_dl.h>
 #endif
 
-extern inline struct timeval *
+DDS_EXPORT extern inline struct timeval *
 ddsrt_duration_to_timeval_ceil(dds_duration_t reltime, struct timeval *tv);
 
 #if DDSRT_HAVE_IPV6
@@ -74,9 +75,9 @@ ddsrt_sockaddr_get_size(const struct sockaddr *const sa)
     case AF_PACKET:
       sz = sizeof(struct sockaddr_ll);
       break;
-#elif defined(__APPLE__) || defined(__FreeBSD__)
+#elif defined __APPLE__
     case AF_LINK:
-      sz = ((const struct sockaddr_dl *) sa)->sdl_len;
+      sz = sizeof(struct sockaddr_dl);
       break;
 #endif /* __linux */
     default:
@@ -108,7 +109,7 @@ uint16_t ddsrt_sockaddr_get_port(const struct sockaddr *const sa)
 }
 
 bool
-ddsrt_sockaddr_isunspecified(const struct sockaddr *sa)
+ddsrt_sockaddr_isunspecified(const struct sockaddr *__restrict sa)
 {
   assert(sa != NULL);
 
@@ -125,7 +126,7 @@ ddsrt_sockaddr_isunspecified(const struct sockaddr *sa)
 }
 
 bool
-ddsrt_sockaddr_isloopback(const struct sockaddr *sa)
+ddsrt_sockaddr_isloopback(const struct sockaddr *__restrict sa)
 {
   assert(sa != NULL);
 
@@ -392,7 +393,6 @@ ddsrt_gethostbyname(const char *name, int af, ddsrt_hostent_t **hentp)
           memcpy(&hent->addrs[addrno], res->ai_addr, res->ai_addrlen);
         }
       } else {
-        freeaddrinfo(res);
         return DDS_RETCODE_OUT_OF_RESOURCES;
       }
 
@@ -436,7 +436,7 @@ ddsrt_setsockreuse(ddsrt_socket_t sock, bool reuse)
   switch (rc)
   {
     case DDS_RETCODE_UNSUPPORTED:
-      // e.g. LWIP or Zephyr, which defines SO_REUSEPORT but doesn't implement it.
+      // e.g. LWIP, which defines SO_REUSEPORT but doesn't implement it.
       //      note that we ignore this error because some systems use SO_REUSEADDR instead
     case DDS_RETCODE_OK:
       break;

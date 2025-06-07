@@ -1,13 +1,14 @@
-// Copyright(c) 2006 to 2021 ZettaScale Technology and others
-//
-// This program and the accompanying materials are made available under the
-// terms of the Eclipse Public License v. 2.0 which is available at
-// http://www.eclipse.org/legal/epl-2.0, or the Eclipse Distribution License
-// v. 1.0 which is available at
-// http://www.eclipse.org/org/documents/edl-v10.php.
-//
-// SPDX-License-Identifier: EPL-2.0 OR BSD-3-Clause
-
+/*
+ * Copyright(c) 2006 to 2021 ZettaScale Technology and others
+ *
+ * This program and the accompanying materials are made available under the
+ * terms of the Eclipse Public License v. 2.0 which is available at
+ * http://www.eclipse.org/legal/epl-2.0, or the Eclipse Distribution License
+ * v. 1.0 which is available at
+ * http://www.eclipse.org/org/documents/edl-v10.php.
+ *
+ * SPDX-License-Identifier: EPL-2.0 OR BSD-3-Clause
+ */
 #ifndef DDSRT_ATTRIBUTES_H
 #define DDSRT_ATTRIBUTES_H
 
@@ -39,12 +40,6 @@
 # define ddsrt_attribute_malloc __attribute__ ((__malloc__))
 #else
 # define ddsrt_attribute_malloc
-#endif
-
-#if ddsrt_has_attribute(malloc) && ddsrt_gnuc >= 120000
-# define ddsrt_attribute_malloc2(params) __attribute__ ((__malloc__ params))
-#else
-# define ddsrt_attribute_malloc2(params)
 #endif
 
 #if ddsrt_has_attribute(unused)

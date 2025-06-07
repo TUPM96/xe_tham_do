@@ -1,33 +1,29 @@
-// Copyright(c) 2006 to 2022 ZettaScale Technology and others
-//
-// This program and the accompanying materials are made available under the
-// terms of the Eclipse Public License v. 2.0 which is available at
-// http://www.eclipse.org/legal/epl-2.0, or the Eclipse Distribution License
-// v. 1.0 which is available at
-// http://www.eclipse.org/org/documents/edl-v10.php.
-//
-// SPDX-License-Identifier: EPL-2.0 OR BSD-3-Clause
-
+/*
+ * Copyright(c) 2006 to 2022 ZettaScale Technology and others
+ *
+ * This program and the accompanying materials are made available under the
+ * terms of the Eclipse Public License v. 2.0 which is available at
+ * http://www.eclipse.org/legal/epl-2.0, or the Eclipse Distribution License
+ * v. 1.0 which is available at
+ * http://www.eclipse.org/org/documents/edl-v10.php.
+ *
+ * SPDX-License-Identifier: EPL-2.0 OR BSD-3-Clause
+ */
 #include <assert.h>
 #include <string.h>
 
 #include "dds/dds.h"
 #include "dds/version.h"
 #include "dds/ddsrt/static_assert.h"
-#include "dds/ddsrt/io.h"
-#include "dds/ddsrt/heap.h"
+#include "dds/ddsi/ddsi_config_impl.h"
 #include "dds/ddsi/ddsi_domaingv.h"
 #include "dds/ddsi/ddsi_entity.h"
 #include "dds/ddsi/ddsi_endpoint.h"
-#include "dds/ddsi/ddsi_thread.h"
-#include "dds/ddsi/ddsi_xmsg.h"
+#include "dds/ddsi/q_thread.h"
+#include "dds/ddsi/q_xmsg.h"
 #include "dds/ddsi/ddsi_entity_index.h"
 #include "dds/ddsi/ddsi_security_omg.h"
-#include "dds/ddsi/ddsi_tkmap.h"
-#include "dds/ddsi/ddsi_statistics.h"
-#include "dds/ddsi/ddsi_sertype.h"
-#include "dds/cdr/dds_cdrstream.h"
-#include "dds/ddsc/dds_internal_api.h"
+#include "dds/ddsi/ddsi_cdrstream.h"
 #include "dds__writer.h"
 #include "dds__listener.h"
 #include "dds__init.h"
@@ -35,11 +31,11 @@
 #include "dds__topic.h"
 #include "dds__get_status.h"
 #include "dds__qos.h"
+#include "dds/ddsi/ddsi_tkmap.h"
 #include "dds__whc.h"
 #include "dds__statistics.h"
-#include "dds__psmx.h"
-#include "dds__heap_loan.h"
-#include "dds__guid.h"
+#include "dds__data_allocator.h"
+#include "dds/ddsi/ddsi_statistics.h"
 
 DECL_ENTITY_LOCK_UNLOCK (dds_writer)
 
@@ -54,35 +50,33 @@ static dds_return_t dds_writer_status_validate (uint32_t mask)
   return (mask & ~DDS_WRITER_STATUS_MASK) ? DDS_RETCODE_BAD_PARAMETER : DDS_RETCODE_OK;
 }
 
-static void update_offered_deadline_missed (struct dds_offered_deadline_missed_status *st, const ddsi_status_cb_data_t *data)
+static void update_offered_deadline_missed (struct dds_offered_deadline_missed_status * __restrict st, const ddsi_status_cb_data_t *data)
 {
   st->last_instance_handle = data->handle;
-  uint64_t tmp = (uint64_t)data->extra + (uint64_t)st->total_count;
-  st->total_count = tmp > UINT32_MAX ? UINT32_MAX : (uint32_t)tmp;
+  st->total_count++;
   // always incrementing st->total_count_change, then copying into *lst is
   // a bit more than minimal work, but this guarantees the correct value
   // also when enabling a listeners after some events have occurred
   //
   // (same line of reasoning for all of them)
-  int64_t tmp2 = (int64_t)data->extra + (int64_t)st->total_count_change;
-  st->total_count_change = tmp2 > INT32_MAX ? INT32_MAX : tmp2 < INT32_MIN ? INT32_MIN : (int32_t)tmp2;
+  st->total_count_change++;
 }
 
-static void update_offered_incompatible_qos (struct dds_offered_incompatible_qos_status *st, const ddsi_status_cb_data_t *data)
+static void update_offered_incompatible_qos (struct dds_offered_incompatible_qos_status * __restrict st, const ddsi_status_cb_data_t *data)
 {
   st->last_policy_id = data->extra;
   st->total_count++;
   st->total_count_change++;
 }
 
-static void update_liveliness_lost (struct dds_liveliness_lost_status *st, const ddsi_status_cb_data_t *data)
+static void update_liveliness_lost (struct dds_liveliness_lost_status * __restrict st, const ddsi_status_cb_data_t *data)
 {
   (void) data;
   st->total_count++;
   st->total_count_change++;
 }
 
-static void update_publication_matched (struct dds_publication_matched_status *st, const ddsi_status_cb_data_t *data)
+static void update_publication_matched (struct dds_publication_matched_status * __restrict st, const ddsi_status_cb_data_t *data)
 {
   st->last_subscription_handle = data->handle;
   if (data->add) {
@@ -162,23 +156,15 @@ void dds_writer_status_cb (void *entity, const struct ddsi_status_cb_data *data)
   ddsrt_mutex_unlock (&wr->m_entity.m_observers_lock);
 }
 
-void dds_writer_invoke_cbs_for_pending_events(struct dds_entity *e, uint32_t status)
+static uint32_t get_bandwidth_limit (dds_transport_priority_qospolicy_t transport_priority)
 {
-  dds_writer * const wr = (dds_writer *) e;
-  struct dds_listener const * const lst =  &e->m_listener;
-
-  if (lst->on_publication_matched && (status & DDS_PUBLICATION_MATCHED_STATUS)) {
-    status_cb_publication_matched_invoke(wr);
-  }
-  if (lst->on_liveliness_lost && (status & DDS_LIVELINESS_LOST_STATUS)) {
-    status_cb_liveliness_lost_invoke(wr);
-  }
-  if (lst->on_offered_incompatible_qos && (status & DDS_OFFERED_INCOMPATIBLE_QOS_STATUS)) {
-    status_cb_offered_incompatible_qos_invoke(wr);
-  }
-  if (lst->on_offered_deadline_missed && (status & DDS_OFFERED_DEADLINE_MISSED_STATUS)) {
-    status_cb_offered_deadline_missed_invoke(wr);
-  }
+#ifdef DDS_HAS_NETWORK_CHANNELS
+  struct ddsi_config_channel_listelem *channel = find_channel (&config, transport_priority);
+  return channel->data_bandwidth_limit;
+#else
+  (void) transport_priority;
+  return 0;
+#endif
 }
 
 static void dds_writer_interrupt (dds_entity *e) ddsrt_nonnull_all;
@@ -186,9 +172,9 @@ static void dds_writer_interrupt (dds_entity *e) ddsrt_nonnull_all;
 static void dds_writer_interrupt (dds_entity *e)
 {
   struct ddsi_domaingv * const gv = &e->m_domain->gv;
-  ddsi_thread_state_awake (ddsi_lookup_thread_state (), gv);
+  thread_state_awake (lookup_thread_state (), gv);
   ddsi_unblock_throttled_writer (gv, &e->m_guid);
-  ddsi_thread_state_asleep (ddsi_lookup_thread_state ());
+  thread_state_asleep (lookup_thread_state ());
 }
 
 static void dds_writer_close (dds_entity *e) ddsrt_nonnull_all;
@@ -197,11 +183,11 @@ static void dds_writer_close (dds_entity *e)
 {
   struct dds_writer * const wr = (struct dds_writer *) e;
   struct ddsi_domaingv * const gv = &e->m_domain->gv;
-  struct ddsi_thread_state * const thrst = ddsi_lookup_thread_state ();
-  ddsi_thread_state_awake (thrst, gv);
-  ddsi_xpack_send (wr->m_xp, false);
+  struct thread_state * const thrst = lookup_thread_state ();
+  thread_state_awake (thrst, gv);
+  nn_xpack_send (wr->m_xp, false);
   (void) ddsi_delete_writer (gv, &e->m_guid);
-  ddsi_thread_state_asleep (thrst);
+  thread_state_asleep (thrst);
 
   ddsrt_mutex_lock (&e->m_mutex);
   while (wr->m_wr != NULL)
@@ -209,34 +195,35 @@ static void dds_writer_close (dds_entity *e)
   ddsrt_mutex_unlock (&e->m_mutex);
 }
 
-ddsrt_nonnull_all
+static dds_return_t dds_writer_delete (dds_entity *e) ddsrt_nonnull_all;
+
 static dds_return_t dds_writer_delete (dds_entity *e)
 {
-  dds_return_t ret = DDS_RETCODE_OK;
   dds_writer * const wr = (dds_writer *) e;
-
-  // Freeing the loans requires the PSMX endpoints, so must be done before cleaning
-  // up the endpoints. And m_loans is not used anymore from this point, so can also
-  // be freed safely.
-  dds_loan_pool_free (wr->m_loans);
-  dds_endpoint_remove_psmx_endpoints (&wr->m_endpoint);
-
+#ifdef DDS_HAS_SHM
+  if (wr->m_iox_pub)
+  {
+    DDS_CLOG(DDS_LC_SHM, &e->m_domain->gv.logconfig, "Release iceoryx's publisher\n");
+    iox_pub_stop_offer(wr->m_iox_pub);
+    iox_pub_deinit(wr->m_iox_pub);
+  }
+#endif
   /* FIXME: not freeing WHC here because it is owned by the DDSI entity */
-  ddsi_thread_state_awake (ddsi_lookup_thread_state (), &e->m_domain->gv);
-  ddsi_xpack_free (wr->m_xp);
-  ddsi_thread_state_asleep (ddsi_lookup_thread_state ());
+  thread_state_awake (lookup_thread_state (), &e->m_domain->gv);
+  nn_xpack_free (wr->m_xp);
+  thread_state_asleep (lookup_thread_state ());
   dds_entity_drop_ref (&wr->m_topic->m_entity);
-  return ret;
+  return DDS_RETCODE_OK;
 }
 
 static dds_return_t validate_writer_qos (const dds_qos_t *wqos)
 {
 #ifndef DDS_HAS_LIFESPAN
-  if (wqos != NULL && (wqos->present & DDSI_QP_LIFESPAN) && wqos->lifespan.duration != DDS_INFINITY)
+  if (wqos != NULL && (wqos->present & QP_LIFESPAN) && wqos->lifespan.duration != DDS_INFINITY)
     return DDS_RETCODE_BAD_PARAMETER;
 #endif
 #ifndef DDS_HAS_DEADLINE_MISSED
-  if (wqos != NULL && (wqos->present & DDSI_QP_DEADLINE) && wqos->deadline.deadline != DDS_INFINITY)
+  if (wqos != NULL && (wqos->present & QP_DEADLINE) && wqos->deadline.deadline != DDS_INFINITY)
     return DDS_RETCODE_BAD_PARAMETER;
 #endif
 #if defined(DDS_HAS_LIFESPAN) && defined(DDS_HAS_DEADLINE_MISSED)
@@ -254,10 +241,10 @@ static dds_return_t dds_writer_qos_set (dds_entity *e, const dds_qos_t *qos, boo
   if (enabled)
   {
     struct ddsi_writer *wr;
-    ddsi_thread_state_awake (ddsi_lookup_thread_state (), &e->m_domain->gv);
-    if ((wr = ddsi_entidx_lookup_writer_guid (e->m_domain->gv.entity_index, &e->m_guid)) != NULL)
+    thread_state_awake (lookup_thread_state (), &e->m_domain->gv);
+    if ((wr = entidx_lookup_writer_guid (e->m_domain->gv.entity_index, &e->m_guid)) != NULL)
       ddsi_update_writer_qos (wr, qos);
-    ddsi_thread_state_asleep (ddsi_lookup_thread_state ());
+    thread_state_asleep (lookup_thread_state ());
   }
   return DDS_RETCODE_OK;
 }
@@ -293,14 +280,75 @@ const struct dds_entity_deriver dds_entity_deriver_writer = {
   .set_qos = dds_writer_qos_set,
   .validate_status = dds_writer_status_validate,
   .create_statistics = dds_writer_create_statistics,
-  .refresh_statistics = dds_writer_refresh_statistics,
-  .invoke_cbs_for_pending_events = dds_writer_invoke_cbs_for_pending_events
+  .refresh_statistics = dds_writer_refresh_statistics
 };
 
+#ifdef DDS_HAS_SHM
+#define DDS_WRITER_QOS_CHECK_FIELDS (QP_LIVELINESS|QP_DEADLINE|QP_RELIABILITY|QP_DURABILITY|QP_HISTORY)
+static bool dds_writer_support_shm(const struct ddsi_config* cfg, const dds_qos_t* qos, const struct dds_topic *tp)
+{
+  if (NULL == cfg ||
+      false == cfg->enable_shm)
+    return false;
 
-static dds_entity_t dds_create_writer_int (dds_entity_t participant_or_publisher, dds_guid_t *guid, dds_entity_t topic, const dds_qos_t *qos, const dds_listener_t *listener)
+  // check necessary condition: fixed size data type OR serializing into shared
+  // memory is available
+  if (!tp->m_stype->fixed_size && (!tp->m_stype->ops->get_serialized_size ||
+                                   !tp->m_stype->ops->serialize_into)) {
+    return false;
+  }
+
+  // only VOLATILE or TRANSIENT LOCAL
+  if(!(qos->durability.kind == DDS_DURABILITY_VOLATILE ||
+    qos->durability.kind == DDS_DURABILITY_TRANSIENT_LOCAL)) {
+    return false;
+  }
+
+  // only KEEP LAST
+  if(qos->history.kind != DDS_HISTORY_KEEP_LAST) {
+    return false;
+  }
+  // we cannot support the required history with iceoryx
+  if (qos->durability.kind == DDS_DURABILITY_TRANSIENT_LOCAL &&
+      qos->durability_service.history.kind == DDS_HISTORY_KEEP_LAST &&
+      qos->durability_service.history.depth >
+          (int32_t)iox_cfg_max_publisher_history()) {
+    return false;
+  }
+
+  if (qos->ignorelocal.value != DDS_IGNORELOCAL_NONE) {
+    return false;
+  }
+
+  return (DDS_WRITER_QOS_CHECK_FIELDS == (qos->present & DDS_WRITER_QOS_CHECK_FIELDS) &&
+          DDS_LIVELINESS_AUTOMATIC == qos->liveliness.kind &&
+          DDS_INFINITY == qos->deadline.deadline);
+}
+
+static iox_pub_options_t create_iox_pub_options(const dds_qos_t* qos) {
+
+  iox_pub_options_t opts;
+  iox_pub_options_init(&opts);
+
+  if(qos->durability.kind == DDS_DURABILITY_VOLATILE) {
+    opts.historyCapacity = 0;
+  } else {
+    // Transient Local and stronger
+    if (qos->durability_service.history.kind == DDS_HISTORY_KEEP_LAST) {
+      opts.historyCapacity = (uint64_t)qos->durability_service.history.depth;
+    } else {
+      opts.historyCapacity = 0;
+    }
+  }
+
+  return opts;
+}
+#endif
+
+dds_entity_t dds_create_writer (dds_entity_t participant_or_publisher, dds_entity_t topic, const dds_qos_t *qos, const dds_listener_t *listener)
 {
   dds_return_t rc;
+  dds_qos_t *wqos;
   dds_publisher *pub = NULL;
   dds_topic *tp;
   dds_entity_t publisher;
@@ -351,31 +399,28 @@ static dds_entity_t dds_create_writer_int (dds_entity_t participant_or_publisher
 
   /* Merge Topic & Publisher qos */
   struct ddsi_domaingv *gv = &pub->m_entity.m_domain->gv;
-  dds_qos_t *wqos = dds_create_qos ();
-  bool own_wqos = true;
+  wqos = dds_create_qos ();
   if (qos)
     ddsi_xqos_mergein_missing (wqos, qos, DDS_WRITER_QOS_MASK);
   if (pub->m_entity.m_qos)
-    ddsi_xqos_mergein_missing (wqos, pub->m_entity.m_qos, ~DDSI_QP_ENTITY_NAME);
+    ddsi_xqos_mergein_missing (wqos, pub->m_entity.m_qos, ~QP_ENTITY_NAME);
   if (tp->m_ktopic->qos)
-    ddsi_xqos_mergein_missing (wqos, tp->m_ktopic->qos, (DDS_WRITER_QOS_MASK | DDSI_QP_TOPIC_DATA) & ~DDSI_QP_ENTITY_NAME);
-  ddsi_xqos_mergein_missing (wqos, &ddsi_default_qos_writer, ~DDSI_QP_DATA_REPRESENTATION);
+    ddsi_xqos_mergein_missing (wqos, tp->m_ktopic->qos, ~QP_ENTITY_NAME);
+  ddsi_xqos_mergein_missing (wqos, &ddsi_default_qos_writer, ~QP_DATA_REPRESENTATION);
   dds_apply_entity_naming(wqos, pub->m_entity.m_qos, gv);
 
-  if ((rc = dds_ensure_valid_data_representation (wqos, tp->m_stype->allowed_data_representation, false)) != DDS_RETCODE_OK)
+  if ((rc = dds_ensure_valid_data_representation (wqos, tp->m_stype->allowed_data_representation, false)) != 0)
     goto err_data_repr;
-  if ((rc = dds_ensure_valid_psmx_instances (wqos, DDS_PSMX_ENDPOINT_TYPE_WRITER, tp->m_stype, &pub->m_entity.m_domain->psmx_instances)) != DDS_RETCODE_OK)
-    goto err_psmx;
 
   if ((rc = ddsi_xqos_valid (&gv->logconfig, wqos)) < 0 || (rc = validate_writer_qos(wqos)) != DDS_RETCODE_OK)
     goto err_bad_qos;
 
-  assert (wqos->present & DDSI_QP_DATA_REPRESENTATION && wqos->data_representation.value.n > 0);
+  assert (wqos->present & QP_DATA_REPRESENTATION && wqos->data_representation.value.n > 0);
   dds_data_representation_id_t data_representation = wqos->data_representation.value.ids[0];
 
-  ddsi_thread_state_awake (ddsi_lookup_thread_state (), gv);
+  thread_state_awake (lookup_thread_state (), gv);
   const struct ddsi_guid *ppguid = dds_entity_participant_guid (&pub->m_entity);
-  struct ddsi_participant *pp = ddsi_entidx_lookup_participant_guid (gv->entity_index, ppguid);
+  struct ddsi_participant *pp = entidx_lookup_participant_guid (gv->entity_index, ppguid);
   /* When deleting a participant, the child handles (that include the publisher)
      are removed before removing the DDSI participant. So at this point, within
      the publisher lock, we can assert that the participant exists. */
@@ -383,10 +428,10 @@ static dds_entity_t dds_create_writer_int (dds_entity_t participant_or_publisher
 
 #ifdef DDS_HAS_SECURITY
   /* Check if DDS Security is enabled */
-  if (ddsi_omg_participant_is_secure (pp))
+  if (q_omg_participant_is_secure (pp))
   {
     /* ask to access control security plugin for create writer permissions */
-    if (!ddsi_omg_security_check_create_writer (pp, gv->config.domainId, tp->m_name, wqos))
+    if (!q_omg_security_check_create_writer (pp, gv->config.domainId, tp->m_name, wqos))
     {
       rc = DDS_RETCODE_NOT_ALLOWED_BY_SECURITY;
       goto err_not_allowed;
@@ -400,51 +445,43 @@ static dds_entity_t dds_create_writer_int (dds_entity_t participant_or_publisher
   /* Create writer */
   struct dds_writer * const wr = dds_alloc (sizeof (*wr));
   const dds_entity_t writer = dds_entity_init (&wr->m_entity, &pub->m_entity, DDS_KIND_WRITER, false, true, wqos, listener, DDS_WRITER_STATUS_MASK);
-
-  // Ownership of rqos is transferred to reader entity
-  own_wqos = false;
-
   wr->m_topic = tp;
   dds_entity_add_ref_locked (&tp->m_entity);
-  wr->m_xp = ddsi_xpack_new (gv, async_mode);
-  wrinfo = dds_whc_make_wrinfo (wr, wqos);
-  wr->m_whc = dds_whc_new (gv, wrinfo);
-  rc = dds_loan_pool_create (&wr->m_loans, 0);
-  assert(rc == DDS_RETCODE_OK); // FIXME: can be out of resources
-  dds_whc_free_wrinfo (wrinfo);
-  // We now have the QoS which defaults to "false", but it used to be controlled by a global setting
-  // (that most people were sensible enough to leave at false and that this deprecated now).  Or'ing
-  // the two together is perhaps a bit simplistic because it doesn't allow you to enable it globally
-  // and then disable it for a specific writer.  Should somebody runs into a problem because of this
-  // we can have another look.
-  wr->whc_batch = wqos->writer_batching.batch_updates || gv->config.whc_batch;
-  wr->protocol_version = gv->config.protocol_version;
+  wr->m_xp = nn_xpack_new (gv, get_bandwidth_limit (wqos->transport_priority), async_mode);
+  wrinfo = whc_make_wrinfo (wr, wqos);
+  wr->m_whc = whc_new (gv, wrinfo);
+  whc_free_wrinfo (wrinfo);
+  wr->whc_batch = gv->config.whc_batch;
 
-  if ((rc = dds_endpoint_add_psmx_endpoint (&wr->m_endpoint, wqos, &tp->m_ktopic->psmx_topics, DDS_PSMX_ENDPOINT_TYPE_WRITER)) != DDS_RETCODE_OK)
-    goto err_pipe_open;
+#ifdef DDS_HAS_SHM
+  assert(wqos->present & QP_LOCATOR_MASK);
+  if (!dds_writer_support_shm(&gv->config, wqos, tp))
+    wqos->ignore_locator_type |= NN_LOCATOR_KIND_SHEM;
+#endif
 
   struct ddsi_sertype *sertype = ddsi_sertype_derive_sertype (tp->m_stype, data_representation,
-    wqos->present & DDSI_QP_TYPE_CONSISTENCY_ENFORCEMENT ? wqos->type_consistency : ddsi_default_qos_topic.type_consistency);
+    wqos->present & QP_TYPE_CONSISTENCY_ENFORCEMENT ? wqos->type_consistency : ddsi_default_qos_topic.type_consistency);
   if (!sertype)
     sertype = tp->m_stype;
 
-  if (guid)
-    wr->m_entity.m_guid = dds_guid_to_ddsi_guid (*guid);
-  else
+  rc = ddsi_new_writer (&wr->m_wr, &wr->m_entity.m_guid, NULL, pp, tp->m_name, sertype, wqos, wr->m_whc, dds_writer_status_cb, wr);
+  assert(rc == DDS_RETCODE_OK);
+  thread_state_asleep (lookup_thread_state ());
+
+#ifdef DDS_HAS_SHM
+  if (wr->m_wr->has_iceoryx)
   {
-    rc = ddsi_generate_writer_guid (&wr->m_entity.m_guid, pp, sertype);
-    if (rc != DDS_RETCODE_OK)
-      goto err_wr_guid;
+    DDS_CLOG (DDS_LC_SHM, &wr->m_entity.m_domain->gv.logconfig, "Writer's topic name will be DDS:Cyclone:%s\n", wr->m_topic->m_name);
+    iox_pub_options_t opts = create_iox_pub_options(wqos);
+
+    // NB: This may fail due to icoeryx being out of internal resources for publishers
+    //     In this case terminate is called by iox_pub_init.
+    //     it is currently (iceoryx 2.0 and lower) not possible to change this to
+    //     e.g. return a nullptr and handle the error here.
+    wr->m_iox_pub = iox_pub_init(&(iox_pub_storage_t){0}, gv->config.iceoryx_service, wr->m_topic->m_stype->type_name, wr->m_topic->m_name, &opts);
+    memset(wr->m_iox_pub_loans, 0, sizeof(wr->m_iox_pub_loans));
   }
-  struct ddsi_psmx_locators_set *vl_set = dds_get_psmx_locators_set (wqos, &wr->m_entity.m_domain->psmx_instances);
-  rc = ddsi_new_writer (&wr->m_wr, &wr->m_entity.m_guid, NULL, pp, tp->m_name, sertype, wqos, wr->m_whc, dds_writer_status_cb, wr, vl_set);
-  if (rc != DDS_RETCODE_OK)
-  {
-    /* FIXME: can be out-of-resources at the very least; would leak allocated entity id */
-    abort ();
-  }
-  dds_psmx_locators_set_free (vl_set);
-  ddsi_thread_state_asleep (ddsi_lookup_thread_state ());
+#endif
 
   wr->m_entity.m_iid = ddsi_get_entity_instanceid (&wr->m_entity.m_domain->gv, &wr->m_entity.m_guid);
   dds_entity_register_child (&pub->m_entity, &wr->m_entity);
@@ -458,24 +495,19 @@ static dds_entity_t dds_create_writer_int (dds_entity_t participant_or_publisher
   // start async thread if not already started and the latency budget is non zero
   ddsrt_mutex_lock (&gv->sendq_running_lock);
   if (async_mode && !gv->sendq_running) {
-    ddsi_xpack_sendq_init(gv);
-    ddsi_xpack_sendq_start(gv);
+    nn_xpack_sendq_init(gv);
+    nn_xpack_sendq_start(gv);
   }
-
   ddsrt_mutex_unlock (&gv->sendq_running_lock);
   return writer;
 
-err_wr_guid:
-err_pipe_open:
 #ifdef DDS_HAS_SECURITY
 err_not_allowed:
+  thread_state_asleep (lookup_thread_state ());
 #endif
-  ddsi_thread_state_asleep (ddsi_lookup_thread_state ());
 err_bad_qos:
 err_data_repr:
-err_psmx:
-  if (own_wqos)
-    dds_delete_qos(wqos);
+  dds_delete_qos(wqos);
   dds_topic_allow_set_qos (tp);
 err_pp_mismatch:
   dds_topic_unpin (tp);
@@ -484,16 +516,6 @@ err_pin_topic:
   if (created_implicit_pub)
     (void) dds_delete (publisher);
   return rc;
-}
-
-dds_entity_t dds_create_writer (dds_entity_t participant_or_publisher, dds_entity_t topic, const dds_qos_t *qos, const dds_listener_t *listener)
-{
-  return dds_create_writer_int (participant_or_publisher, NULL, topic, qos, listener);
-}
-
-dds_entity_t dds_create_writer_guid (dds_entity_t participant_or_publisher, dds_entity_t topic, const dds_qos_t *qos, const dds_listener_t *listener, dds_guid_t *guid)
-{
-  return dds_create_writer_int (participant_or_publisher, guid, topic, qos, listener);
 }
 
 dds_entity_t dds_get_publisher (dds_entity_t writer)
@@ -517,6 +539,41 @@ dds_entity_t dds_get_publisher (dds_entity_t writer)
   }
 }
 
+dds_return_t dds__writer_data_allocator_init (const dds_writer *wr, dds_data_allocator_t *data_allocator)
+{
+#ifdef DDS_HAS_SHM
+  dds_iox_allocator_t *d = (dds_iox_allocator_t *) data_allocator->opaque.bytes;
+  ddsrt_mutex_init(&d->mutex);
+  if (NULL != wr->m_iox_pub)
+  {
+    d->kind = DDS_IOX_ALLOCATOR_KIND_PUBLISHER;
+    d->ref.pub = wr->m_iox_pub;
+  }
+  else
+  {
+    d->kind = DDS_IOX_ALLOCATOR_KIND_NONE;
+  }
+  return DDS_RETCODE_OK;
+#else
+  (void) wr;
+  (void) data_allocator;
+  return DDS_RETCODE_OK;
+#endif
+}
+
+dds_return_t dds__writer_data_allocator_fini (const dds_writer *wr, dds_data_allocator_t *data_allocator)
+{
+#ifdef DDS_HAS_SHM
+  dds_iox_allocator_t *d = (dds_iox_allocator_t *) data_allocator->opaque.bytes;
+  ddsrt_mutex_destroy(&d->mutex);
+  d->kind = DDS_IOX_ALLOCATOR_KIND_FINI;
+#else
+  (void) data_allocator;
+#endif
+  (void) wr;
+  return DDS_RETCODE_OK;
+}
+
 dds_return_t dds__ddsi_writer_wait_for_acks (struct dds_writer *wr, ddsi_guid_t *rdguid, dds_time_t abstimeout)
 {
   /* during lifetime of the writer m_wr is constant, it is only during deletion that it
@@ -525,126 +582,4 @@ dds_return_t dds__ddsi_writer_wait_for_acks (struct dds_writer *wr, ddsi_guid_t 
     return DDS_RETCODE_OK;
   else
     return ddsi_writer_wait_for_acks (wr->m_wr, rdguid, abstimeout);
-}
-
-dds_loaned_sample_t *dds_writer_request_psmx_loan(const dds_writer *wr, uint32_t size)
-{
-  // return the loan from the first endpoint that returns one
-  dds_loaned_sample_t *loan = NULL;
-  for (uint32_t e = 0; e < wr->m_endpoint.psmx_endpoints.length && loan == NULL; e++)
-  {
-    struct dds_psmx_endpoint_int const * const ep = wr->m_endpoint.psmx_endpoints.endpoints[e];
-    loan = ep->ops.request_loan (ep, size);
-  }
-  return loan;
-}
-
-dds_return_t dds_request_writer_loan (dds_writer *wr, enum dds_writer_loan_type loan_type, uint32_t sz, void **sample)
-{
-  dds_return_t ret = DDS_RETCODE_ERROR;
-
-  ddsrt_mutex_lock (&wr->m_entity.m_mutex);
-  // We don't bother the PSMX interface with types that contain pointers, but we do
-  // support the programming model of borrowing memory first via the "heap" loans.
-  //
-  // One should expect the latter performance to be worse than the a plain write.
-
-  dds_loaned_sample_t *loan = NULL;
-  switch (loan_type)
-  {
-    case DDS_WRITER_LOAN_RAW:
-      if (wr->m_endpoint.psmx_endpoints.length > 0)
-      {
-        if ((loan = dds_writer_request_psmx_loan (wr, sz)) != NULL)
-          ret = DDS_RETCODE_OK;
-      }
-      break;
-
-    case DDS_WRITER_LOAN_REGULAR:
-      if (wr->m_endpoint.psmx_endpoints.length > 0 && wr->m_topic->m_stype->is_memcpy_safe)
-      {
-        if ((loan = dds_writer_request_psmx_loan (wr, wr->m_topic->m_stype->sizeof_type)) != NULL)
-          ret = DDS_RETCODE_OK;
-      }
-      else
-        ret = dds_heap_loan (wr->m_topic->m_stype, DDS_LOANED_SAMPLE_STATE_UNITIALIZED, &loan);
-      break;
-  }
-
-  if (ret == DDS_RETCODE_OK)
-  {
-    assert (loan != NULL);
-    if ((ret = dds_loan_pool_add_loan (wr->m_loans, loan)) != DDS_RETCODE_OK)
-      dds_loaned_sample_unref (loan);
-    else
-      *sample = loan->sample_ptr;
-  }
-  ddsrt_mutex_unlock (&wr->m_entity.m_mutex);
-  return ret;
-}
-
-dds_return_t dds_return_writer_loan (dds_writer *wr, void **samples_ptr, int32_t n_samples)
-{
-  dds_return_t ret = DDS_RETCODE_OK;
-  ddsrt_mutex_lock (&wr->m_entity.m_mutex);
-  for (int32_t i = 0; i < n_samples && samples_ptr[i] != NULL; i++)
-  {
-    dds_loaned_sample_t * const loan = dds_loan_pool_find_and_remove_loan (wr->m_loans, samples_ptr[i]);
-    if (loan != NULL)
-    {
-      dds_loaned_sample_unref (loan);
-      samples_ptr[i] = NULL;
-    }
-    else if (i == 0)
-    {
-      // match reader version of the loan: if first entry is bogus, abort with
-      // precondition not met ...
-      ret = DDS_RETCODE_PRECONDITION_NOT_MET;
-      break;
-    }
-    else
-    {
-      // ... if any other entry is bogus, continue releasing loans and return
-      // bad parameter
-      ret = DDS_RETCODE_BAD_PARAMETER;
-    }
-  }
-  ddsrt_mutex_unlock (&wr->m_entity.m_mutex);
-  return ret;
-}
-
-struct dds_loaned_sample * dds_writer_psmx_loan_raw (const struct dds_writer *wr, const void *data, enum ddsi_serdata_kind sdkind, dds_time_t timestamp, uint32_t statusinfo)
-{
-  struct ddsi_sertype const * const sertype = wr->m_wr->type;
-  assert (sertype->is_memcpy_safe);
-  struct dds_loaned_sample * const loan = dds_writer_request_psmx_loan (wr, sertype->sizeof_type);
-  if (loan == NULL)
-    return NULL;
-  struct dds_psmx_metadata * const md = loan->metadata;
-  md->sample_state = (sdkind == SDK_KEY) ? DDS_LOANED_SAMPLE_STATE_RAW_KEY : DDS_LOANED_SAMPLE_STATE_RAW_DATA;
-  md->cdr_identifier = DDSI_RTPS_SAMPLE_NATIVE;
-  md->cdr_options = 0;
-  if (sdkind == SDK_DATA || sertype->has_key)
-    memcpy (loan->sample_ptr, data, sertype->sizeof_type);
-  dds_psmx_set_loan_writeinfo (loan, &wr->m_entity.m_guid, timestamp, statusinfo);
-  return loan;
-}
-
-struct dds_loaned_sample * dds_writer_psmx_loan_from_serdata (const struct dds_writer *wr, const struct ddsi_serdata *sd)
-{
-  assert (ddsi_serdata_size (sd) >= 4);
-  const uint32_t loan_size = ddsi_serdata_size (sd) - 4;
-  struct dds_loaned_sample * const loan = dds_writer_request_psmx_loan (wr, loan_size);
-  if (loan == NULL)
-    return NULL;
-  struct dds_psmx_metadata * const md = loan->metadata;
-  md->sample_state = (sd->kind == SDK_KEY) ? DDS_LOANED_SAMPLE_STATE_SERIALIZED_KEY : DDS_LOANED_SAMPLE_STATE_SERIALIZED_DATA;
-  struct { uint16_t identifier, options; } header;
-  ddsi_serdata_to_ser (sd, 0, 4, &header);
-  md->cdr_identifier = header.identifier;
-  md->cdr_options = header.options;
-  if (loan_size > 0)
-    ddsi_serdata_to_ser (sd, 4, loan_size, loan->sample_ptr);
-  dds_psmx_set_loan_writeinfo (loan, &wr->m_entity.m_guid, sd->timestamp.v, sd->statusinfo);
-  return loan;
 }

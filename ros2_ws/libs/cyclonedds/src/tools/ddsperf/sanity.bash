@@ -1,33 +1,9 @@
 exitcode=0
 # RSS/samples/roundtrip numbers are based on experimentation on Travis
-d=bin
-[ -n "${BUILD_TYPE}" -a -d bin/${BUILD_TYPE} ] && d=bin/${BUILD_TYPE}
-dur=30
-declare -a pids
-
-# Only check RSS if address sanitizer not used, the check here is a bit
-# sloppy, but probably good enough
-qrss="-Qrss:10"
-if expr "${SANITIZER}" : '.*address' ; then
-    echo "address sanitizer enabled in build, not checking RSS"
-    qrss=""
-fi
-
-#CYCLONEDDS_URI="$CYCLONEDDS_URI,<Int><Test><Xmit>10</>"
-#MallocStackLogging=1 ...
-$d/ddsperf -L -D$dur -n10 -Qminmatch:2 -Qlivemem:1 $qrss -Qsamples:100000 -Qroundtrips:3000 sub ping & \
-    pids[${#pids}]=$!
-$d/ddsperf -L -D$dur -n10 -Qminmatch:2 -Qlivemem:1 $qrss pub 100Hz burst 1000 & \
-    pids[${#pids}]=$!
-
-sleep $((dur + 1))
-#sleep 5
-#malloc_history ${pids[0]} -allByCount > xx1.txt
-#sleep $((dur - 6))
-#malloc_history ${pids[0]} -allByCount > xx2.txt
-#sleep 1
-
-for pid in ${pids[@]} ; do
+bin/ddsperf -L -D20 -n10 -Qminmatch:2 -Qrss:4 -Qsamples:300000 -Qroundtrips:3000 sub ping & ddsperf_pids=$!
+bin/ddsperf -L -D20 -n10 -Qminmatch:2 -Qrss:4 pub 100Hz burst 1000 & ddsperf_pids="$ddsperf_pids $!"
+sleep 21
+for pid in $ddsperf_pids ; do
     if kill -0 $pid 2>/dev/null ; then
         echo "killing process $pid"
         kill -9 $pid

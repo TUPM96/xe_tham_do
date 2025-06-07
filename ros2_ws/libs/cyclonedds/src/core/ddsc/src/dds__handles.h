@@ -1,20 +1,20 @@
-// Copyright(c) 2006 to 2021 ZettaScale Technology and others
-//
-// This program and the accompanying materials are made available under the
-// terms of the Eclipse Public License v. 2.0 which is available at
-// http://www.eclipse.org/legal/epl-2.0, or the Eclipse Distribution License
-// v. 1.0 which is available at
-// http://www.eclipse.org/org/documents/edl-v10.php.
-//
-// SPDX-License-Identifier: EPL-2.0 OR BSD-3-Clause
-
+/*
+ * Copyright(c) 2006 to 2021 ZettaScale Technology and others
+ *
+ * This program and the accompanying materials are made available under the
+ * terms of the Eclipse Public License v. 2.0 which is available at
+ * http://www.eclipse.org/legal/epl-2.0, or the Eclipse Distribution License
+ * v. 1.0 which is available at
+ * http://www.eclipse.org/org/documents/edl-v10.php.
+ *
+ * SPDX-License-Identifier: EPL-2.0 OR BSD-3-Clause
+ */
 #ifndef DDS__HANDLES_H
 #define DDS__HANDLES_H
 
 #include "dds/ddsrt/time.h"
 #include "dds/ddsrt/retcode.h"
 #include "dds/ddsrt/atomics.h"
-#include "dds/ddsrt/arch.h"
 #include "dds/dds.h"
 
 #if defined (__cplusplus)
@@ -22,6 +22,14 @@ extern "C" {
 #endif
 
 struct dds_entity;
+
+/********************************************************************************************
+ *
+ * TODO CHAM-138: Header file improvements
+ *    - Remove some internal design decisions and masks from the header file.
+ *    - Improve function headers where needed.
+ *
+ ********************************************************************************************/
 
 /*
  * Short working ponderings.
@@ -64,22 +72,6 @@ typedef int32_t dds_handle_t;
 
 /* Closing & closed can be combined, but having two gives a means for enforcing
    that close() be called first, then close_wait(), and then delete(). */
-#if DDSRT_64BIT // Set for WIN64, _LP64 => sizeof(void*)=8 => uintptr_t=8 is a reasonable assumption
-
-#define HDL_FLAG_CLOSING         UINT64_C(0x8000000000000000)
-#define HDL_FLAG_DELETE_DEFERRED UINT64_C(0x4000000000000000)
-#define HDL_FLAG_PENDING         UINT64_C(0x2000000000000000)
-#define HDL_FLAG_IMPLICIT        UINT64_C(0x1000000000000000)
-#define HDL_FLAG_ALLOW_CHILDREN  UINT64_C(0x0800000000000000) /* refc counts children */
-#define HDL_FLAG_NO_USER_ACCESS  UINT64_C(0x0400000000000000)
-
-#define HDL_REFCOUNT_MASK  UINT64_C(0x0003ffffff000000)
-#define HDL_REFCOUNT_UNIT  UINT64_C(0x0000000001000000)
-#define HDL_REFCOUNT_SHIFT 24
-#define HDL_PINCOUNT_MASK  UINT64_C(0x0000000000ffffff)
-
-#else
-
 #define HDL_FLAG_CLOSING         (0x80000000u)
 #define HDL_FLAG_DELETE_DEFERRED (0x40000000u)
 #define HDL_FLAG_PENDING         (0x20000000u)
@@ -87,39 +79,27 @@ typedef int32_t dds_handle_t;
 #define HDL_FLAG_ALLOW_CHILDREN  (0x08000000u) /* refc counts children */
 #define HDL_FLAG_NO_USER_ACCESS  (0x04000000u)
 
-#define HDL_REFCOUNT_MASK  (0x03fffc00u)
-#define HDL_REFCOUNT_UNIT  (0x00000400u)
-#define HDL_REFCOUNT_SHIFT 10
-#define HDL_PINCOUNT_MASK  (0x000003ffu)
-
-#endif
-
 struct dds_handle_link {
   dds_handle_t hdl;
-  ddsrt_atomic_uintptr_t cnt_flags;
+  ddsrt_atomic_uint32_t cnt_flags;
 };
 
-/**
- * @brief Initialize handleserver singleton.
- * @component handles
- *
- * @return dds_return_t
+/*
+ * Initialize handleserver singleton.
  */
-dds_return_t dds_handle_server_init(void);
+DDS_EXPORT dds_return_t
+dds_handle_server_init(void);
 
 
-/**
- * @brief Destroy handleserver singleton.
- * @component handles
- *
+/*
+ * Destroy handleserver singleton.
  * The handleserver is destroyed when fini() is called as often as init().
  */
-void dds_handle_server_fini(void);
+DDS_EXPORT void
+dds_handle_server_fini(void);
 
 
-/**
- * @component handles
- *
+/*
  * This creates a new handle that contains the given type and is linked to the
  * user data.
  *
@@ -137,31 +117,34 @@ void dds_handle_server_fini(void);
  * Valid handle when returned value is positive.
  * Otherwise negative handle is returned.
  */
-dds_handle_t dds_handle_create(struct dds_handle_link *link, bool implicit, bool allow_children, bool user_access);
+DDS_EXPORT dds_handle_t
+dds_handle_create(
+        struct dds_handle_link *link,
+        bool implicit,
+        bool allow_children,
+        bool user_access);
 
 
-/**
- * @brief Register a specific handle.
- * @component handles
+/*
+ * Register a specific handle.
  */
-dds_return_t dds_handle_register_special (struct dds_handle_link *link, bool implicit, bool allow_children, dds_handle_t handle);
+DDS_EXPORT dds_return_t
+dds_handle_register_special (
+        struct dds_handle_link *link, bool implicit, bool allow_children, dds_handle_t handle);
 
-/** @component handles */
-void dds_handle_unpend (struct dds_handle_link *link);
+DDS_EXPORT void dds_handle_unpend (struct dds_handle_link *link);
 
-/**
- * @component handles
- *
+/*
  * This will close the handle. All information remains, only new claims will
  * fail.
  *
  * This is a noop on an already closed handle.
  */
-void dds_handle_close_wait (struct dds_handle_link *link);
+DDS_EXPORT void
+dds_handle_close_wait (
+        struct dds_handle_link *link);
 
-/**
- * @component handles
- *
+/*
  * This will remove the handle related information from the server administration
  * to free up space.
  *
@@ -170,58 +153,52 @@ void dds_handle_close_wait (struct dds_handle_link *link);
  * It will delete the information when there are no more active claims. It'll
  * block when necessary to wait for all possible claims to be released.
  */
-int32_t dds_handle_delete(struct dds_handle_link *link);
+DDS_EXPORT int32_t
+dds_handle_delete(
+        struct dds_handle_link *link);
 
 
-/**
- * @component handles
- *
+/*
  * If the a valid handle is given, which matches the kind and it is not closed,
  * then the related arg will be provided and the claims count is increased.
  *
  * Returns OK when succeeded.
  */
-int32_t dds_handle_pin(dds_handle_t hdl, struct dds_handle_link **link);
+DDS_EXPORT int32_t
+dds_handle_pin(
+        dds_handle_t hdl,
+        struct dds_handle_link **entity);
 
-/** @component handles */
-int32_t dds_handle_pin_with_origin(dds_handle_t hdl, bool from_user, struct dds_handle_link **link);
+DDS_EXPORT int32_t
+dds_handle_pin_with_origin(
+        dds_handle_t hdl,
+        bool from_user,
+        struct dds_handle_link **entity);
 
-/** @component handles */
-int32_t dds_handle_pin_and_ref_with_origin(dds_handle_t hdl, bool from_user, struct dds_handle_link **link);
+DDS_EXPORT int32_t
+dds_handle_pin_and_ref_with_origin(
+        dds_handle_t hdl,
+        bool from_user,
+        struct dds_handle_link **entity);
 
-/** @component handles */
-void dds_handle_repin(struct dds_handle_link *link);
+
+DDS_EXPORT void
+dds_handle_repin(
+        struct dds_handle_link *link);
 
 
-/**
- * @component handles
- *
+/*
  * The active claims count is decreased.
  */
-void dds_handle_unpin(struct dds_handle_link *link);
+DDS_EXPORT void
+dds_handle_unpin(
+        struct dds_handle_link *link);
 
-/** @component handles */
 int32_t dds_handle_pin_for_delete (dds_handle_t hdl, bool explicit, bool from_user, struct dds_handle_link **link);
-
-/** @component handles */
 bool dds_handle_drop_childref_and_pin (struct dds_handle_link *link, bool may_delete_parent);
 
-
-/** @component handles */
-void dds_handle_add_ref (struct dds_handle_link *link);
-
-/** @component handles */
-bool dds_handle_drop_ref (struct dds_handle_link *link);
-
-/** @component handles */
-bool dds_handle_close (struct dds_handle_link *link);
-
-/** @component handles */
-bool dds_handle_unpin_and_drop_ref (struct dds_handle_link *link);
-
-/**
- * @brief Check if the handle is closed.
- * @component handles
+/*
+ * Check if the handle is closed.
  *
  * This is only useful when you have already claimed a handle and it is
  * possible that another thread is trying to delete the handle while you
@@ -229,12 +206,18 @@ bool dds_handle_unpin_and_drop_ref (struct dds_handle_link *link);
  * break of your process and release the handle, making the deletion
  * possible.
  */
-inline bool dds_handle_is_closed (struct dds_handle_link *link) {
-  return (ddsrt_atomic_ldptr (&link->cnt_flags) & HDL_FLAG_CLOSING) != 0;
+
+
+DDS_EXPORT void dds_handle_add_ref (struct dds_handle_link *link);
+DDS_EXPORT bool dds_handle_drop_ref (struct dds_handle_link *link);
+DDS_EXPORT bool dds_handle_close (struct dds_handle_link *link);
+DDS_EXPORT bool dds_handle_unpin_and_drop_ref (struct dds_handle_link *link);
+
+DDS_INLINE_EXPORT inline bool dds_handle_is_closed (struct dds_handle_link *link) {
+  return (ddsrt_atomic_ld32 (&link->cnt_flags) & HDL_FLAG_CLOSING) != 0;
 }
 
-/** @component handles */
-bool dds_handle_is_not_refd (struct dds_handle_link *link);
+DDS_EXPORT bool dds_handle_is_not_refd (struct dds_handle_link *link);
 
 #if defined (__cplusplus)
 }

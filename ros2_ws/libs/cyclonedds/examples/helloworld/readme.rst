@@ -9,43 +9,38 @@
 
    SPDX-License-Identifier: EPL-2.0 OR BSD-3-Clause
 
-.. index:: 
-   single: Examples; HelloWorld
-   single: HelloWorld example
-   single: HelloWorld
-
-.. _helloworld_bm:
-
 HelloWorld
 ==========
 
-The basic HelloWorld example describes the steps necessary for setting up DCPS entities 
-(see also :ref:`helloworld_main`).
+Description
+***********
 
-.. note:: 
-   The HelloWorld example is referenced throughout the :ref:`Getting_Started` Guide.
+The basic HelloWorld example is used to illustrate the necessary steps to setup DCPS entities.
+Note it is also used in the Getting Started Guide to explain the usage of Eclipse Cyclone DDS.
 
 Design
 ******
 
-The HelloWorld example consists of two units:
+It consists of 2 units:
 
-- **HelloworldPublisher**: implements the publisher's main
-- **HelloworldSubscriber**: implements the subscriber's main
+- HelloworldPublisher: implements the publisher's main
+- HelloworldSubscriber: implements the subscriber's main
 
 Scenario
 ********
 
 The publisher sends a single HelloWorld sample. The sample contains two fields:
 
-- a ``userID`` field (long type)
-- a ``message`` field (string type)
+- a userID field (long type)
+- a message field (string type)
 
-When it receives the sample, the subscriber displays the ``userID`` and the ``message`` field.
+When it receives the sample, the subscriber displays the userID and the message field.
 
 Running the example
 *******************
 
-To avoid mixing the output, run the subscriber and publisher in separate terminals.
+It is recommended that you run the subscriber and publisher in separate terminals to avoid mixing the output.
 
-.. include:: ../../../docs/manual/getting_started/helloworld/helloworld_run.part.rst
+- Open 2 terminals.
+- In the first terminal start the subscriber by running HelloWorldSubscriber
+- In the second terminal start the publisher by running HelloWorldPublisher

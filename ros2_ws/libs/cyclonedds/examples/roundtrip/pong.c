@@ -15,14 +15,14 @@ static dds_entity_t prepare_dds(dds_entity_t *writer, dds_entity_t *reader, dds_
 static void finalize_dds(dds_entity_t participant, RoundTripModule_DataType data[MAX_SAMPLES]);
 
 #ifdef _WIN32
-#include <windows.h>
+#include <Windows.h>
 static bool CtrlHandler (DWORD fdwCtrlType)
 {
   (void)fdwCtrlType;
   dds_waitset_set_trigger (waitSet, true);
   return true; //Don't let other handlers handle this key
 }
-#elif !DDSRT_WITH_FREERTOS && !__ZEPHYR__
+#elif !DDSRT_WITH_FREERTOS
 static void CtrlHandler (int sig)
 {
   (void)sig;
@@ -50,7 +50,7 @@ static void data_available(dds_entity_t rd, void *arg)
   {
     /* If writer has been disposed terminate pong */
 
-    if (info[j].instance_state == DDS_NOT_ALIVE_DISPOSED_INSTANCE_STATE)
+    if (info[j].instance_state == DDS_IST_NOT_ALIVE_DISPOSED)
     {
       printf ("Received termination request. Terminating.\n");
       dds_waitset_set_trigger (waitSet, true);
@@ -91,7 +91,7 @@ int main (int argc, char *argv[])
   DDSRT_WARNING_GNUC_OFF(cast-function-type)
   SetConsoleCtrlHandler ((PHANDLER_ROUTINE)CtrlHandler, TRUE);
   DDSRT_WARNING_GNUC_ON(cast-function-type)
-#elif !DDSRT_WITH_FREERTOS && !__ZEPHYR__
+#elif !DDSRT_WITH_FREERTOS
   struct sigaction sat, oldAction;
   sat.sa_handler = CtrlHandler;
   sigemptyset (&sat.sa_mask);
@@ -134,7 +134,7 @@ int main (int argc, char *argv[])
 
 #ifdef _WIN32
   SetConsoleCtrlHandler (0, FALSE);
-#elif !DDSRT_WITH_FREERTOS && !__ZEPHYR__
+#elif !DDSRT_WITH_FREERTOS
   sigaction (SIGINT, &oldAction, 0);
 #endif
 
@@ -168,12 +168,9 @@ static dds_entity_t prepare_dds(dds_entity_t *wr, dds_entity_t *rd, dds_entity_t
 
   /* A DDS Topic is created for our sample type on the domain participant. */
 
-  qos = dds_create_qos ();
-  dds_qset_reliability (qos, DDS_RELIABILITY_RELIABLE, DDS_SECS(10));
-  topic = dds_create_topic (participant, &RoundTripModule_DataType_desc, "RoundTrip", qos, NULL);
+  topic = dds_create_topic (participant, &RoundTripModule_DataType_desc, "RoundTrip", NULL, NULL);
   if (topic < 0)
     DDS_FATAL("dds_create_topic: %s\n", dds_strretcode(-topic));
-  dds_delete_qos (qos);
 
   /* A DDS Publisher is created on the domain participant. */
 
@@ -188,6 +185,7 @@ static dds_entity_t prepare_dds(dds_entity_t *wr, dds_entity_t *rd, dds_entity_t
   /* A DDS DataWriter is created on the Publisher & Topic with a modififed Qos. */
 
   qos = dds_create_qos ();
+  dds_qset_reliability (qos, DDS_RELIABILITY_RELIABLE, DDS_SECS(10));
   dds_qset_writer_data_lifecycle (qos, false);
   *wr = dds_create_writer (publisher, topic, qos, NULL);
   if (*wr < 0)
@@ -206,9 +204,12 @@ static dds_entity_t prepare_dds(dds_entity_t *wr, dds_entity_t *rd, dds_entity_t
 
   /* A DDS DataReader is created on the Subscriber & Topic with a modified QoS. */
 
-  *rd = dds_create_reader (subscriber, topic, NULL, rdlist);
+  qos = dds_create_qos ();
+  dds_qset_reliability (qos, DDS_RELIABILITY_RELIABLE, DDS_SECS(10));
+  *rd = dds_create_reader (subscriber, topic, qos, rdlist);
   if (*rd < 0)
     DDS_FATAL("dds_create_reader: %s\n", dds_strretcode(-*rd));
+  dds_delete_qos (qos);
 
   waitSet = dds_create_waitset (participant);
   if (rdlist == NULL) {

@@ -1,13 +1,14 @@
-// Copyright(c) 2020 to 2022 ZettaScale Technology and others
-//
-// This program and the accompanying materials are made available under the
-// terms of the Eclipse Public License v. 2.0 which is available at
-// http://www.eclipse.org/legal/epl-2.0, or the Eclipse Distribution License
-// v. 1.0 which is available at
-// http://www.eclipse.org/org/documents/edl-v10.php.
-//
-// SPDX-License-Identifier: EPL-2.0 OR BSD-3-Clause
-
+/*
+ * Copyright(c) 2020 to 2022 ZettaScale Technology and others
+ *
+ * This program and the accompanying materials are made available under the
+ * terms of the Eclipse Public License v. 2.0 which is available at
+ * http://www.eclipse.org/legal/epl-2.0, or the Eclipse Distribution License
+ * v. 1.0 which is available at
+ * http://www.eclipse.org/org/documents/edl-v10.php.
+ *
+ * SPDX-License-Identifier: EPL-2.0 OR BSD-3-Clause
+ */
 #include <stddef.h>
 #include <ctype.h>
 #include <assert.h>
@@ -18,7 +19,8 @@
 #include "dds/ddsrt/heap.h"
 #include "dds/ddsi/ddsi_plist.h"
 #include "dds/ddsi/ddsi_sertype.h"
-#include "ddsi__serdata_plist.h"
+#include "dds/ddsi/ddsi_serdata_plist.h"
+#include "dds/ddsi/ddsi_typelookup.h"
 
 static bool sertype_plist_equal (const struct ddsi_sertype *acmn, const struct ddsi_sertype *bcmn)
 {
@@ -64,7 +66,7 @@ static void sertype_plist_realloc_samples (void **ptrs, const struct ddsi_sertyp
   ddsi_plist_t *new = (oldcount == count) ? old : dds_realloc (old, count * sizeof (ddsi_plist_t));
   if (new)
   {
-    for (size_t i = oldcount; i < count; i++)
+    for (size_t i = count; i < oldcount; i++)
       ddsi_plist_init_empty (&new[i]);
     for (size_t i = 0; i < count; i++)
       ptrs[i] = &new[i];

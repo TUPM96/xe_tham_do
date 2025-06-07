@@ -36,7 +36,6 @@ target_include_directories(
 set(headers
   "${binary_dir}/include/dds/config.h"
   "${source_dir}/include/dds/ddsrt/avl.h"
-  "${source_dir}/include/dds/ddsrt/bits.h"
   "${source_dir}/include/dds/ddsrt/fibheap.h"
   "${source_dir}/include/dds/ddsrt/hopscotch.h"
   "${source_dir}/include/dds/ddsrt/log.h"
@@ -53,7 +52,6 @@ set(headers
   "${source_dir}/include/dds/ddsrt/strtol.h"
   "${source_dir}/include/dds/ddsrt/types.h"
   "${source_dir}/include/dds/ddsrt/countargs.h"
-  "${source_dir}/include/dds/ddsrt/foreach.h"
   "${source_dir}/include/dds/ddsrt/static_assert.h"
   "${source_dir}/include/dds/ddsrt/circlist.h"
   "${source_dir}/include/dds/ddsrt/atomics.h"
@@ -79,8 +77,6 @@ set(headers
 set(sources
   "${source_dir}/src/atomics.c"
   "${source_dir}/src/avl.c"
-  "${source_dir}/src/dynlib.c"
-  "${source_dir}/src/bits.c"
   "${source_dir}/src/bswap.c"
   "${source_dir}/src/io.c"
   "${source_dir}/src/log.c"
@@ -118,7 +114,6 @@ if(WITH_LWIP)
   set(hostname_header "unistd.h")
   set(inet_header "lwip/sockets.h")
   set(netdb_header "lwip/netdb.h")
-  set(sockopt_header "lwip/sockets.h")
   list(APPEND headers
     "${source_dir}/include/dds/ddsrt/sockets/posix.h")
   list(APPEND sources
@@ -137,7 +132,6 @@ else()
     set(hostname_header "winsock2.h")
     set(inet_header "ws2tcpip.h")
     set(netdb_header "ws2tcpip.h")
-    set(sockopt_header "ws2tcpip.h")
     list(APPEND headers
       "${source_dir}/include/dds/ddsrt/sockets/windows.h")
     list(APPEND sources
@@ -149,19 +143,12 @@ else()
     set(hostname_header "unistd.h")
     set(inet_header "arpa/inet.h")
     set(netdb_header "netdb.h")
-    set(sockopt_header "netinet/in.h")
     list(APPEND headers
       "${source_dir}/include/dds/ddsrt/sockets/posix.h")
     list(APPEND sources
+      "${source_dir}/src/ifaddrs/posix/ifaddrs.c"
       "${source_dir}/src/sockets/posix/socket.c"
       "${source_dir}/src/sockets/posix/gethostname.c")
-    if(WITH_ZEPHYR)
-      list(APPEND sources
-        "${source_dir}/src/ifaddrs/zephyr/ifaddrs.c")
-    else()
-      list(APPEND sources
-        "${source_dir}/src/ifaddrs/posix/ifaddrs.c")
-    endif()
   endif()
 endif()
 
@@ -173,53 +160,11 @@ check_symbol_exists("gethostbyname_r" ${netdb_header} DDSRT_HAVE_GETHOSTBYNAME_R
 if(DDSRT_HAVE_GETADDRINFO OR DDSRT_HAVE_GETHOSTBYNAME_R)
   set(DDSRT_HAVE_DNS TRUE)
 endif()
-set(DDSRT_HAVE_IPV6 FALSE)
+check_type_size("struct sockaddr_in6" SIZEOF_SOCKADDR_IN6)
 if(ENABLE_IPV6)
-  check_type_size("struct sockaddr_in6" SIZEOF_SOCKADDR_IN6)
-  if(NOT ENABLE_IPV6 STREQUAL "AUTO")
-    if(SIZEOF_SOCKADDR_IN6)
-      set(DDSRT_HAVE_IPV6 TRUE)
-    else()
-      message(FATAL_ERROR "ENABLE_IPV6 requires IPv6 to be supported by the platform")
-    endif()
-  elseif(SIZEOF_SOCKADDR_IN6)
+  if(SIZEOF_SOCKADDR_IN6)
     set(DDSRT_HAVE_IPV6 TRUE)
-    set(ENABLE_IPV6 ON)
-  else() 
-    set(ENABLE_IPV6 OFF)
- endif()
-endif()
-if(DDSRT_HAVE_IPV6)
-  message(STATUS "Building with IPv6 support")
-else()
-  message(STATUS "Building without IPv6 support")
-endif()
-set(DDSRT_HAVE_SSM FALSE)
-if(ENABLE_SOURCE_SPECIFIC_MULTICAST)
-  check_symbol_exists("IP_ADD_SOURCE_MEMBERSHIP" ${sockopt_header} DDSRT_HAVE_IP_ADD_SOURCE_MEMBERSHIP)
-  if(DDSRT_HAVE_IPV6)
-    check_symbol_exists("MCAST_JOIN_SOURCE_GROUP" ${sockopt_header} DDSRT_HAVE_MCAST_JOIN_SOURCE_GROUP)
-  else()
-    # Set MCAST_JOIN_SOURCE_GROUP if IPv6 is disabled to simplify the logic here
-    set(DDSRT_HAVE_MCAST_JOIN_SOURCE_GROUP TRUE)
   endif()
-  if(NOT ENABLE_SOURCE_SPECIFIC_MULTICAST STREQUAL "AUTO")
-    if(DDSRT_HAVE_IP_ADD_SOURCE_MEMBERSHIP AND DDSRT_HAVE_MCAST_JOIN_SOURCE_GROUP)
-      set(DDSRT_HAVE_SSM TRUE)
-    else()
-      message(FATAL_ERROR "ENABLE_SOURCE_SPECIFIC_MULTICAST requires SSM to be supported by the platform")
-    endif()
-  elseif(DDSRT_HAVE_IP_ADD_SOURCE_MEMBERSHIP AND DDSRT_HAVE_MCAST_JOIN_SOURCE_GROUP)
-    set(DDSRT_HAVE_SSM TRUE)
-    set(ENABLE_SOURCE_SPECIFIC_MULTICAST ON)
-  else()
-    set(ENABLE_SOURCE_SPECIFIC_MULTICAST OFF)
-  endif()
-endif()
-if(DDSRT_HAVE_SSM)
-  message(STATUS "Building with source-specific multicast support")
-else()
-  message(STATUS "Building without source-specific multicast support")
 endif()
 
 if(WITH_FREERTOS)
@@ -247,23 +192,6 @@ if(WITH_FREERTOS)
     list(APPEND sources
       "${source_dir}/src/rusage/freertos/rusage.c")
   endif()
-elseif(WITH_ZEPHYR)
-  set(CMAKE_THREAD_PREFER_PTHREAD TRUE)
-  find_package(Threads REQUIRED)
-  target_link_libraries(ddsrt INTERFACE Threads::Threads)
-
-  list(APPEND headers
-    "${source_dir}/include/dds/ddsrt/sync/posix.h"
-    "${source_dir}/include/dds/ddsrt/threads/posix.h"
-    "${source_dir}/include/dds/ddsrt/types/posix.h")
-  list(APPEND sources
-    "${source_dir}/src/environ/zephyr/environ.c"
-    "${source_dir}/src/heap/posix/heap.c"
-    "${source_dir}/src/process/posix/process.c"
-    "${source_dir}/src/random/posix/random.c"
-    "${source_dir}/src/sync/posix/sync.c"
-    "${source_dir}/src/threads/posix/threads.c"
-    "${source_dir}/src/time/posix/time.c")
 else()
   set(CMAKE_THREAD_PREFER_PTHREAD TRUE)
   find_package(Threads REQUIRED)
@@ -315,28 +243,23 @@ else()
 
     if(CMAKE_SYSTEM MATCHES "Linux")
       set(DDSRT_HAVE_NETSTAT TRUE)
-      set(DDSRT_HAVE_RUSAGE TRUE)
       list(APPEND sources
         "${source_dir}/src/netstat/linux/netstat.c"
-        "${source_dir}/src/rusage/posix/rusage.c"
         "${source_dir}/src/time/posix/time.c")
     elseif(CMAKE_SYSTEM MATCHES "Darwin")
       set(DDSRT_HAVE_NETSTAT TRUE)
-      set(DDSRT_HAVE_RUSAGE TRUE)
       list(APPEND sources
         "${source_dir}/src/netstat/darwin/netstat.c"
-        "${source_dir}/src/rusage/posix/rusage.c"
         "${source_dir}/src/time/darwin/time.c")
-    elseif(CMAKE_SYSTEM MATCHES "QNX")
-      set(DDSRT_HAVE_NETSTAT TRUE)
-      set(DDSRT_HAVE_RUSAGE TRUE)
-      list(APPEND sources
-        "${source_dir}/src/netstat/qnx/netstat.c"
-        "${source_dir}/src/rusage/posix/rusage.c"
-        "${source_dir}/src/time/posix/time.c")
     else()
       list(APPEND sources
         "${source_dir}/src/time/posix/time.c")
+    endif()
+
+    if(CMAKE_SYSTEM MATCHES "Darwin|Linux")
+      set(DDSRT_HAVE_RUSAGE TRUE)
+      list(APPEND sources
+        "${source_dir}/src/rusage/posix/rusage.c")
     endif()
 
     check_library_exists(c clock_gettime "" HAVE_CLOCK_GETTIME)
@@ -351,8 +274,6 @@ else()
 
     if(CMAKE_C_COMPILER_ID STREQUAL "SunPro")
       target_link_libraries(ddsrt INTERFACE socket nsl)
-    elseif(CMAKE_SYSTEM_NAME MATCHES QNX)
-      target_link_libraries(ddsrt INTERFACE socket m)
     endif()
   endif()
 endif()
@@ -361,18 +282,10 @@ endif()
 set(DDSRT_WITH_LWIP ${WITH_LWIP})
 set(DDSRT_WITH_FREERTOS ${WITH_FREERTOS})
 
-foreach(feature TCP_TLS SECURITY LIFESPAN DEADLINE_MISSED NETWORK_PARTITIONS
-                TYPELIB TYPE_DISCOVERY TOPIC_DISCOVERY QOS_PROVIDER)
+foreach(feature SSL SECURITY LIFESPAN DEADLINE_MISSED NETWORK_PARTITIONS
+                SSM TYPE_DISCOVERY TOPIC_DISCOVERY SHM)
   set(DDS_HAS_${feature} ${ENABLE_${feature}})
 endforeach()
-
-if(BUILD_TESTING)
-  set(DDS_ALLOW_NESTED_DOMAIN 1)
-endif()
-
-if (NOT BUILD_SHARED_LIBS)
-  set(DDS_IS_STATIC_LIBRARY 1)
-endif()
 
 configure_file(include/dds/config.h.in include/dds/config.h)
 configure_file(include/dds/features.h.in include/dds/features.h)

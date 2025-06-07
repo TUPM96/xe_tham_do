@@ -1,13 +1,14 @@
-// Copyright(c) 2006 to 2021 ZettaScale Technology and others
-//
-// This program and the accompanying materials are made available under the
-// terms of the Eclipse Public License v. 2.0 which is available at
-// http://www.eclipse.org/legal/epl-2.0, or the Eclipse Distribution License
-// v. 1.0 which is available at
-// http://www.eclipse.org/org/documents/edl-v10.php.
-//
-// SPDX-License-Identifier: EPL-2.0 OR BSD-3-Clause
-
+/*
+ * Copyright(c) 2006 to 2021 ZettaScale Technology and others
+ *
+ * This program and the accompanying materials are made available under the
+ * terms of the Eclipse Public License v. 2.0 which is available at
+ * http://www.eclipse.org/legal/epl-2.0, or the Eclipse Distribution License
+ * v. 1.0 which is available at
+ * http://www.eclipse.org/org/documents/edl-v10.php.
+ *
+ * SPDX-License-Identifier: EPL-2.0 OR BSD-3-Clause
+ */
 #include <stdlib.h>
 
 #include "dds/dds.h"
@@ -18,7 +19,7 @@
 #include "dds/ddsrt/cdtors.h"
 #include "dds/ddsrt/environ.h"
 #include "dds/ddsrt/heap.h"
-#include "ddsi__misc.h"
+#include "dds/ddsi/q_misc.h"
 #include "dds/ddsi/ddsi_xqos.h"
 
 #include "test_common.h"
@@ -267,7 +268,7 @@ static void logger(void *ptr, const dds_log_data_t *data)
 {
   char **expected = (char**)ptr;
   for (uint32_t i = 0; expected[i] != NULL; i++) {
-      if (ddsi_patmatch(expected[i], data->message)) {
+      if (ddsi2_patmatch(expected[i], data->message)) {
           found |= (uint32_t)(1 << i);
       }
   }
@@ -479,24 +480,4 @@ CU_Test(ddsc_config, multiple_domains, .init = ddsrt_init, .fini = ddsrt_fini)
 
   dds_set_log_sink (NULL, NULL);
   dds_set_trace_sink (NULL, NULL);
-}
-
-CU_Test(ddsc_config, bad_configs_listelems)
-{
-  // The first one is thanks to OSS-Fuzz, the fact that it is so easy
-  // to forget an initialisation that can trigger this means it is
-  // worthwhile trying a few more case
-  const char *configs[] = {
-    "<Partitioning><NetworkPartitions><NetworkPartition",
-    "<Partitioning><PartitionMappings><PartitionMapping",
-    "<Partitioning><IgnoredPartitions><IgnoredPartition",
-    "<Threads><Thread",
-    "<NetworkInterfaces><NetworkInterface",
-    "<Discovery><Peers><Peer",
-    NULL
-  };
-  for (int i = 0; configs[i]; i++)
-  {
-    CU_ASSERT_FATAL (dds_create_domain (0, configs[i]) < 0);
-  }
 }

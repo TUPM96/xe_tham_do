@@ -1,13 +1,14 @@
-// Copyright(c) 2006 to 2022 ZettaScale Technology and others
-//
-// This program and the accompanying materials are made available under the
-// terms of the Eclipse Public License v. 2.0 which is available at
-// http://www.eclipse.org/legal/epl-2.0, or the Eclipse Distribution License
-// v. 1.0 which is available at
-// http://www.eclipse.org/org/documents/edl-v10.php.
-//
-// SPDX-License-Identifier: EPL-2.0 OR BSD-3-Clause
-
+/*
+ * Copyright(c) 2006 to 2022 ZettaScale Technology and others
+ *
+ * This program and the accompanying materials are made available under the
+ * terms of the Eclipse Public License v. 2.0 which is available at
+ * http://www.eclipse.org/legal/epl-2.0, or the Eclipse Distribution License
+ * v. 1.0 which is available at
+ * http://www.eclipse.org/org/documents/edl-v10.php.
+ *
+ * SPDX-License-Identifier: EPL-2.0 OR BSD-3-Clause
+ */
 #include <stdio.h>
 #include <dlfcn.h>
 #include <assert.h>
@@ -17,7 +18,7 @@
 #include "dds/ddsrt/io.h"
 #include "dds/ddsrt/string.h"
 
-dds_return_t ddsrt_platform_dlopen (const char *name, bool translate, ddsrt_dynlib_t *handle)
+dds_return_t ddsrt_dlopen (const char *name, bool translate, ddsrt_dynlib_t *handle)
 {
   assert (handle);
   *handle = NULL;
@@ -29,7 +30,7 @@ dds_return_t ddsrt_platform_dlopen (const char *name, bool translate, ddsrt_dynl
 #else
     static const char suffix[] = ".so";
 #endif
-    char* lib_name = NULL;
+    char* lib_name;
     if (ddsrt_asprintf (&lib_name, "lib%s%s", name, suffix) == -1)
       return DDS_RETCODE_OUT_OF_RESOURCES;
     *handle = dlopen (lib_name, RTLD_GLOBAL | RTLD_NOW);
@@ -45,13 +46,13 @@ dds_return_t ddsrt_platform_dlopen (const char *name, bool translate, ddsrt_dynl
   return *handle != NULL ? DDS_RETCODE_OK : DDS_RETCODE_ERROR;
 }
 
-dds_return_t ddsrt_platform_dlclose (ddsrt_dynlib_t handle)
+dds_return_t ddsrt_dlclose (ddsrt_dynlib_t handle)
 {
   assert (handle);
   return (dlclose (handle) == 0) ? DDS_RETCODE_OK : DDS_RETCODE_ERROR;
 }
 
-dds_return_t ddsrt_platform_dlsym (ddsrt_dynlib_t handle, const char *symbol, void **address)
+dds_return_t ddsrt_dlsym (ddsrt_dynlib_t handle, const char *symbol, void **address)
 {
   assert (handle);
   assert (address);
@@ -60,7 +61,7 @@ dds_return_t ddsrt_platform_dlsym (ddsrt_dynlib_t handle, const char *symbol, vo
   return (*address == NULL) ? DDS_RETCODE_ERROR : DDS_RETCODE_OK;
 }
 
-dds_return_t ddsrt_platform_dlerror (char *buf, size_t buflen)
+dds_return_t ddsrt_dlerror (char *buf, size_t buflen)
 {
   assert (buf);
   assert (buflen);

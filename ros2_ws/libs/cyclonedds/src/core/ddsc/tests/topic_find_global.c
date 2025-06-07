@@ -1,13 +1,14 @@
-// Copyright(c) 2006 to 2022 ZettaScale Technology and others
-//
-// This program and the accompanying materials are made available under the
-// terms of the Eclipse Public License v. 2.0 which is available at
-// http://www.eclipse.org/legal/epl-2.0, or the Eclipse Distribution License
-// v. 1.0 which is available at
-// http://www.eclipse.org/org/documents/edl-v10.php.
-//
-// SPDX-License-Identifier: EPL-2.0 OR BSD-3-Clause
-
+/*
+ * Copyright(c) 2006 to 2022 ZettaScale Technology and others
+ *
+ * This program and the accompanying materials are made available under the
+ * terms of the Eclipse Public License v. 2.0 which is available at
+ * http://www.eclipse.org/legal/epl-2.0, or the Eclipse Distribution License
+ * v. 1.0 which is available at
+ * http://www.eclipse.org/org/documents/edl-v10.php.
+ *
+ * SPDX-License-Identifier: EPL-2.0 OR BSD-3-Clause
+ */
 #include <assert.h>
 #include <limits.h>
 
@@ -18,7 +19,7 @@
 #include "dds/ddsrt/heap.h"
 #include "dds/ddsi/ddsi_entity_index.h"
 #include "dds/ddsi/ddsi_entity.h"
-#include "ddsi__whc.h"
+#include "dds/ddsi/q_whc.h"
 #include "dds__entity.h"
 
 #include "test_common.h"
@@ -101,7 +102,8 @@ static void wait_for_remote_topic (char * topic_name_remote)
 
 static dds_typeinfo_t *get_desc_typeinfo (const dds_topic_descriptor_t *desc)
 {
-  ddsi_typeinfo_t *type_info = ddsi_typeinfo_deser (desc->type_information.data, desc->type_information.sz);
+  const struct ddsi_sertype_cdr_data tinfo_ser = { .sz = desc->type_information.sz, .data = desc->type_information.data };
+  ddsi_typeinfo_t *type_info = ddsi_typeinfo_deser (&tinfo_ser);
   CU_ASSERT_FATAL (type_info != NULL);
   return (dds_typeinfo_t *) type_info;
 }
@@ -146,14 +148,14 @@ struct create_topic_thread_arg
   const dds_topic_descriptor_t *topic_desc;
 };
 
-static void set_topic_name (char *name, size_t size, const char *prefix, uint32_t index)
+static void set_topic_name (char *name, const char *prefix, uint32_t index)
 {
-  snprintf (name, size, "%s_%u", prefix, index);
+  snprintf (name, MAX_NAME_SIZE + 10, "%s_%u", prefix, index);
 }
 
 static uint32_t topics_thread (void *a)
 {
-  char topic_name[MAX_NAME_SIZE + 11];
+  char topic_name[MAX_NAME_SIZE + 10];
   struct create_topic_thread_arg *arg = (struct create_topic_thread_arg *) a;
   dds_entity_t *topics = ddsrt_malloc (arg->num_tp * sizeof (*topics));
 
@@ -161,7 +163,7 @@ static uint32_t topics_thread (void *a)
   tprintf ("%s topics thread: creating %u topics with prefix %s\n", arg->remote ? "remote" : "local", arg->num_tp, arg->topic_name_prefix);
   for (uint32_t t = 0; t < arg->num_tp; t++)
   {
-    set_topic_name (topic_name, sizeof (topic_name), arg->topic_name_prefix, t);
+    set_topic_name (topic_name, arg->topic_name_prefix, t);
     topics[t] = dds_create_topic (arg->pp, arg->topic_desc, topic_name, NULL, NULL);
     CU_ASSERT_FATAL (topics[t] > 0);
   }
@@ -238,7 +240,7 @@ CU_Theory ((uint32_t num_local_pp, uint32_t num_remote_pp, uint32_t num_tp), dds
     dds_typeinfo_t *type_info = get_desc_typeinfo (create_args[n].topic_desc);
     for (uint32_t t = 0; t < create_args[n].num_tp; t++)
     {
-      set_topic_name (topic_name, sizeof (topic_name), create_args[n].topic_name_prefix, t);
+      set_topic_name (topic_name, create_args[n].topic_name_prefix, t);
       dds_entity_t topic = dds_find_topic (DDS_FIND_SCOPE_GLOBAL, g_participant1, topic_name, (dds_typeinfo_t *) type_info, DDS_SECS (5));
       CU_ASSERT_FATAL (topic > 0);
     }
@@ -254,7 +256,7 @@ CU_Theory ((uint32_t num_local_pp, uint32_t num_remote_pp, uint32_t num_tp), dds
   uint32_t t = 0;
   do
   {
-    set_topic_name (topic_name, sizeof (topic_name), create_args->topic_name_prefix, t);
+    set_topic_name (topic_name, create_args->topic_name_prefix, t);
     (void) dds_find_topic (DDS_FIND_SCOPE_PARTICIPANT, g_participant1, topic_name, NULL, 0);
     (void) dds_find_topic (DDS_FIND_SCOPE_PARTICIPANT, g_participant1, topic_name, NULL, DDS_MSECS (1));
     (void) dds_find_topic (DDS_FIND_SCOPE_GLOBAL, g_participant1, topic_name, NULL, 0);

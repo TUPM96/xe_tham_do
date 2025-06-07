@@ -1,13 +1,14 @@
-// Copyright(c) 2020 ZettaScale Technology and others
-//
-// This program and the accompanying materials are made available under the
-// terms of the Eclipse Public License v. 2.0 which is available at
-// http://www.eclipse.org/legal/epl-2.0, or the Eclipse Distribution License
-// v. 1.0 which is available at
-// http://www.eclipse.org/org/documents/edl-v10.php.
-//
-// SPDX-License-Identifier: EPL-2.0 OR BSD-3-Clause
-
+/*
+ * Copyright(c) 2020 ZettaScale Technology and others
+ *
+ * This program and the accompanying materials are made available under the
+ * terms of the Eclipse Public License v. 2.0 which is available at
+ * http://www.eclipse.org/legal/epl-2.0, or the Eclipse Distribution License
+ * v. 1.0 which is available at
+ * http://www.eclipse.org/org/documents/edl-v10.php.
+ *
+ * SPDX-License-Identifier: EPL-2.0 OR BSD-3-Clause
+ */
 #include <assert.h>
 #include <string.h>
 
@@ -39,11 +40,11 @@ struct dds_statistics *dds_create_statistics (dds_entity_t entity)
   struct dds_statistics *s;
   if (dds_entity_pin (entity, &e) != DDS_RETCODE_OK)
     return NULL;
-  struct ddsi_thread_state * const thrst = ddsi_lookup_thread_state ();
-  ddsi_thread_state_awake (thrst, &e->m_domain->gv);
+  struct thread_state * const thrst = lookup_thread_state ();
+  thread_state_awake (thrst, &e->m_domain->gv);
   if ((s = dds_entity_deriver_create_statistics (e)) != NULL)
     dds_entity_deriver_refresh_statistics (e, s);
-  ddsi_thread_state_asleep (thrst);
+  thread_state_asleep (thrst);
   dds_entity_unpin (e);
   return s;
 }
@@ -61,11 +62,11 @@ dds_return_t dds_refresh_statistics (struct dds_statistics *stat)
     dds_entity_unpin (e);
     return DDS_RETCODE_BAD_PARAMETER;
   }
-  struct ddsi_thread_state * const thrst = ddsi_lookup_thread_state ();
-  ddsi_thread_state_awake (thrst, &e->m_domain->gv);
+  struct thread_state * const thrst = lookup_thread_state ();
+  thread_state_awake (thrst, &e->m_domain->gv);
   stat->time = dds_time ();
   dds_entity_deriver_refresh_statistics (e, stat);
-  ddsi_thread_state_asleep (thrst);
+  thread_state_asleep (thrst);
   dds_entity_unpin (e);
   return DDS_RETCODE_OK;
 }

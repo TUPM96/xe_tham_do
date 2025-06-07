@@ -1,13 +1,14 @@
-// Copyright(c) 2019 to 2021 ZettaScale Technology and others
-//
-// This program and the accompanying materials are made available under the
-// terms of the Eclipse Public License v. 2.0 which is available at
-// http://www.eclipse.org/legal/epl-2.0, or the Eclipse Distribution License
-// v. 1.0 which is available at
-// http://www.eclipse.org/org/documents/edl-v10.php.
-//
-// SPDX-License-Identifier: EPL-2.0 OR BSD-3-Clause
-
+/*
+ * Copyright(c) 2019 to 2021 ZettaScale Technology and others
+ *
+ * This program and the accompanying materials are made available under the
+ * terms of the Eclipse Public License v. 2.0 which is available at
+ * http://www.eclipse.org/legal/epl-2.0, or the Eclipse Distribution License
+ * v. 1.0 which is available at
+ * http://www.eclipse.org/org/documents/edl-v10.php.
+ *
+ * SPDX-License-Identifier: EPL-2.0 OR BSD-3-Clause
+ */
 #include <stdio.h>
 #include <string.h>
 #include <assert.h>
@@ -76,7 +77,7 @@ static uint32_t pp_thread (void *varg)
     while ((n = dds_take (rd, &raw, &si, 1, 1)) == 1)
     {
       const dds_builtintopic_participant_t *sample = raw;
-      if (si.instance_state != DDS_ALIVE_INSTANCE_STATE)
+      if (si.instance_state != DDS_IST_ALIVE)
         done = true;
       else if (si.instance_handle == dpih || !si.valid_data)
         continue;
@@ -233,8 +234,8 @@ static uint32_t rw_thread (void *varg)
   static const char *exp_rwud[] = {
     "a", "bc", "def", "",
   };
-  bool (*qget) (const dds_qos_t *qos, void **value, size_t *sz) = 0;
-  void (*qset) (dds_qos_t *qos, const void *value, size_t sz) = 0;
+  bool (*qget) (const dds_qos_t * __restrict qos, void **value, size_t *sz) = 0;
+  void (*qset) (dds_qos_t * __restrict qos, const void *value, size_t sz) = 0;
 
   dds_entity_t dp, tp, ep, grp, rdep, qent = 0, ws;
   dds_return_t rc;
@@ -318,7 +319,7 @@ static uint32_t rw_thread (void *varg)
     while ((n = dds_take (rdep, &raw, &si, 1, 1)) == 1)
     {
       const dds_builtintopic_endpoint_t *sample = raw;
-      if (si.instance_state != DDS_ALIVE_INSTANCE_STATE && si.instance_handle == peer)
+      if (si.instance_state != DDS_IST_ALIVE && si.instance_handle == peer)
         done = true;
       else if (!si.valid_data)
         continue;

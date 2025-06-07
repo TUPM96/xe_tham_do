@@ -9,6 +9,7 @@
 #
 # SPDX-License-Identifier: EPL-2.0 OR BSD-3-Clause
 #
+find_package(CUnit REQUIRED)
 
 set(CUNIT_DIR "${CMAKE_CURRENT_LIST_DIR}/CUnit")
 
@@ -200,28 +201,40 @@ function(process_cunit_source_file SOURCE_FILE HEADER_FILE SUITES TESTS)
 endfunction()
 
 function(set_test_library_paths TEST_NAME)
+  if(ENABLE_SHM)
+    find_library(ICEORYX_LIB iceoryx_binding_c)
+    get_filename_component(ICEORYX_LIB_PATH ${ICEORYX_LIB} DIRECTORY)
+  endif ()
   file(TO_NATIVE_PATH "${CUNIT_LIBRARY_DIR}" cudir)
   if(APPLE)
     set_property(
       TEST ${TEST_NAME}
       PROPERTY ENVIRONMENT
-      "DYLD_LIBRARY_PATH=${cudir}:${CMAKE_LIBRARY_OUTPUT_DIRECTORY}:$ENV{DYLD_LIBRARY_PATH}")
+      "DYLD_LIBRARY_PATH=${cudir}:${CMAKE_LIBRARY_OUTPUT_DIRECTORY}:${ICEORYX_LIB_PATH}:$ENV{DYLD_LIBRARY_PATH}")
   elseif(WIN32)
     string(REPLACE "/" "\\" cudir "${cudir}")
     string(REPLACE ";" "\\;" paths "$ENV{PATH}")
     set_property(
       TEST ${TEST_NAME}
       PROPERTY ENVIRONMENT
-      "PATH=${cudir}\\;${paths}")
+      "PATH=${cudir}\\;${ICEORYX_LIB_PATH}\\;${paths}")
   else()
     set_property(
       TEST ${TEST_NAME}
       PROPERTY ENVIRONMENT
-      "LD_LIBRARY_PATH=${CMAKE_LIBRARY_OUTPUT_DIRECTORY}:$ENV{LD_LIBRARY_PATH}")
+      "LD_LIBRARY_PATH=${CMAKE_LIBRARY_OUTPUT_DIRECTORY}:${ICEORYX_LIB_PATH}:$ENV{LD_LIBRARY_PATH}")
   endif()
 endfunction()
 
 function(add_cunit_executable TARGET)
+  # Retrieve location of shared libary, which is need to extend the PATH
+  # environment variable on Microsoft Windows, so that the operating
+  # system can locate the .dll that it was linked against.
+  # On macOS, this mechanism is used to set the DYLD_LIBRARY_PATH.
+  get_target_property(CUNIT_LIBRARY_TYPE CUnit TYPE)
+  get_target_property(CUNIT_IMPORTED_LOCATION CUnit IMPORTED_LOCATION)
+  get_filename_component(CUNIT_LIBRARY_DIR "${CUNIT_IMPORTED_LOCATION}" PATH)
+
   set(decls)
   set(defns)
   set(sources)
@@ -309,7 +322,8 @@ function(add_cunit_executable TARGET)
 
   add_executable(
     ${TARGET} "${CMAKE_CURRENT_BINARY_DIR}/${TARGET}.c" ${sources})
-  target_link_libraries(${TARGET} PRIVATE CycloneDDS::ucunit)
+  target_link_libraries(${TARGET} PRIVATE CUnit)
+  target_include_directories(${TARGET} PRIVATE "${CUNIT_DIR}/include")
   if(MSVC)
     target_compile_definitions(${TARGET} PRIVATE _CRT_SECURE_NO_WARNINGS)
   endif()

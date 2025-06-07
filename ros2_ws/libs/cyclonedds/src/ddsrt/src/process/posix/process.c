@@ -1,13 +1,14 @@
-// Copyright(c) 2006 to 2021 ZettaScale Technology and others
-//
-// This program and the accompanying materials are made available under the
-// terms of the Eclipse Public License v. 2.0 which is available at
-// http://www.eclipse.org/legal/epl-2.0, or the Eclipse Distribution License
-// v. 1.0 which is available at
-// http://www.eclipse.org/org/documents/edl-v10.php.
-//
-// SPDX-License-Identifier: EPL-2.0 OR BSD-3-Clause
-
+/*
+ * Copyright(c) 2006 to 2021 ZettaScale Technology and others
+ *
+ * This program and the accompanying materials are made available under the
+ * terms of the Eclipse Public License v. 2.0 which is available at
+ * http://www.eclipse.org/legal/epl-2.0, or the Eclipse Distribution License
+ * v. 1.0 which is available at
+ * http://www.eclipse.org/org/documents/edl-v10.php.
+ *
+ * SPDX-License-Identifier: EPL-2.0 OR BSD-3-Clause
+ */
 #include <sys/types.h>
 #include <sys/stat.h>
 #include <unistd.h>
@@ -28,7 +29,7 @@ ddsrt_getpid(void)
   return getpid();
 }
 
-#if (defined(__APPLE__) || defined(__FreeBSD__) || defined(_GNU_SOURCE) || defined(__ZEPHYR__))
+#if (defined(__APPLE__) || defined(__FreeBSD__) || defined(_GNU_SOURCE))
   // _basename not needed
 #else
 static const char *_basename(char const *path)
@@ -45,8 +46,6 @@ ddsrt_getprocessname(void)
   const char * appname = getprogname();
 #elif defined(_GNU_SOURCE)
   const char * appname = program_invocation_name;
-#elif defined(__ZEPHYR__)
-  const char * appname = NULL; /* CONFIG_KERNEL_BIN_NAME? */
 #else
   const char * appname = NULL;
 

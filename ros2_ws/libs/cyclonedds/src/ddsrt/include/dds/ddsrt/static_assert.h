@@ -1,13 +1,14 @@
-// Copyright(c) 2019 ZettaScale Technology and others
-//
-// This program and the accompanying materials are made available under the
-// terms of the Eclipse Public License v. 2.0 which is available at
-// http://www.eclipse.org/legal/epl-2.0, or the Eclipse Distribution License
-// v. 1.0 which is available at
-// http://www.eclipse.org/org/documents/edl-v10.php.
-//
-// SPDX-License-Identifier: EPL-2.0 OR BSD-3-Clause
-
+/*
+ * Copyright(c) 2019 ZettaScale Technology and others
+ *
+ * This program and the accompanying materials are made available under the
+ * terms of the Eclipse Public License v. 2.0 which is available at
+ * http://www.eclipse.org/legal/epl-2.0, or the Eclipse Distribution License
+ * v. 1.0 which is available at
+ * http://www.eclipse.org/org/documents/edl-v10.php.
+ *
+ * SPDX-License-Identifier: EPL-2.0 OR BSD-3-Clause
+ */
 #ifndef DDSRT_STATIC_ASSERT_H
 #define DDSRT_STATIC_ASSERT_H
 
@@ -36,25 +37,6 @@
       switch(0) { case 0: case (pred): ; }      \
     __pragma (warning (pop))                    \
   } while (0)
-#endif
-
-// _Generic is C11, gcc and clang have supported it for a long time already
-// and will happily do it also when compiling C99 code.  Microsoft did add
-// it eventually, but only when compiling with /std:c11 according to the
-// docs.
-//
-// Skipping the test for non-whitelisted cases means this should work on
-// all Linux and macOS builds without breaking other platforms.  That is
-// a reasonable compromise.
-#if (__STDC__ == 1 && __STDC_VERSION__ >= 201112L) || \
-    (__GNUC__*10000 + __GNUC_MINOR__*100 + __GNUC_PATCHLEVEL__) >= 40900 || \
-    (__clang_major__*10000 + __clang_minor__*100 + __clang_patchlevel__) >= 30000
-#define DDSRT_STATIC_ASSERT_IS_UNSIGNED(v_) \
-  DDSRT_STATIC_ASSERT(_Generic(v_, \
-    uint8_t: 1, uint16_t: 1, uint32_t: 1, uint64_t: 1, \
-    default: 0))
-#else
-#define DDSRT_STATIC_ASSERT_IS_UNSIGNED(v_) DDSRT_STATIC_ASSERT(1)
 #endif
 
 #endif

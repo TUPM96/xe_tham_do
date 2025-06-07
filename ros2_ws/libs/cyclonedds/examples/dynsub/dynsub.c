@@ -1,21 +1,9 @@
-// Copyright(c) 2022 to 2023 ZettaScale Technology and others
-//
-// This program and the accompanying materials are made available under the
-// terms of the Eclipse Public License v. 2.0 which is available at
-// http://www.eclipse.org/legal/epl-2.0, or the Eclipse Distribution License
-// v. 1.0 which is available at
-// http://www.eclipse.org/org/documents/edl-v10.php.
-//
-// SPDX-License-Identifier: EPL-2.0 OR BSD-3-Clause
-
 #include <stdio.h>
 #include <string.h>
 #include <stdlib.h>
 #include <assert.h>
-#include <locale.h>
 
 #include "dds/dds.h"
-#include "dynsub.h"
 
 // Interpreting the data of an arbitrary topic requires interpreting the type object that describes the data.
 // The type object type is defined by the XTypes specification (https://www.omg.org/spec/DDS-XTypes/) and it
@@ -33,34 +21,351 @@
 // opaque.  For now, this'll have to do.
 #include "dds/ddsi/ddsi_xt_typeinfo.h"
 
-// For convenience, the DDS participant is global
+// TypeObjects can (and often do) refer to other types via an opaque id.  We don't want to have to request
+// the corresponding type object every time we need it (it can be quite costly) and so have cache them in
+// our own hash table.  For the hash table implementation we use one that's part of the implementation of
+// Cyclone DDS.  It is *not* part of the API, it is simply a convenient solution for a simple PoC.
+#include "dds/ddsrt/hopscotch.h"
+
+// Entry in type cache hash table: it not only caches type objects, it also caches alignment and size of
+// the in-memory representation of any structure types.  These we need to get the alignment calculations
+// correct.
+struct typeinfo {
+  union {
+    uintptr_t key; // DDS_XTypes_CompleteTypeObject or DDS_XTypes_TypeIdentifier pointer
+    uint32_t u32[sizeof (uintptr_t) / 4];
+  } key;
+  const DDS_XTypes_CompleteTypeObject *typeobj; // complete type object for type T
+  const DDS_XTypes_TypeObject *release; // type object to release, or NULL if nothing
+  size_t align; // _Alignof(T)
+  size_t size; // sizeof(T)
+};
+
+// For convenience, the DDS participant and the type cache are globals
 static dds_entity_t participant;
+static struct ddsrt_hh *typecache;
 
+// Hash table requires a hash function and an equality test.  The key in the hash table is the address
+// of the type object or type identifier.  The hash function distinguishes between 32-bit and 64-bit
+// pointers, the equality test can simply use pointer equality.
+static uint32_t typecache_hash (const void *vinfo)
+{
+  const struct typeinfo *info = vinfo;
+  if (sizeof (uintptr_t) == 4)
+    return (uint32_t) (((info->key.u32[0] + UINT64_C (16292676669999574021)) * UINT64_C (10242350189706880077)) >> 32);
+  else
+    return (uint32_t) (((info->key.u32[0] + UINT64_C (16292676669999574021)) * (info->key.u32[1] + UINT64_C (10242350189706880077))) >> 32);
+}
 
-// Helper function to wait for a DCPSPublication/DCPSSubscription to show up with the desired topic name,
-// then calls dds_find_topic to create a topic for that data writer's/reader's type up the retrieves the
-// type object.
+static int typecache_equal (const void *va, const void *vb)
+{
+  const struct typeinfo *a = va;
+  const struct typeinfo *b = vb;
+  return a->key.key == b->key.key;
+}
+
+// Building the type cache: the TypeObjects come in a variety of formats (see the spec for the details,
+// much is omitted here for simplicity), but it comes down to:
+// - a TypeObject describing a "simple" type
+// - a TypeObject describing any other type
+// - a TypeIdentifier that actually is a "simple" type
+// - a TypeIdentifier that references some type
+// The two "simple" types can be factored out, resulting in a function for computing alignment and
+// sizeof for a simple type and functions for the other cases when it turns out not to be a simple
+// case.
+//
+// Beware that a lot of cases are missing!
+
+static void build_typecache_to (const DDS_XTypes_CompleteTypeObject *typeobj, size_t *align, size_t *size);
+
+static bool build_typecache_simple (const uint8_t disc, size_t *align, size_t *size)
+{
+  switch (disc)
+  {
+#define CASE(disc, type) DDS_XTypes_TK_##disc: *align = _Alignof(type); *size = sizeof(type); return true
+    case CASE(BOOLEAN, uint8_t);
+    case CASE(CHAR8, int8_t);
+    case CASE(INT16, int16_t);
+    case CASE(INT32, int32_t);
+    case CASE(INT64, int64_t);
+    case CASE(BYTE, uint8_t);
+    case CASE(UINT16, uint16_t);
+    case CASE(UINT32, uint32_t);
+    case CASE(UINT64, uint64_t);
+    case CASE(FLOAT32, float);
+    case CASE(FLOAT64, double);
+    case CASE(STRING8, char *);
+#undef CASE
+  }
+  return false;
+}
+
+static void build_typecache_ti (const DDS_XTypes_TypeIdentifier *typeid, size_t *align, size_t *size)
+{
+  if (build_typecache_simple (typeid->_d, align, size))
+    return;
+  switch (typeid->_d)
+  {
+    case DDS_XTypes_TI_STRING8_SMALL:
+    case DDS_XTypes_TI_STRING8_LARGE:
+      *align = _Alignof (char *); *size = sizeof (char *);
+      break;
+    case DDS_XTypes_TI_PLAIN_SEQUENCE_SMALL:
+    case DDS_XTypes_TI_PLAIN_SEQUENCE_LARGE: {
+      const DDS_XTypes_TypeIdentifier *et = (typeid->_d == DDS_XTypes_TI_PLAIN_SEQUENCE_SMALL) ? typeid->_u.seq_sdefn.element_identifier : typeid->_u.seq_ldefn.element_identifier;
+      size_t a, s;
+      build_typecache_ti (et, &a, &s);
+      *align = _Alignof (dds_sequence_t); *size = sizeof (dds_sequence_t);
+      break;
+    }
+    case DDS_XTypes_EK_COMPLETE: {
+      struct typeinfo templ = { .key = { .key = (uintptr_t) typeid } }, *info;
+      if ((info = ddsrt_hh_lookup (typecache, &templ)) != NULL) {
+        *align = info->align;
+        *size = info->size;
+      } else {
+        dds_typeobj_t *typeobj;
+        if (dds_get_typeobj (participant, (const dds_typeid_t *) typeid, 0, &typeobj) < 0)
+          abort ();
+        DDS_XTypes_TypeObject * const xtypeobj = (DDS_XTypes_TypeObject *) typeobj;
+        build_typecache_to (&xtypeobj->_u.complete, align, size);
+        info = malloc (sizeof (*info));
+        *info = (struct typeinfo){ .key = { .key = (uintptr_t) typeid }, .typeobj = &xtypeobj->_u.complete, .release = xtypeobj, .align = *align, .size = *size };
+        ddsrt_hh_add (typecache, info);
+      }
+      break;
+    }
+    default:
+      printf ("type id discriminant %u encountered, sorry\n", (unsigned) typeid->_d);
+      abort ();
+  }
+}
+
+static void build_typecache_to (const DDS_XTypes_CompleteTypeObject *typeobj, size_t *align, size_t *size)
+{
+  if (build_typecache_simple (typeobj->_d, size, align))
+    return;
+  switch (typeobj->_d)
+  {
+    case DDS_XTypes_TK_SEQUENCE: {
+      const DDS_XTypes_TypeIdentifier *et = &typeobj->_u.sequence_type.element.common.type;
+      size_t a, s;
+      build_typecache_ti (et, &a, &s);
+      *align = _Alignof (dds_sequence_t); *size = sizeof (dds_sequence_t);
+      break;
+    }
+    case DDS_XTypes_TK_STRUCTURE: {
+      struct typeinfo templ = { .key = { .key = (uintptr_t) typeobj } }, *info;
+      if ((info = ddsrt_hh_lookup (typecache, &templ)) != NULL) {
+        *align = info->align;
+        *size = info->size;
+      } else {
+        const DDS_XTypes_CompleteStructType *t = &typeobj->_u.struct_type;
+        *align = 1; *size = 0;
+        for (uint32_t i = 0; i < t->member_seq._length; i++)
+        {
+          const DDS_XTypes_CompleteStructMember *m = &t->member_seq._buffer[i];
+          size_t a, s;
+          build_typecache_ti (&m->common.member_type_id, &a, &s);
+          if (a > *align)
+            *align = a;
+          if (*size % a)
+            *size += a - (*size % a);
+          *size += s;
+        }
+        if (*size % *align)
+          *size += *align - (*size % *align);
+        info = malloc (sizeof (*info));
+        *info = (struct typeinfo){ .key = { .key = (uintptr_t) typeobj }, .typeobj = typeobj, .release = NULL, .align = *align, .size = *size };
+        ddsrt_hh_add (typecache, info);
+      }
+      break;
+    }
+    default: {
+      printf ("type object discriminant %u encountered, sorry\n", (unsigned) typeobj->_d);
+      abort ();
+    }
+  }
+}
+
+static void free_typeinfo (void *vinfo, void *varg)
+{
+  struct typeinfo *info = vinfo;
+  (void) varg;
+  if (info->release)
+    dds_free_typeobj ((dds_typeobj_t *) info->release);
+  free (info);
+}
+
+// Printing JSON: the TypeObject/TypeIdentifier handling follows the pattern used for building the type cache,
+// except now it just looks up entries in the cache (that are always present).  We do pass a bit of context:
+// - whether the sample is a "valid sample", that is: whether all fields are valid, or only the key fields
+// - whether all fields in the path from the top-level had the "key" annotation set, because only in that case
+//   is the field actually a key field
+// The trouble with skipping non-key fields is that we still need to go over them to compute the offset of the
+// key fields that follow it.  Of course it would be possible to store more information in the type cache, but
+// that is left as an exercise to the reader.
+
+struct context {
+  bool valid_data;
+  bool key;
+  size_t offset;
+  size_t maxalign;
+};
+
+static const void *align (const unsigned char *base, struct context *c, size_t align, size_t size)
+{
+  if (align > c->maxalign)
+    c->maxalign = align;
+  if (c->offset % align)
+    c->offset += align - (c->offset % align);
+  const size_t o = c->offset;
+  c->offset += size;
+  return base + o;
+}
+
+static void print_sample1_to (const unsigned char *sample, const DDS_XTypes_CompleteTypeObject *typeobj, struct context *c, const char *sep, const char *label);
+
+static bool print_sample1_simple (const unsigned char *sample, const uint8_t disc, struct context *c, const char *sep, const char *label)
+{
+  switch (disc)
+  {
+#define CASE(disc, type, fmt) DDS_XTypes_TK_##disc: { \
+    const type *p = (const type *) align (sample, c, _Alignof(type), sizeof(type)); \
+    if (c->key || c->valid_data) { printf ("%s", sep); if (label) printf ("\"%s\":", label); fmt; } \
+    return true; \
+  }
+    case CASE(BOOLEAN, uint8_t, printf ("%s", *p ? "true" : "false"));
+    case CASE(CHAR8, int8_t, printf ("\"%c\"", (char) *p));
+    case CASE(INT16, int16_t, printf ("%"PRId16, *p));
+    case CASE(INT32, int32_t, printf ("%"PRId32, *p));
+    case CASE(INT64, int64_t, printf ("%"PRId64, *p));
+    case CASE(BYTE, uint8_t, printf ("%"PRIu8, *p));
+    case CASE(UINT16, uint16_t, printf ("%"PRIu16, *p));
+    case CASE(UINT32, uint32_t, printf ("%"PRIu32, *p));
+    case CASE(UINT64, uint64_t, printf ("%"PRIu64, *p));
+    case CASE(FLOAT32, float, printf ("%f", *p));
+    case CASE(FLOAT64, double, printf ("%f", *p));
+    case CASE(STRING8, char *, printf ("\"%s\"", *p));
+#undef CASE
+  }
+  return false;
+}
+
+static void print_sample1_ti (const unsigned char *sample, const DDS_XTypes_TypeIdentifier *typeid, struct context *c, const char *sep, const char *label)
+{
+  if (print_sample1_simple (sample, typeid->_d, c, sep, label))
+    return;
+  switch (typeid->_d)
+  {
+    case DDS_XTypes_TI_STRING8_SMALL:
+    case DDS_XTypes_TI_STRING8_LARGE: {
+      const char **p = (const char **) align (sample, c, _Alignof (char *), sizeof (char *));
+      if (c->key || c->valid_data)
+      {
+        printf ("%s", sep);
+        if (label) printf ("\"%s\":", label);
+        printf ("\"%s\"", *p);
+      }
+      break;
+    }
+    case DDS_XTypes_TI_PLAIN_SEQUENCE_SMALL:
+    case DDS_XTypes_TI_PLAIN_SEQUENCE_LARGE: {
+      const DDS_XTypes_TypeIdentifier *et = (typeid->_d == DDS_XTypes_TI_PLAIN_SEQUENCE_SMALL) ? typeid->_u.seq_sdefn.element_identifier : typeid->_u.seq_ldefn.element_identifier;
+      const dds_sequence_t *p = align (sample, c, _Alignof (dds_sequence_t), sizeof (dds_sequence_t));
+      if (c->key || c->valid_data)
+      {
+        struct context c1 = *c; c1.offset = 0; c1.maxalign = 1;
+        printf ("%s", sep);
+        if (label) printf ("\"%s\":", label);
+        printf ("[");
+        sep = "";
+        for (uint32_t i = 0; i < p->_length; i++)
+        {
+          print_sample1_ti (p->_buffer, et, &c1, sep, NULL);
+          sep = ",";
+        }
+        printf ("]");
+      }
+      break;
+    }
+    case DDS_XTypes_EK_COMPLETE: {
+      struct typeinfo templ = { .key = { .key = (uintptr_t) typeid } }, *info = ddsrt_hh_lookup (typecache, &templ);
+      print_sample1_to (sample, info->typeobj, c, sep, label);
+      break;
+    }
+  }
+}
+
+static void print_sample1_to (const unsigned char *sample, const DDS_XTypes_CompleteTypeObject *typeobj, struct context *c, const char *sep, const char *label)
+{
+  if (print_sample1_simple (sample, typeobj->_d, c, sep, label))
+    return;
+  switch (typeobj->_d)
+  {
+    case DDS_XTypes_TK_SEQUENCE: {
+      const DDS_XTypes_TypeIdentifier *et = &typeobj->_u.sequence_type.element.common.type;
+      const dds_sequence_t *p = align (sample, c, _Alignof (dds_sequence_t), sizeof (dds_sequence_t));
+      struct context c1 = *c; c1.offset = 0; c1.maxalign = 1;
+      printf ("%s", sep);
+      if (label) printf ("\"%s\":", label);
+      printf ("[");
+      sep = "";
+      for (uint32_t i = 0; i < p->_length; i++)
+      {
+        print_sample1_ti ((const unsigned char *) p->_buffer, et, &c1, sep, NULL);
+        sep = ",";
+        if (c1.offset % c1.maxalign)
+          c1.offset += c1.maxalign - (c1.offset % c1.maxalign);
+      }
+      printf ("]");
+      break;
+    }
+    case DDS_XTypes_TK_STRUCTURE: {
+      struct typeinfo templ = { .key = { .key = (uintptr_t) typeobj } }, *info = ddsrt_hh_lookup (typecache, &templ);
+      const DDS_XTypes_CompleteStructType *t = &typeobj->_u.struct_type;
+      const unsigned char *p = align (sample, c, info->align, info->size);;
+      printf ("%s", sep);
+      if (label) printf ("\"%s\":", label);
+      printf ("{");
+      sep = "";
+      struct context c1 = *c; c1.offset = 0; c1.maxalign = 1;
+      for (uint32_t i = 0; i < t->member_seq._length; i++)
+      {
+        const DDS_XTypes_CompleteStructMember *m = &t->member_seq._buffer[i];
+        c1.key = c->key && m->common.member_flags & DDS_XTypes_IS_KEY;
+        print_sample1_ti (p, &m->common.member_type_id, &c1, sep, *m->detail.name ? m->detail.name : NULL);
+        sep = ",";
+      }
+      printf ("}");
+      break;
+    }
+  }
+}
+
+static void print_sample (bool valid_data, const void *sample, const DDS_XTypes_CompleteTypeObject *typeobj)
+{
+  struct context c1 = { .valid_data = valid_data, .key = true, .offset = 0, .maxalign = 1 };
+  print_sample1_to (sample, typeobj, &c1, "", NULL);
+  printf ("\n");
+}
+
+// Helper function to wait for a DCPSPublication to show up with the desired topic name, then calls
+// dds_find_topic to create a topic for that data writer's type up the retrieves the type object.
 static dds_return_t get_topic_and_typeobj (const char *topic_name, dds_duration_t timeout, dds_entity_t *topic, DDS_XTypes_TypeObject **xtypeobj)
 {
   const dds_entity_t waitset = dds_create_waitset (participant);
   const dds_entity_t dcpspublication_reader = dds_create_reader (participant, DDS_BUILTIN_TOPIC_DCPSPUBLICATION, NULL, NULL);
   const dds_entity_t dcpspublication_readcond = dds_create_readcondition (dcpspublication_reader, DDS_ANY_STATE);
-  const dds_entity_t dcpssubscription_reader = dds_create_reader (participant, DDS_BUILTIN_TOPIC_DCPSSUBSCRIPTION, NULL, NULL);
-  const dds_entity_t dcpssubscription_readcond = dds_create_readcondition (dcpssubscription_reader, DDS_ANY_STATE);
-  (void) dds_waitset_attach (waitset, dcpspublication_readcond, dcpspublication_reader);
-  (void) dds_waitset_attach (waitset, dcpssubscription_readcond, dcpssubscription_reader);
+  (void) dds_waitset_attach (waitset, dcpspublication_readcond, 0);
   const dds_time_t abstimeout = (timeout == DDS_INFINITY) ? DDS_NEVER : dds_time () + timeout;
   dds_return_t ret = DDS_RETCODE_OK;
   *xtypeobj = NULL;
-  struct ppc ppc;
-  ppc_init (&ppc);
-  dds_attach_t triggered_reader_x;
-  while (*xtypeobj == NULL && dds_waitset_wait_until (waitset, &triggered_reader_x, 1, abstimeout) > 0)
+  while (*xtypeobj == NULL && dds_waitset_wait_until (waitset, NULL, 0, abstimeout) > 0)
   {
     void *epraw = NULL;
     dds_sample_info_t si;
-    dds_entity_t triggered_reader = (dds_entity_t) triggered_reader_x;
-    if (dds_take (triggered_reader, &epraw, &si, 1, 1) <= 0)
+    if (dds_take (dcpspublication_reader, &epraw, &si, 1, 1) <= 0)
       continue;
     dds_builtintopic_endpoint_t *ep = epraw;
     const dds_typeinfo_t *typeinfo = NULL;
@@ -81,47 +386,43 @@ static dds_return_t get_topic_and_typeobj (const char *topic_name, dds_duration_
       // as an approximation of the topic QoS.
       if ((*topic = dds_find_topic (DDS_FIND_SCOPE_GLOBAL, participant, ep->topic_name, typeinfo, DDS_SECS (2))) < 0)
       {
-        fprintf (stderr, "dds_find_topic: %s ... continuing on the assumption that topic discovery is disabled\n", dds_strretcode (*topic));
+        fprintf (stderr, "dds_find_topic: %s ... continuing on the assumptions that topic discovery is disabled\n", dds_strretcode (*topic));
         dds_topic_descriptor_t *descriptor;
         if ((ret = dds_create_topic_descriptor(DDS_FIND_SCOPE_GLOBAL, participant, typeinfo, DDS_SECS (10), &descriptor)) < 0)
         {
           fprintf (stderr, "dds_create_topic_descriptor: %s\n", dds_strretcode (ret));
-          dds_return_loan (triggered_reader, &epraw, 1);
+          dds_return_loan (dcpspublication_reader, &epraw, 1);
           goto error;
         }
         if ((*topic = dds_create_topic (participant, descriptor, ep->topic_name, ep->qos, NULL)) < 0)
         {
           fprintf (stderr, "dds_create_topic_descriptor: %s (be sure to enable topic discovery in the configuration)\n", dds_strretcode (*topic));
           dds_delete_topic_descriptor (descriptor);
-          dds_return_loan (triggered_reader, &epraw, 1);
+          dds_return_loan (dcpspublication_reader, &epraw, 1);
           goto error;
         }
         dds_delete_topic_descriptor (descriptor);
       }
       // The topic suffices for creating a reader, but we also need the TypeObject to make sense of the data
-      if ((*xtypeobj = load_type_with_deps (participant, typeinfo, &ppc)) == NULL)
+      dds_typeobj_t *typeobj;
+      DDS_XTypes_TypeInformation const * const xtypeinfo = (DDS_XTypes_TypeInformation *) typeinfo;
+      if ((ret = dds_get_typeobj (participant, (const dds_typeid_t *) &xtypeinfo->complete.typeid_with_size.type_id, 0, &typeobj)) < 0)
       {
-        fprintf (stderr, "loading type with all dependencies failed\n");
-        dds_return_loan (triggered_reader, &epraw, 1);
+        fprintf (stderr, "dds_get_typeobj: %s\n", dds_strretcode (ret));
+        dds_return_loan (dcpspublication_reader, &epraw, 1);
         goto error;
       }
-      if (load_type_with_deps_min (participant, typeinfo, &ppc) == NULL)
-      {
-        fprintf (stderr, "loading minimal type with all dependencies failed\n");
-        dds_return_loan (triggered_reader, &epraw, 1);
-        goto error;
-      }
+      *xtypeobj = (DDS_XTypes_TypeObject *) typeobj;
     }
-    dds_return_loan (triggered_reader, &epraw, 1);
+    dds_return_loan (dcpspublication_reader, &epraw, 1);
   }
   if (*xtypeobj)
   {
     // If we got the type object, populate the type cache
     size_t align, size;
     build_typecache_to (&(*xtypeobj)->_u.complete, &align, &size);
-    fflush (stdout);
     struct typeinfo templ = { .key = { .key = (uintptr_t) *xtypeobj } } , *info;
-    if ((info = type_cache_lookup (&templ)) != NULL)
+    if ((info = ddsrt_hh_lookup (typecache, &templ)) != NULL)
     {
       assert (info->release == NULL);
       info->release = *xtypeobj;
@@ -130,14 +431,12 @@ static dds_return_t get_topic_and_typeobj (const char *topic_name, dds_duration_
     {
       // not sure whether this is at all possible
       info = malloc (sizeof (*info));
-      assert (info);
       *info = (struct typeinfo){ .key = { .key = (uintptr_t) *xtypeobj }, .typeobj = &(*xtypeobj)->_u.complete, .release = *xtypeobj, .align = align, .size = size };
-      type_cache_add (info);
+      ddsrt_hh_add (typecache, info);
     }
   }
 error:
   dds_delete (dcpspublication_reader);
-  dds_delete (dcpssubscription_reader);
   dds_delete (waitset);
   return (*xtypeobj != NULL) ? DDS_RETCODE_OK : DDS_RETCODE_TIMEOUT;
 }
@@ -146,10 +445,7 @@ int main (int argc, char **argv)
 {
   dds_return_t ret = 0;
   dds_entity_t topic = 0;
-
-  // for printf("%ls")
-  setlocale (LC_CTYPE, "");
-
+  
   if (argc != 2)
   {
     fprintf (stderr, "usage: %s topicname\n", argv[0]);
@@ -162,10 +458,10 @@ int main (int argc, char **argv)
     fprintf (stderr, "dds_create_participant: %s\n", dds_strretcode (participant));
     return 1;
   }
-
+  
   // The one magic step: get a topic and type object ...
   DDS_XTypes_TypeObject *xtypeobj;
-  type_cache_init ();
+  typecache = ddsrt_hh_new (1, typecache_hash, typecache_equal);
   if ((ret = get_topic_and_typeobj (argv[1], DDS_SECS (10), &topic, &xtypeobj)) < 0)
   {
     fprintf (stderr, "get_topic_and_typeobj: %s\n", dds_strretcode (ret));
@@ -194,7 +490,8 @@ int main (int argc, char **argv)
   }
 
  error:
-  type_cache_free ();
+  ddsrt_hh_enum (typecache, free_typeinfo, NULL);
+  ddsrt_hh_free (typecache);
   dds_delete (participant);
   return ret < 0;
 }

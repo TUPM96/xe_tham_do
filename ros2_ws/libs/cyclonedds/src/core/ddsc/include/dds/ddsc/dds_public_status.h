@@ -1,12 +1,14 @@
-// Copyright(c) 2006 to 2019 ZettaScale Technology and others
-//
-// This program and the accompanying materials are made available under the
-// terms of the Eclipse Public License v. 2.0 which is available at
-// http://www.eclipse.org/legal/epl-2.0, or the Eclipse Distribution License
-// v. 1.0 which is available at
-// http://www.eclipse.org/org/documents/edl-v10.php.
-//
-// SPDX-License-Identifier: EPL-2.0 OR BSD-3-Clause
+/*
+ * Copyright(c) 2006 to 2019 ZettaScale Technology and others
+ *
+ * This program and the accompanying materials are made available under the
+ * terms of the Eclipse Public License v. 2.0 which is available at
+ * http://www.eclipse.org/legal/epl-2.0, or the Eclipse Distribution License
+ * v. 1.0 which is available at
+ * http://www.eclipse.org/org/documents/edl-v10.php.
+ *
+ * SPDX-License-Identifier: EPL-2.0 OR BSD-3-Clause
+ */
 
 /**
  * @defgroup dcps_status (DDS C Communication Status API)
@@ -195,14 +197,13 @@ dds_inconsistent_topic_status_t;
 
 /**
  * @ingroup dcps_status_getters
- * @component entity_status
  * @brief Get INCONSISTENT_TOPIC status
  *
  * This operation gets the status value corresponding to INCONSISTENT_TOPIC
  * and reset the status. The value can be obtained, only if the status is enabled for an entity.
  * NULL value for status is allowed and it will reset the trigger value when status is enabled.
  *
- * @param[in]  topic  The topic entity to get the status
+ * @param[in]  topic  The entity to get the status
  * @param[out] status The pointer to @ref dds_inconsistent_topic_status_t to get the status
  *
  * @returns  0 - Success
@@ -224,14 +225,13 @@ dds_get_inconsistent_topic_status (
 
 /**
  * @ingroup dcps_status_getters
- * @component entity_status
  * @brief Get PUBLICATION_MATCHED status
  *
  * This operation gets the status value corresponding to PUBLICATION_MATCHED
  * and reset the status. The value can be obtained, only if the status is enabled for an entity.
  * NULL value for status is allowed and it will reset the trigger value when status is enabled.
  *
- * @param[in]  writer  The writer entity to get the status
+ * @param[in]  writer  The entity to get the status
  * @param[out] status  The pointer to @ref dds_publication_matched_status_t to get the status
  *
  * @returns  0 - Success
@@ -253,14 +253,13 @@ dds_get_publication_matched_status (
 
 /**
  * @ingroup dcps_status_getters
- * @component entity_status
  * @brief Get LIVELINESS_LOST status
  *
  * This operation gets the status value corresponding to LIVELINESS_LOST
  * and reset the status. The value can be obtained, only if the status is enabled for an entity.
  * NULL value for status is allowed and it will reset the trigger value when status is enabled.
  *
- * @param[in]  writer  The writer entity to get the status
+ * @param[in]  writer  The entity to get the status
  * @param[out] status  The pointer to @ref dds_liveliness_lost_status_t to get the status
  *
  * @returns  0 - Success
@@ -282,14 +281,13 @@ dds_get_liveliness_lost_status (
 
 /**
  * @ingroup dcps_status_getters
- * @component entity_status
  * @brief Get OFFERED_DEADLINE_MISSED status
  *
  * This operation gets the status value corresponding to OFFERED_DEADLINE_MISSED
  * and reset the status. The value can be obtained, only if the status is enabled for an entity.
  * NULL value for status is allowed and it will reset the trigger value when status is enabled.
  *
- * @param[in]  writer  The writer entity to get the status
+ * @param[in]  writer  The entity to get the status
  * @param[out] status  The pointer to @ref dds_offered_deadline_missed_status_t to get the status
  *
  * @returns  0 - Success
@@ -311,7 +309,6 @@ dds_get_offered_deadline_missed_status(
 
 /**
  * @ingroup dcps_status_getters
- * @component entity_status
  * @brief Get OFFERED_INCOMPATIBLE_QOS status
  *
  * This operation gets the status value corresponding to OFFERED_INCOMPATIBLE_QOS
@@ -340,7 +337,6 @@ dds_get_offered_incompatible_qos_status (
 
 /**
  * @ingroup dcps_status_getters
- * @component entity_status
  * @brief Get SUBSCRIPTION_MATCHED status
  *
  * This operation gets the status value corresponding to SUBSCRIPTION_MATCHED
@@ -369,14 +365,13 @@ dds_get_subscription_matched_status (
 
 /**
  * @ingroup dcps_status_getters
- * @component entity_status
  * @brief Get LIVELINESS_CHANGED status
  *
  * This operation gets the status value corresponding to LIVELINESS_CHANGED
  * and reset the status. The value can be obtained, only if the status is enabled for an entity.
  * NULL value for status is allowed and it will reset the trigger value when status is enabled.
  *
- * @param[in]  reader  The reader entity to get the status
+ * @param[in]  reader  The entity to get the status
  * @param[out] status  The pointer to @ref dds_liveliness_changed_status_t to get the status
  *
  * @returns  0 - Success
@@ -398,14 +393,13 @@ dds_get_liveliness_changed_status (
 
 /**
  * @ingroup dcps_status_getters
- * @component entity_status
  * @brief Get SAMPLE_REJECTED status
  *
  * This operation gets the status value corresponding to SAMPLE_REJECTED
  * and reset the status. The value can be obtained, only if the status is enabled for an entity.
  * NULL value for status is allowed and it will reset the trigger value when status is enabled.
  *
- * @param[in]  reader  The reader entity to get the status
+ * @param[in]  reader  The entity to get the status
  * @param[out] status  The pointer to @ref dds_sample_rejected_status_t to get the status
  *
  * @returns  0 - Success
@@ -427,14 +421,13 @@ dds_get_sample_rejected_status (
 
 /**
  * @ingroup dcps_status_getters
- * @component entity_status
  * @brief Get SAMPLE_LOST status
  *
  * This operation gets the status value corresponding to SAMPLE_LOST
  * and reset the status. The value can be obtained, only if the status is enabled for an entity.
  * NULL value for status is allowed and it will reset the trigger value when status is enabled.
  *
- * @param[in]  reader  The reader entity to get the status
+ * @param[in]  reader  The entity to get the status
  * @param[out] status  The pointer to @ref dds_sample_lost_status_t to get the status
  *
  * @returns A dds_return_t indicating success or failure
@@ -457,14 +450,13 @@ dds_get_sample_lost_status (
 
 /**
  * @ingroup dcps_status_getters
- * @component entity_status
  * @brief Get REQUESTED_DEADLINE_MISSED status
  *
  * This operation gets the status value corresponding to REQUESTED_DEADLINE_MISSED
  * and reset the status. The value can be obtained, only if the status is enabled for an entity.
  * NULL value for status is allowed and it will reset the trigger value when status is enabled.
  *
- * @param[in]  reader  The reader entity to get the status
+ * @param[in]  reader  The entity to get the status
  * @param[out] status  The pointer to @ref dds_requested_deadline_missed_status_t to get the status
  *
  * @returns A dds_return_t indicating success or failure
@@ -487,14 +479,13 @@ dds_get_requested_deadline_missed_status (
 
 /**
  * @ingroup dcps_status_getters
- * @component entity_status
  * @brief Get REQUESTED_INCOMPATIBLE_QOS status
  *
  * This operation gets the status value corresponding to REQUESTED_INCOMPATIBLE_QOS
  * and reset the status. The value can be obtained, only if the status is enabled for an entity.
  * NULL value for status is allowed and it will reset the trigger value when status is enabled.
  *
- * @param[in]  reader  The reader entity to get the status
+ * @param[in]  reader  The entity to get the status
  * @param[out] status  The pointer to @ref dds_requested_incompatible_qos_status_t to get the status
  *
  * @returns A dds_return_t indicating success or failure

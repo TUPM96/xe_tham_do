@@ -8,7 +8,7 @@
 
 #include "dds/ddsrt/static_assert.h"
 #include "dds/ddsrt/misc.h"
-#include "dds/ddsi/ddsi_config.h"
+#include "dds/ddsi/ddsi_config_impl.h"
 #include "dds/features.h"
 
 #include "_confgen.h"
@@ -94,6 +94,9 @@ void gendef_pf_networkAddresses (FILE *out, void *parent, struct cfgelem const *
   char *** const p = cfg_address (parent, cfgelem);
   if (*p != 0)
   {
+    int n = 0;
+    for (int i = 0; (*p)[i] != NULL; i++)
+      n++;
     fprintf (out, "  static char *%s_init_[] = {\n", cfgelem->membername);
     for (int i = 0; (*p)[i] != NULL; i++)
       fprintf (out, "    \"%s\",\n", (*p)[i]);
@@ -146,12 +149,6 @@ void gendef_pf_uint (FILE *out, void *parent, struct cfgelem const * const cfgel
 void gendef_pf_duration (FILE *out, void *parent, struct cfgelem const * const cfgelem) {
   gendef_pf_int64 (out, parent, cfgelem);
 }
-void gendef_pf_maybe_duration (FILE *out, void *parent, struct cfgelem const * const cfgelem) {
-  struct ddsi_config_maybe_duration const * const p = cfg_address (parent, cfgelem);
-  fprintf (out, "  cfg->%s.isdefault = %d;\n", cfgelem->membername, p->isdefault);
-  if (!p->isdefault)
-    fprintf (out, "  cfg->%s.value = INT64_C (%"PRIu64");\n", cfgelem->membername, p->value);
-}
 void gendef_pf_domainId(FILE *out, void *parent, struct cfgelem const * const cfgelem) {
   (void) out; (void) parent; (void) cfgelem;
   // skipped on purpose: set explicitly
@@ -167,13 +164,6 @@ void gendef_pf_boolean_default (FILE *out, void *parent, struct cfgelem const * 
 }
 void gendef_pf_besmode (FILE *out, void *parent, struct cfgelem const * const cfgelem) {
   gendef_pf_int (out, parent, cfgelem);
-}
-void gendef_pf_protocol_version (FILE *out, void *parent, struct cfgelem const * const cfgelem) {
-  ddsi_protocol_version_t * const p = cfg_address (parent, cfgelem);
-  fprintf (out, "\
-  cfg->%s.major = %d;\n\
-  cfg->%s.minor = %d;\n",
-             cfgelem->membername, p->major, cfgelem->membername, p->minor);
 }
 void gendef_pf_retransmit_merging (FILE *out, void *parent, struct cfgelem const * const cfgelem) {
   gendef_pf_int (out, parent, cfgelem);
@@ -199,14 +189,6 @@ void gendef_pf_standards_conformance (FILE *out, void *parent, struct cfgelem co
 }
 void gendef_pf_shm_loglevel (FILE *out, void *parent, struct cfgelem const * const cfgelem) {
   gendef_pf_int (out, parent, cfgelem);
-}
-void gendef_pf_uint32_array (FILE *out, void *parent, struct cfgelem const * const cfgelem) {
-  (void) out;
-  struct ddsi_config_uint32_array const * const p = cfg_address (parent, cfgelem);
-  if (p->n != 0) {
-    fprintf (stderr, "generate_defconfig internal error: non-empty uint32_array not handled\n");
-    abort ();
-  }
 }
 
 static void gen_defaults (FILE *out, void *parent, struct cfgelem const * const cfgelem)
@@ -255,7 +237,7 @@ static void gen_defaults (FILE *out, void *parent, struct cfgelem const * const 
 int printdefconfig (FILE *out, struct cfgelem *elem)
 {
   struct ddsi_config cfg;
-  struct ddsi_cfgst *cfgst;
+  struct cfgst *cfgst;
 
   if ((cfgst = ddsi_config_init ("", &cfg, 0)) == NULL)
   {

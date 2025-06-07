@@ -1,13 +1,14 @@
-// Copyright(c) 2006 to 2020 ZettaScale Technology and others
-//
-// This program and the accompanying materials are made available under the
-// terms of the Eclipse Public License v. 2.0 which is available at
-// http://www.eclipse.org/legal/epl-2.0, or the Eclipse Distribution License
-// v. 1.0 which is available at
-// http://www.eclipse.org/org/documents/edl-v10.php.
-//
-// SPDX-License-Identifier: EPL-2.0 OR BSD-3-Clause
-
+/*
+ * Copyright(c) 2006 to 2020 ZettaScale Technology and others
+ *
+ * This program and the accompanying materials are made available under the
+ * terms of the Eclipse Public License v. 2.0 which is available at
+ * http://www.eclipse.org/legal/epl-2.0, or the Eclipse Distribution License
+ * v. 1.0 which is available at
+ * http://www.eclipse.org/org/documents/edl-v10.php.
+ *
+ * SPDX-License-Identifier: EPL-2.0 OR BSD-3-Clause
+ */
 #include <stdlib.h>
 #include <assert.h>
 
@@ -48,12 +49,14 @@ CU_Test(ddsrt_environ, setenv)
   rc = ddsrt_setenv(name, value);
   CU_ASSERT_EQUAL(rc, DDS_RETCODE_OK);
   ptr = getenv(name);
-  CU_ASSERT_PTR_NOT_NULL_FATAL(ptr);
+  CU_ASSERT_PTR_NOT_NULL(ptr);
+  assert (ptr != NULL); /* for the benefit of clang's static analyzer */
   CU_ASSERT_STRING_EQUAL(ptr, "bar");
   /* Ensure value is copied into the environment. */
   value[2] = 'z';
   ptr = getenv(name);
-  CU_ASSERT_PTR_NOT_NULL_FATAL(ptr);
+  CU_ASSERT_PTR_NOT_NULL(ptr);
+  assert (ptr != NULL); /* for the benefit of clang's static analyzer */
   CU_ASSERT_STRING_EQUAL(ptr, "bar");
   rc = ddsrt_setenv(name, "");
   CU_ASSERT_EQUAL(rc, DDS_RETCODE_OK);

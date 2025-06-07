@@ -1,13 +1,14 @@
-// Copyright(c) 2020 to 2021 ZettaScale Technology and others
-//
-// This program and the accompanying materials are made available under the
-// terms of the Eclipse Public License v. 2.0 which is available at
-// http://www.eclipse.org/legal/epl-2.0, or the Eclipse Distribution License
-// v. 1.0 which is available at
-// http://www.eclipse.org/org/documents/edl-v10.php.
-//
-// SPDX-License-Identifier: EPL-2.0 OR BSD-3-Clause
-
+/*
+ * Copyright(c) 2020 to 2021 ZettaScale Technology and others
+ *
+ * This program and the accompanying materials are made available under the
+ * terms of the Eclipse Public License v. 2.0 which is available at
+ * http://www.eclipse.org/legal/epl-2.0, or the Eclipse Distribution License
+ * v. 1.0 which is available at
+ * http://www.eclipse.org/org/documents/edl-v10.php.
+ *
+ * SPDX-License-Identifier: EPL-2.0 OR BSD-3-Clause
+ */
 #include <assert.h>
 #include <stdio.h>
 #include <stdlib.h>
@@ -326,27 +327,6 @@ CU_Test(idl_typedef, constructed_type)
       CU_ASSERT_FATAL(idl_is_typedef(alias));
       CU_ASSERT_PTR_EQUAL(alias->type_spec, type_spec);
     }
-    idl_delete_pstate(pstate);
-  }
-}
-
-CU_Test(idl_typedef, scoped_name)
-{
-  static const struct {
-    idl_retcode_t retcode;
-    const char *idl;
-  } tests[] = {
-    { IDL_RETCODE_OK, "module m1 { struct a { long f1; }; }; typedef m1::a b;" },
-    { IDL_RETCODE_OK, "module m1 { module m2 { struct a { long f1; }; }; }; typedef m1::m2::a b;" },
-    { IDL_RETCODE_OK, "module m1 { module m2 { struct a { long f1; }; }; typedef m2::a b; };" },
-  };
-
-  for (size_t i = 0; i < sizeof(tests)/sizeof(tests[0]); i++) {
-    idl_retcode_t ret;
-    idl_pstate_t *pstate = NULL;
-    printf("test idl: %s\n", tests[i].idl);
-    ret = parse_string(tests[i].idl, &pstate);
-    CU_ASSERT_EQUAL_FATAL(ret, tests[i].retcode);
     idl_delete_pstate(pstate);
   }
 }

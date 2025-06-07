@@ -22,9 +22,5 @@ add_executable(fuzz_handle_rtps_message fuzz_handle_rtps_message.c)
 target_include_directories(
   fuzz_handle_rtps_message PRIVATE
   "$<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/../../src/core/ddsc/src>"
-  "$<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/../../src/core/cdr/include>"
-  "$<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/../../src/core/ddsi/src>"
   "$<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/../../src/core/ddsi/include>")
-
-set_target_properties(fuzz_handle_rtps_message PROPERTIES LINKER_LANGUAGE CXX)
 target_link_libraries(fuzz_handle_rtps_message CycloneDDS::ddsc $ENV{LIB_FUZZING_ENGINE})

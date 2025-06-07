@@ -48,11 +48,7 @@ static dds_sample_info_t info[MAX_SAMPLES];
 
 static dds_entity_t waitSet;
 
-#if !DDSRT_WITH_FREERTOS && !__ZEPHYR__
 static volatile sig_atomic_t done = false;
-#else
-static bool done = false;
-#endif
 
 /* Forward declarations */
 static HandleMap * HandleMap__alloc (void);
@@ -66,13 +62,11 @@ static void process_samples(dds_entity_t reader, unsigned long long maxCycles);
 static dds_entity_t prepare_dds(dds_entity_t *reader, const char *partitionName);
 static void finalize_dds(dds_entity_t participant);
 
-#if !DDSRT_WITH_FREERTOS && !__ZEPHYR__
 static void sigint (int sig)
 {
   (void) sig;
   done = true;
 }
-#endif
 
 int main (int argc, char **argv)
 {
@@ -97,9 +91,7 @@ int main (int argc, char **argv)
 
   /* Process samples until Ctrl-C is pressed or until maxCycles */
   /* has been reached (0 = infinite) */
-#if !DDSRT_WITH_FREERTOS && !__ZEPHYR__
   signal (SIGINT, sigint);
-#endif
   process_samples(reader, maxCycles);
 
   (void) dds_set_status_mask (reader, 0);
@@ -323,7 +315,7 @@ static dds_entity_t prepare_dds(dds_entity_t *reader, const char *partitionName)
   int32_t maxSamples = 4000;
   const char *subParts[1];
   dds_qos_t *subQos = dds_create_qos ();
-  dds_qos_t *tQos = dds_create_qos ();
+  dds_qos_t *drQos = dds_create_qos ();
 
   /* A Participant is created for the default domain. */
 
@@ -333,10 +325,7 @@ static dds_entity_t prepare_dds(dds_entity_t *reader, const char *partitionName)
 
   /* A Topic is created for our sample type on the domain participant. */
 
-  dds_qset_reliability (tQos, DDS_RELIABILITY_RELIABLE, DDS_SECS (10));
-  dds_qset_history (tQos, DDS_HISTORY_KEEP_ALL, 0);
-  dds_qset_resource_limits (tQos, maxSamples, DDS_LENGTH_UNLIMITED, DDS_LENGTH_UNLIMITED);
-  topic = dds_create_topic (participant, &ThroughputModule_DataType_desc, "Throughput", tQos, NULL);
+  topic = dds_create_topic (participant, &ThroughputModule_DataType_desc, "Throughput", NULL, NULL);
   if (topic < 0)
     DDS_FATAL("dds_create_topic: %s\n", dds_strretcode(-topic));
 
@@ -349,13 +338,16 @@ static dds_entity_t prepare_dds(dds_entity_t *reader, const char *partitionName)
     DDS_FATAL("dds_create_subscriber: %s\n", dds_strretcode(-subscriber));
   dds_delete_qos (subQos);
 
-  /* A Listener is created which is triggered when data is available to read */
+  /* A Reader is created on the Subscriber & Topic with a modified Qos. */
+
+  dds_qset_reliability (drQos, DDS_RELIABILITY_RELIABLE, DDS_SECS (10));
+  dds_qset_history (drQos, DDS_HISTORY_KEEP_ALL, 0);
+  dds_qset_resource_limits (drQos, maxSamples, DDS_LENGTH_UNLIMITED, DDS_LENGTH_UNLIMITED);
 
   rd_listener = dds_create_listener(NULL);
   dds_lset_data_available(rd_listener, data_available_handler);
 
-  /* A Waitset is created which is triggered when data is available to read */
-
+  /* A Read Condition is created which is triggered when data is available to read */
   waitSet = dds_create_waitset (participant);
   if (waitSet < 0)
     DDS_FATAL("dds_create_waitset: %s\n", dds_strretcode(-waitSet));
@@ -372,9 +364,7 @@ static dds_entity_t prepare_dds(dds_entity_t *reader, const char *partitionName)
     samples[i] = &data[i];
   }
 
-  /* A Reader is created on the Subscriber & Topic and attached to Waitset */
-
-  *reader = dds_create_reader (subscriber, topic, NULL, pollingDelay < 0 ? rd_listener : NULL);
+  *reader = dds_create_reader (subscriber, topic, drQos, pollingDelay < 0 ? rd_listener : NULL);
   if (*reader < 0)
     DDS_FATAL("dds_create_reader: %s\n", dds_strretcode(-*reader));
 
@@ -385,7 +375,7 @@ static dds_entity_t prepare_dds(dds_entity_t *reader, const char *partitionName)
       DDS_FATAL("dds_waitset_attach: %s\n", dds_strretcode(-status));
   }
 
-  dds_delete_qos (tQos);
+  dds_delete_qos (drQos);
   dds_delete_listener(rd_listener);
 
   return participant;

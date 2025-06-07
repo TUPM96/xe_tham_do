@@ -19,7 +19,6 @@
 
 #include "idl/string.h"
 #include "idl/processor.h"
-#include "idl/heap.h"
 #include "annotation.h"
 #include "expression.h"
 #include "scope.h"
@@ -33,7 +32,6 @@ _Pragma("GCC diagnostic ignored \"-Wsign-conversion\"")
 _Pragma("GCC diagnostic ignored \"-Wmissing-prototypes\"")
 #if (__GNUC__ >= 10)
 _Pragma("GCC diagnostic ignored \"-Wanalyzer-free-of-non-heap\"")
-_Pragma("GCC diagnostic ignored \"-Wanalyzer-malloc-leak\"")
 #endif
 #endif
 
@@ -118,7 +116,6 @@ void idl_yypstate_delete_stack(idl_yypstate *yyps);
   idl_type_spec_t *type_spec;
   idl_sequence_t *sequence;
   idl_string_t *string;
-  idl_wstring_t *wstring;
   /* declarations */
   idl_definition_t *definition;
   idl_module_t *module_dcl;
@@ -167,9 +164,9 @@ void idl_yypstate_delete_stack(idl_yypstate *yyps);
 %type <type_spec> type_spec simple_type_spec template_type_spec
                   switch_type_spec const_type annotation_member_type
                   any_const_type struct_inherit_spec
-%type <literal> literal positive_int_const fixed_array_size fixed_array_sizes
+%type <literal> literal positive_int_const fixed_array_size
 %type <const_expr> const_expr or_expr xor_expr and_expr shift_expr add_expr
-                   mult_expr unary_expr primary_expr
+                   mult_expr unary_expr primary_expr fixed_array_sizes
                    annotation_member_default
 %type <kind> shift_operator add_operator mult_operator unary_operator base_type_spec floating_pt_type integer_type
              signed_int unsigned_int char_type wide_char_type boolean_type
@@ -180,7 +177,6 @@ void idl_yypstate_delete_stack(idl_yypstate *yyps);
 %type <string_literal> string_literal
 %type <sequence> sequence_type
 %type <string> string_type
-%type <wstring> wstring_type
 %type <module_dcl> module_dcl module_header
 %type <struct_dcl> struct_def struct_header
 %type <member> members member struct_body
@@ -204,7 +200,7 @@ void idl_yypstate_delete_stack(idl_yypstate *yyps);
                               annotation_appl_keyword_param
                               annotation_appl_keyword_params
 
-%destructor { idl_free($$); } <string_literal>
+%destructor { free($$); } <string_literal>
 
 %destructor { idl_delete_name($$); }
   <name>
@@ -216,7 +212,7 @@ void idl_yypstate_delete_stack(idl_yypstate *yyps);
   <type_spec> <const_expr>
 
 %destructor { idl_delete_node($$); } <node> <literal> <sequence>
-                                     <string> <wstring> <module_dcl> <struct_dcl> <member> <union_dcl>
+                                     <string> <module_dcl> <struct_dcl> <member> <union_dcl>
                                      <_case> <case_label> <enum_dcl> <enumerator> <bitmask_dcl> <bit_value> <declarator> <typedef_dcl>
                                      <const_dcl> <annotation> <annotation_member> <annotation_appl> <annotation_appl_param> <forward>
                                      <switch_type_spec>
@@ -345,7 +341,7 @@ const_dcl:
       { TRY(idl_create_const(pstate, LOC(@1.first, @5.last), $2, $3, $5, &$$)); }
   ;
 
-const_type: /* no wstring/wchar here: seems not worth the effort */
+const_type:
     integer_type
       { TRY(idl_create_base_type(pstate, &@1, $1, &$$)); }
   | floating_pt_type
@@ -548,7 +544,6 @@ _Pragma("GCC diagnostic pop")
         TRY(idl_create_literal(pstate, &@1, IDL_STRING, &$$));
         $$->value.str = $1;
       }
-  /* wstring, wchar do not seem worth the effort */
   ;
 
 boolean_literal:
@@ -574,7 +569,7 @@ string_literal:
         /* adjacent string literals are concatenated */
         n1 = strlen($1);
         n2 = strlen($2);
-        if (!($$ = idl_realloc($1, n1+n2+1)))
+        if (!($$ = realloc($1, n1+n2+1)))
           NO_MEMORY();
         memmove($$+n1, $2, n2);
         $$[n1+n2] = '\0';
@@ -669,7 +664,6 @@ octet_type:
 template_type_spec:
     sequence_type { $$ = $1; }
   | string_type   { $$ = $1; }
-  | wstring_type  { $$ = $1; }
   ;
 
 sequence_type:
@@ -684,13 +678,6 @@ string_type:
       { TRY(idl_create_string(pstate, LOC(@1.first, @4.last), $3, &$$)); }
   | "string"
       { TRY(idl_create_string(pstate, LOC(@1.first, @1.last), NULL, &$$)); }
-  ;
-
-wstring_type:
-    "wstring" '<' positive_int_const '>'
-      { TRY(idl_create_wstring(pstate, LOC(@1.first, @4.last), $3, &$$)); }
-  | "wstring"
-      { TRY(idl_create_wstring(pstate, LOC(@1.first, @1.last), NULL, &$$)); }
   ;
 
 constr_type_dcl:
@@ -759,7 +746,7 @@ members:
 member:
     annotations type_spec declarators ';'
       { TRY(idl_create_member(pstate, LOC(@2.first, @4.last), $2, $3, &$$));
-        TRY_EXCEPT(idl_annotate(pstate, $$, $1), idl_free($$));
+        TRY_EXCEPT(idl_annotate(pstate, $$, $1), free($$));
       }
   ;
 
@@ -848,7 +835,7 @@ element_spec:
        as defined in [XTypes v1.3] Table 21 */
     annotations type_spec declarator
       { TRY(idl_create_case(pstate, LOC(@1.first, @3.last), $2, $3, &$$));
-        TRY_EXCEPT(idl_annotate(pstate, $$, $1), idl_free($$));
+        TRY_EXCEPT(idl_annotate(pstate, $$, $1), free($$));
       }
   ;
 
@@ -869,7 +856,7 @@ enumerators:
 enumerator:
     annotations identifier
       { TRY(idl_create_enumerator(pstate, &@2, $2, &$$));
-        TRY_EXCEPT(idl_annotate(pstate, $$, $1), idl_free($$));
+        TRY_EXCEPT(idl_annotate(pstate, $$, $1), free($$));
       }
   ;
 
@@ -890,7 +877,7 @@ bit_values:
 bit_value:
     annotations identifier
       { TRY(idl_create_bit_value(pstate, &@2, $2, &$$));
-        TRY_EXCEPT(idl_annotate(pstate, $$, $1), idl_free($$));
+        TRY_EXCEPT(idl_annotate(pstate, $$, $1), free($$));
       }
   ;
 
@@ -961,10 +948,8 @@ identifier:
         else if (!(n = ($1[0] == '_')) && idl_iskeyword(pstate, $1, nocase))
           SEMANTIC_ERROR(&@1, "Identifier '%s' collides with a keyword", $1);
 
-        if (pstate->parser.state != IDL_PARSE_UNKNOWN_ANNOTATION_APPL_PARAMS) {
-          bool is_annotation = pstate->parser.state == IDL_PARSE_ANNOTATION || pstate->parser.state == IDL_PARSE_ANNOTATION_APPL;
-          TRY(idl_create_name(pstate, &@1, idl_strdup($1+n), is_annotation, &$$));
-        }
+        if (pstate->parser.state != IDL_PARSE_UNKNOWN_ANNOTATION_APPL_PARAMS)
+          TRY(idl_create_name(pstate, &@1, idl_strdup($1+n), &$$));
       }
   ;
 

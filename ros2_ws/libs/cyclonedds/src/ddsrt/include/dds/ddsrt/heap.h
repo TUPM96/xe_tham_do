@@ -1,13 +1,14 @@
-// Copyright(c) 2006 to 2019 ZettaScale Technology and others
-//
-// This program and the accompanying materials are made available under the
-// terms of the Eclipse Public License v. 2.0 which is available at
-// http://www.eclipse.org/legal/epl-2.0, or the Eclipse Distribution License
-// v. 1.0 which is available at
-// http://www.eclipse.org/org/documents/edl-v10.php.
-//
-// SPDX-License-Identifier: EPL-2.0 OR BSD-3-Clause
-
+/*
+ * Copyright(c) 2006 to 2019 ZettaScale Technology and others
+ *
+ * This program and the accompanying materials are made available under the
+ * terms of the Eclipse Public License v. 2.0 which is available at
+ * http://www.eclipse.org/legal/epl-2.0, or the Eclipse Distribution License
+ * v. 1.0 which is available at
+ * http://www.eclipse.org/org/documents/edl-v10.php.
+ *
+ * SPDX-License-Identifier: EPL-2.0 OR BSD-3-Clause
+ */
 /**
  * @file heap.h
  * @brief Heap memory management.
@@ -25,21 +26,6 @@
 #if defined (__cplusplus)
 extern "C" {
 #endif
-
-typedef struct ddsrt_allocation_ops {
-  void* (*malloc)  (size_t size);
-  void* (*calloc)  (size_t count, size_t size);
-  void* (*realloc) (void *memblk, size_t size);
-  void  (*free)    (void *ptr);
-} ddsrt_allocation_ops_t;
-
-/// @brief Set the memory allocators
-///
-/// Set the functions to malloc, calloc, realloc, and free memory. By default
-/// the functions of `stdlib` will be used.
-DDS_EXPORT void
-ddsrt_set_allocator(
-  ddsrt_allocation_ops_t custom_ops);
 
 /**
  * @brief Allocate memory from heap.

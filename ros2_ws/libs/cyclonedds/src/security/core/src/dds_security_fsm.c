@@ -1,13 +1,14 @@
-// Copyright(c) 2006 to 2022 ZettaScale Technology and others
-//
-// This program and the accompanying materials are made available under the
-// terms of the Eclipse Public License v. 2.0 which is available at
-// http://www.eclipse.org/legal/epl-2.0, or the Eclipse Distribution License
-// v. 1.0 which is available at
-// http://www.eclipse.org/org/documents/edl-v10.php.
-//
-// SPDX-License-Identifier: EPL-2.0 OR BSD-3-Clause
-
+/*
+ * Copyright(c) 2006 to 2022 ZettaScale Technology and others
+ *
+ * This program and the accompanying materials are made available under the
+ * terms of the Eclipse Public License v. 2.0 which is available at
+ * http://www.eclipse.org/legal/epl-2.0, or the Eclipse Distribution License
+ * v. 1.0 which is available at
+ * http://www.eclipse.org/org/documents/edl-v10.php.
+ *
+ * SPDX-License-Identifier: EPL-2.0 OR BSD-3-Clause
+ */
 #include <string.h>
 #include <assert.h>
 #include <stdbool.h>
@@ -18,7 +19,7 @@
 #include "dds/ddsrt/retcode.h"
 #include "dds/ddsrt/time.h"
 #include "dds/ddsrt/fibheap.h"
-#include "dds/ddsi/ddsi_thread.h"
+#include "dds/ddsi/q_thread.h"
 #include "dds/security/core/dds_security_fsm.h"
 
 
@@ -64,7 +65,7 @@ struct dds_security_fsm_control
 {
   ddsrt_mutex_t lock;
   ddsrt_cond_t cond;
-  struct ddsi_thread_state *thrst;
+  struct thread_state *thrst;
   struct ddsi_domaingv *gv;
   struct dds_security_fsm *first_fsm;
   struct dds_security_fsm *last_fsm;
@@ -267,6 +268,7 @@ static void fsm_state_change (struct dds_security_fsm_control *control, struct f
 static void fsm_handle_timeout (struct dds_security_fsm_control *control, struct fsm_timer_event *timer_event)
 {
   struct dds_security_fsm *fsm = timer_event->fsm;
+
   switch (timer_event->kind)
   {
   case FSM_TIMEOUT_STATE:
@@ -281,15 +283,17 @@ static void fsm_handle_timeout (struct dds_security_fsm_control *control, struct
       ddsrt_cond_broadcast(&control->cond);
     break;
   }
+
+  /* mark timer event as being processed */
+  timer_event->endtime = DDS_NEVER;
 }
 
-static uint32_t handle_events (void *vcontrol)
+static uint32_t handle_events (struct dds_security_fsm_control *control)
 {
-  struct dds_security_fsm_control * const control = vcontrol;
-  struct ddsi_thread_state * const thrst = ddsi_lookup_thread_state ();
+  struct thread_state * const thrst = lookup_thread_state ();
   struct fsm_event *event;
 
-  ddsi_thread_state_awake (thrst, control->gv);
+  thread_state_awake (thrst, control->gv);
   ddsrt_mutex_lock (&control->lock);
   while (control->running)
   {
@@ -304,21 +308,19 @@ static uint32_t handle_events (void *vcontrol)
 
       if (timeout > dds_time ())
       {
-        ddsi_thread_state_asleep (thrst);
+        thread_state_asleep (thrst);
         (void)ddsrt_cond_waituntil (&control->cond, &control->lock, timeout);
-        ddsi_thread_state_awake (thrst, control->gv);
+        thread_state_awake (thrst, control->gv);
       }
       else
       {
         struct fsm_timer_event *timer_event = ddsrt_fibheap_extract_min (&timer_events_fhdef, &control->timers);
-        /* set endtime to NEVER to maintain the invariant that (on heap) <=> (endtime != NEVER) */
-        timer_event->endtime = DDS_NEVER;
         fsm_handle_timeout (control, timer_event);
       }
     }
   }
   ddsrt_mutex_unlock (&control->lock);
-  ddsi_thread_state_asleep (thrst);
+  thread_state_asleep (thrst);
   return 0;
 }
 
@@ -556,7 +558,7 @@ dds_return_t dds_security_fsm_control_start (struct dds_security_fsm_control *co
   assert(control);
 
   control->running = true;
-  rc = ddsi_create_thread (&control->thrst, control->gv, fsm_name, (uint32_t (*) (void *)) handle_events, control);
+  rc = create_thread (&control->thrst, control->gv, fsm_name, (uint32_t (*) (void *)) handle_events, control);
 
   return rc;
 }
@@ -571,6 +573,6 @@ void dds_security_fsm_control_stop (struct dds_security_fsm_control *control)
   ddsrt_cond_broadcast (&control->cond);
   ddsrt_mutex_unlock (&control->lock);
 
-  ddsi_join_thread (control->thrst);
+  join_thread (control->thrst);
   control->thrst = NULL;
 }

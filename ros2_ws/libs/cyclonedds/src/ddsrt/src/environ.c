@@ -1,13 +1,14 @@
-// Copyright(c) 2006 to 2020 ZettaScale Technology and others
-//
-// This program and the accompanying materials are made available under the
-// terms of the Eclipse Public License v. 2.0 which is available at
-// http://www.eclipse.org/legal/epl-2.0, or the Eclipse Distribution License
-// v. 1.0 which is available at
-// http://www.eclipse.org/org/documents/edl-v10.php.
-//
-// SPDX-License-Identifier: EPL-2.0 OR BSD-3-Clause
-
+/*
+ * Copyright(c) 2006 to 2020 ZettaScale Technology and others
+ *
+ * This program and the accompanying materials are made available under the
+ * terms of the Eclipse Public License v. 2.0 which is available at
+ * http://www.eclipse.org/legal/epl-2.0, or the Eclipse Distribution License
+ * v. 1.0 which is available at
+ * http://www.eclipse.org/org/documents/edl-v10.php.
+ *
+ * SPDX-License-Identifier: EPL-2.0 OR BSD-3-Clause
+ */
 #include <stdio.h>
 #include <ctype.h>
 #include <stdlib.h>
@@ -44,15 +45,15 @@ static const char * expand_lookup_env(const char *name, void * data)
     return env;
 }
 
-char *ddsrt_expand_envvars_sh (const char *string, uint32_t domid)
+char *ddsrt_expand_envvars_sh (const char *src0, uint32_t domid)
 {
     struct expand_env_data env = { .domid = domid, .idstr = "" };
-    return ddsrt_expand_vars_sh(string, &expand_lookup_env, &env);
+    return ddsrt_expand_vars_sh(src0, &expand_lookup_env, &env);
 }
 
-char *ddsrt_expand_envvars (const char *string, uint32_t domid)
+char *ddsrt_expand_envvars (const char *src0, uint32_t domid)
 {
     struct expand_env_data env = { .domid = domid, .idstr = "" };
-    return ddsrt_expand_vars(string, &expand_lookup_env, &env);
+    return ddsrt_expand_vars(src0, &expand_lookup_env, &env);
 }
 

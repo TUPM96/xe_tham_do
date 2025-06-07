@@ -1,13 +1,14 @@
-// Copyright(c) 2006 to 2022 ZettaScale Technology and others
-//
-// This program and the accompanying materials are made available under the
-// terms of the Eclipse Public License v. 2.0 which is available at
-// http://www.eclipse.org/legal/epl-2.0, or the Eclipse Distribution License
-// v. 1.0 which is available at
-// http://www.eclipse.org/org/documents/edl-v10.php.
-//
-// SPDX-License-Identifier: EPL-2.0 OR BSD-3-Clause
-
+/*
+ * Copyright(c) 2006 to 2022 ZettaScale Technology and others
+ *
+ * This program and the accompanying materials are made available under the
+ * terms of the Eclipse Public License v. 2.0 which is available at
+ * http://www.eclipse.org/legal/epl-2.0, or the Eclipse Distribution License
+ * v. 1.0 which is available at
+ * http://www.eclipse.org/org/documents/edl-v10.php.
+ *
+ * SPDX-License-Identifier: EPL-2.0 OR BSD-3-Clause
+ */
 /**
  * @file threads.h
  * @brief Thread management and creation.
@@ -58,7 +59,7 @@ extern "C" {
 /**
  * @brief Definition for a thread routine invoked on thread create.
  */
-typedef uint32_t (*ddsrt_thread_routine_t)(void* p);
+typedef uint32_t (*ddsrt_thread_routine_t)(void*);
 
 /**
  * @brief Definition of the thread attributes
@@ -68,9 +69,6 @@ typedef struct {
   ddsrt_sched_t schedClass;
   /** Specifies the thread priority */
   int32_t schedPriority;
-  /** Specifies thread affinity, N = 0, Set = NULL or N > 0 and Set[0..N-1] contains N CPU ids */
-  uint32_t schedAffinityN;
-  uint32_t *schedAffinitySet;
   /** Specifies the thread stack size */
   uint32_t stackSize;
 } ddsrt_threadattr_t;
@@ -184,7 +182,7 @@ ddsrt_thread_join(
  */
 DDS_EXPORT size_t
 ddsrt_thread_getname(
-  char *name,
+  char *__restrict name,
   size_t size);
 
 /**
@@ -198,7 +196,7 @@ ddsrt_thread_getname(
 #if DDSRT_HAVE_THREAD_SETNAME
 DDS_EXPORT void
 ddsrt_thread_setname(
-  const char *name);
+  const char *__restrict name);
 #endif
 
 #if DDSRT_HAVE_THREAD_LIST
@@ -220,7 +218,7 @@ ddsrt_thread_setname(
  * @retval DDS_RETCODE_UNSUPPORTED
  *             Not supported on the platform
  */
-DDS_EXPORT dds_return_t ddsrt_thread_list (ddsrt_thread_list_id_t *tids, size_t size);
+DDS_EXPORT dds_return_t ddsrt_thread_list (ddsrt_thread_list_id_t * __restrict tids, size_t size);
 
 /**
  * @brief Get the name of the specified thread (in the calling process)
@@ -245,7 +243,7 @@ DDS_EXPORT dds_return_t ddsrt_thread_list (ddsrt_thread_list_id_t *tids, size_t 
  * @retval DDS_RETCODE_UNSUPPORTED
  *             Not supported on the platform
  */
-DDS_EXPORT dds_return_t ddsrt_thread_getname_anythread (ddsrt_thread_list_id_t tid, char *name, size_t size);
+DDS_EXPORT dds_return_t ddsrt_thread_getname_anythread (ddsrt_thread_list_id_t tid, char *__restrict name, size_t size);
 #endif
 
 /**
@@ -260,7 +258,7 @@ DDS_EXPORT dds_return_t ddsrt_thread_getname_anythread (ddsrt_thread_list_id_t t
  */
 DDS_EXPORT dds_return_t
 ddsrt_thread_cleanup_push(
-  void (*routine)(void* p),
+  void (*routine)(void*),
   void *arg);
 
 /**

@@ -1,13 +1,14 @@
-// Copyright(c) 2006 to 2022 ZettaScale Technology and others
-//
-// This program and the accompanying materials are made available under the
-// terms of the Eclipse Public License v. 2.0 which is available at
-// http://www.eclipse.org/legal/epl-2.0, or the Eclipse Distribution License
-// v. 1.0 which is available at
-// http://www.eclipse.org/org/documents/edl-v10.php.
-//
-// SPDX-License-Identifier: EPL-2.0 OR BSD-3-Clause
-
+/*
+ * Copyright(c) 2006 to 2022 ZettaScale Technology and others
+ *
+ * This program and the accompanying materials are made available under the
+ * terms of the Eclipse Public License v. 2.0 which is available at
+ * http://www.eclipse.org/legal/epl-2.0, or the Eclipse Distribution License
+ * v. 1.0 which is available at
+ * http://www.eclipse.org/org/documents/edl-v10.php.
+ *
+ * SPDX-License-Identifier: EPL-2.0 OR BSD-3-Clause
+ */
 #include "sockets_priv.h"
 #include "dds/ddsrt/cdtors.h"
 #include "dds/ddsrt/threads.h"
@@ -107,7 +108,7 @@ CU_Test(ddsrt_select, duration_to_timeval)
 typedef struct {
   dds_duration_t delay;
   dds_duration_t skew;
-  ddsrt_socket_ext_t sockext;
+  ddsrt_socket_t sock;
 } thread_arg_t;
 
 static void
@@ -161,13 +162,13 @@ static uint32_t select_timeout_routine(void *ptr)
 #if LWIP_SOCKET
   DDSRT_WARNING_GNUC_OFF(sign-conversion)
 #endif
-  FD_SET(arg->sockext.sock, &rdset);
+  FD_SET(arg->sock, &rdset);
 #if LWIP_SOCKET
   DDSRT_WARNING_GNUC_ON(sign-conversion)
 #endif
 
   before = dds_time();
-  rc = ddsrt_select(arg->sockext.sock + 1, &rdset, NULL, NULL, arg->delay);
+  rc = ddsrt_select(arg->sock + 1, &rdset, NULL, NULL, arg->delay);
   after = dds_time();
   delay = after - before;
 
@@ -198,7 +199,7 @@ CU_Test(ddsrt_select, timeout)
      confidence that time calculation is not completely broken, it is by
      no means proof that time calculation is entirely correct! */
   arg.skew = DDS_MSECS(1000);
-  ddsrt_socket_ext_init (&arg.sockext, socks[0]);
+  arg.sock = socks[0];
 
   fprintf (stderr, "create thread\n");
   ddsrt_threadattr_init(&attr);
@@ -216,7 +217,6 @@ CU_Test(ddsrt_select, timeout)
   CU_ASSERT_EQUAL_FATAL(rc, DDS_RETCODE_OK);
   CU_ASSERT_EQUAL(res, 1);
 
-  ddsrt_socket_ext_fini (&arg.sockext);
   (void)ddsrt_close(socks[0]);
   (void)ddsrt_close(socks[1]);
 }
@@ -233,14 +233,14 @@ static uint32_t recv_routine(void *ptr)
 #if LWIP_SOCKET
   DDSRT_WARNING_GNUC_OFF(sign-conversion)
 #endif
-  FD_SET(arg->sockext.sock, &rdset);
+  FD_SET(arg->sock, &rdset);
 #if LWIP_SOCKET
   DDSRT_WARNING_GNUC_ON(sign-conversion)
 #endif
 
-  (void)ddsrt_select(arg->sockext.sock + 1, &rdset, NULL, NULL, arg->delay);
+  (void)ddsrt_select(arg->sock + 1, &rdset, NULL, NULL, arg->delay);
 
-  if (ddsrt_recv(arg->sockext.sock, buf, sizeof(buf), 0, &rcvd) == DDS_RETCODE_OK) {
+  if (ddsrt_recv(arg->sock, buf, sizeof(buf), 0, &rcvd) == DDS_RETCODE_OK) {
     return (rcvd == sizeof(mesg) && memcmp(buf, mesg, sizeof(mesg)) == 0);
   }
 
@@ -260,7 +260,7 @@ CU_Test(ddsrt_select, send_recv)
 
   arg.delay = DDS_SECS(1);
   arg.skew = 0;
-  ddsrt_socket_ext_init (&arg.sockext, socks[0]);
+  arg.sock = socks[0];
 
   ddsrt_threadattr_init(&attr);
   rc = ddsrt_thread_create(&thr, "recv", &attr, &recv_routine, &arg);
@@ -275,7 +275,6 @@ CU_Test(ddsrt_select, send_recv)
   CU_ASSERT_EQUAL(rc, DDS_RETCODE_OK);
   CU_ASSERT_EQUAL(res, 1);
 
-  ddsrt_socket_ext_fini (&arg.sockext);
   (void)ddsrt_close(socks[0]);
   (void)ddsrt_close(socks[1]);
 }
@@ -300,14 +299,14 @@ static uint32_t recvmsg_routine(void *ptr)
 #if LWIP_SOCKET
   DDSRT_WARNING_GNUC_OFF(sign-conversion)
 #endif
-  FD_SET(arg->sockext.sock, &rdset);
+  FD_SET(arg->sock, &rdset);
 #if LWIP_SOCKET
   DDSRT_WARNING_GNUC_ON(sign-conversion)
 #endif
 
-  (void)ddsrt_select(arg->sockext.sock + 1, &rdset, NULL, NULL, arg->delay);
+  (void)ddsrt_select(arg->sock + 1, &rdset, NULL, NULL, arg->delay);
 
-  if (ddsrt_recvmsg(&arg->sockext, &msg, 0, &rcvd) == DDS_RETCODE_OK) {
+  if (ddsrt_recvmsg(arg->sock, &msg, 0, &rcvd) == DDS_RETCODE_OK) {
     return (rcvd == sizeof(mesg) && memcmp(buf, mesg, sizeof(mesg)) == 0);
   }
 
@@ -326,7 +325,7 @@ CU_Test(ddsrt_select, sendmsg_recvmsg)
   sockets_pipe(socks);
 
   memset(&arg, 0, sizeof(arg));
-  ddsrt_socket_ext_init (&arg.sockext, socks[0]);
+  arg.sock = socks[0];
 
   ddsrt_threadattr_init(&attr);
   rc = ddsrt_thread_create(&thr, "recvmsg", &attr, &recvmsg_routine, &arg);
@@ -349,7 +348,6 @@ CU_Test(ddsrt_select, sendmsg_recvmsg)
   CU_ASSERT_EQUAL_FATAL(rc, DDS_RETCODE_OK);
   CU_ASSERT_EQUAL(res, 1);
 
-  ddsrt_socket_ext_fini (&arg.sockext);
   (void)ddsrt_close(socks[0]);
   (void)ddsrt_close(socks[1]);
 }

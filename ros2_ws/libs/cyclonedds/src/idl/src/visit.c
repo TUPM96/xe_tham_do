@@ -1,18 +1,18 @@
-// Copyright(c) 2021 ZettaScale Technology and others
-//
-// This program and the accompanying materials are made available under the
-// terms of the Eclipse Public License v. 2.0 which is available at
-// http://www.eclipse.org/legal/epl-2.0, or the Eclipse Distribution License
-// v. 1.0 which is available at
-// http://www.eclipse.org/org/documents/edl-v10.php.
-//
-// SPDX-License-Identifier: EPL-2.0 OR BSD-3-Clause
-
+/*
+ * Copyright(c) 2021 ZettaScale Technology and others
+ *
+ * This program and the accompanying materials are made available under the
+ * terms of the Eclipse Public License v. 2.0 which is available at
+ * http://www.eclipse.org/legal/epl-2.0, or the Eclipse Distribution License
+ * v. 1.0 which is available at
+ * http://www.eclipse.org/org/documents/edl-v10.php.
+ *
+ * SPDX-License-Identifier: EPL-2.0 OR BSD-3-Clause
+ */
 #include <assert.h>
 #include <string.h>
 #include <stdlib.h>
 
-#include "idl/heap.h"
 #include "idl/processor.h"
 
 static idl_accept_t idl_accept(const void *node)
@@ -22,8 +22,6 @@ static idl_accept_t idl_accept(const void *node)
     return IDL_ACCEPT_SEQUENCE;
   if ((mask & IDL_STRING) == IDL_STRING)
     return IDL_ACCEPT_STRING;
-  if ((mask & IDL_WSTRING) == IDL_WSTRING)
-    return IDL_ACCEPT_WSTRING;
   if (mask & IDL_INHERIT_SPEC)
     return IDL_ACCEPT_INHERIT_SPEC;
   if (mask & IDL_SWITCH_TYPE_SPEC)
@@ -93,14 +91,14 @@ static const idl_node_t *push(struct stack *stack, const idl_node_t *node)
     size_t size = stack->size + 10;
     uint32_t *flags = NULL;
     const idl_node_t **nodes = NULL;
-    if (!(flags = idl_realloc(stack->flags, size*sizeof(*flags))))
+    if (!(flags = realloc(stack->flags, size*sizeof(*flags))))
       return NULL;
     stack->flags = flags;
 #if _MSC_VER
 __pragma(warning(push))
 __pragma(warning(disable: 4090))
 #endif
-    if (!(nodes = idl_realloc(stack->path.nodes, size*sizeof(*nodes))))
+    if (!(nodes = realloc(stack->path.nodes, size*sizeof(*nodes))))
       return NULL;
 #if _MSC_VER
 __pragma(warning(pop))
@@ -256,15 +254,15 @@ idl_visit(
 __pragma(warning(push))
 __pragma(warning(disable: 4090))
 #endif
-  if (stack.flags)      idl_free(stack.flags);
-  if (stack.path.nodes) idl_free(stack.path.nodes);
+  if (stack.flags)      free(stack.flags);
+  if (stack.path.nodes) free(stack.path.nodes);
   return IDL_RETCODE_OK;
 err_push:
   ret = IDL_RETCODE_NO_MEMORY;
 err_visit:
 err_revisit:
-  if (stack.flags)      idl_free(stack.flags);
-  if (stack.path.nodes) idl_free(stack.path.nodes);
+  if (stack.flags)      free(stack.flags);
+  if (stack.path.nodes) free(stack.path.nodes);
   return ret;
 #if _MSC_VER
 __pragma(warning(pop))

@@ -1,13 +1,14 @@
-// Copyright(c) 2006 to 2022 ZettaScale Technology and others
-//
-// This program and the accompanying materials are made available under the
-// terms of the Eclipse Public License v. 2.0 which is available at
-// http://www.eclipse.org/legal/epl-2.0, or the Eclipse Distribution License
-// v. 1.0 which is available at
-// http://www.eclipse.org/org/documents/edl-v10.php.
-//
-// SPDX-License-Identifier: EPL-2.0 OR BSD-3-Clause
-
+/*
+ * Copyright(c) 2006 to 2022 ZettaScale Technology and others
+ *
+ * This program and the accompanying materials are made available under the
+ * terms of the Eclipse Public License v. 2.0 which is available at
+ * http://www.eclipse.org/legal/epl-2.0, or the Eclipse Distribution License
+ * v. 1.0 which is available at
+ * http://www.eclipse.org/org/documents/edl-v10.php.
+ *
+ * SPDX-License-Identifier: EPL-2.0 OR BSD-3-Clause
+ */
 #include <stddef.h>
 #include <ctype.h>
 #include <assert.h>
@@ -18,14 +19,16 @@
 #include "dds/ddsrt/mh3.h"
 #include "dds/ddsrt/hopscotch.h"
 #include "dds/ddsrt/string.h"
-#include "dds/ddsi/ddsi_freelist.h"
+#include "dds/ddsi/q_bswap.h"
+#include "dds/ddsi/ddsi_config_impl.h"
+#include "dds/ddsi/q_freelist.h"
 #include "dds/ddsi/ddsi_iid.h"
+#include "dds/ddsi/ddsi_plist_generic.h"
 #include "dds/ddsi/ddsi_sertype.h"
 #include "dds/ddsi/ddsi_serdata.h"
+#include "dds/ddsi/ddsi_serdata_default.h"
+#include "dds/ddsi/ddsi_serdata_pserop.h"
 #include "dds/ddsi/ddsi_domaingv.h"
-#include "ddsi__plist_generic.h"
-#include "ddsi__serdata_pserop.h"
-#include "dds/cdr/dds_cdrstream.h"
 
 #ifndef _WIN32
 void ddsi_sertype_v0 (struct ddsi_sertype_v0 *dummy)
@@ -44,7 +47,7 @@ bool ddsi_sertype_equal (const struct ddsi_sertype *a, const struct ddsi_sertype
     return false;
   if (a->serdata_ops != b->serdata_ops)
     return false;
-  if (a->has_key != b->has_key)
+  if (a->typekind_no_key != b->typekind_no_key)
     return false;
   return a->ops->equal (a, b);
 }
@@ -53,7 +56,7 @@ uint32_t ddsi_sertype_hash (const struct ddsi_sertype *a)
 {
   uint32_t h;
   h = ddsrt_mh3 (a->type_name, strlen (a->type_name), a->serdata_basehash);
-  h ^= a->serdata_basehash ^ (uint32_t) a->has_key;
+  h ^= a->serdata_basehash ^ (uint32_t) a->typekind_no_key;
   return h ^ a->ops->hash (a);
 }
 
@@ -91,7 +94,7 @@ void ddsi_sertype_register_locked (struct ddsi_domaingv *gv, struct ddsi_sertype
   ddsrt_hh_add_absent (gv->sertypes, sertype);
 }
 
-static void ddsi_sertype_unref_locked (struct ddsi_domaingv * const gv, struct ddsi_sertype *sertype)
+void ddsi_sertype_unref_locked (struct ddsi_domaingv * const gv, struct ddsi_sertype *sertype)
 {
   const uint32_t flags_refc1 = ddsrt_atomic_dec32_nv (&sertype->flags_refc);
   assert (!(flags_refc1 & DDSI_SERTYPE_REGISTERED) || gv == ddsrt_atomic_ldvoidp (&sertype->gv));
@@ -163,37 +166,27 @@ void ddsi_sertype_unref (struct ddsi_sertype *sertype)
   }
 }
 
-void ddsi_sertype_init_props (struct ddsi_sertype *tp, const char *type_name, const struct ddsi_sertype_ops *sertype_ops, const struct ddsi_serdata_ops *serdata_ops, size_t sizeof_type, dds_data_type_properties_t data_type_props, uint32_t allowed_data_representation, uint32_t flags)
+void ddsi_sertype_init_flags (struct ddsi_sertype *tp, const char *type_name, const struct ddsi_sertype_ops *sertype_ops, const struct ddsi_serdata_ops *serdata_ops, uint32_t flags)
 {
   // only one version for now
   assert (sertype_ops->version == ddsi_sertype_v0);
-  assert ((flags & ~(uint32_t)DDSI_SERTYPE_PROPS_FLAG_MASK) == 0);
-  assert (sizeof_type > 0 || !(data_type_props & DDS_DATA_TYPE_IS_MEMCPY_SAFE));
-  assert (sizeof_type <= UINT32_MAX);
+  assert ((flags & ~(uint32_t)DDSI_SERTYPE_FLAG_MASK) == 0);
 
   ddsrt_atomic_st32 (&tp->flags_refc, 1);
   tp->type_name = ddsrt_strdup (type_name);
   tp->ops = sertype_ops;
   tp->serdata_ops = serdata_ops;
   tp->serdata_basehash = ddsi_sertype_compute_serdata_basehash (tp->serdata_ops);
+  tp->typekind_no_key = (flags & DDSI_SERTYPE_FLAG_TOPICKIND_NO_KEY) ? 1u : 0u;
   tp->request_keyhash = (flags & DDSI_SERTYPE_FLAG_REQUEST_KEYHASH) ? 1u : 0u;
-  tp->has_key = (data_type_props & DDS_DATA_TYPE_CONTAINS_KEY) ? 1u : 0u;
-  tp->is_memcpy_safe = (data_type_props & DDS_DATA_TYPE_IS_MEMCPY_SAFE) ? 1u : 0u;
-  tp->allowed_data_representation = allowed_data_representation;
+  tp->fixed_size = (flags & DDSI_SERTYPE_FLAG_FIXED_SIZE) ? 1u : 0u;
+  tp->allowed_data_representation = DDS_DATA_REPRESENTATION_RESTRICT_DEFAULT;
   tp->base_sertype = NULL;
-  tp->sizeof_type = (uint32_t) sizeof_type;
-  tp->data_type_props = data_type_props;
+  tp->wrapped_sertopic = NULL;
+#ifdef DDS_HAS_SHM
+  tp->iox_size = 0;
+#endif
   ddsrt_atomic_stvoidp (&tp->gv, NULL);
-}
-
-void ddsi_sertype_init_flags (struct ddsi_sertype *tp, const char *type_name, const struct ddsi_sertype_ops *sertype_ops, const struct ddsi_serdata_ops *serdata_ops, uint32_t flags)
-{
-  dds_data_type_properties_t data_type_props = 0;
-  if (!(flags & DDSI_SERTYPE_FLAG_TOPICKIND_NO_KEY))
-    data_type_props |= DDS_DATA_TYPE_CONTAINS_KEY;
-  // Discard "fixed size" flag: making use of this flag requires knowing the size
-  flags &= ~(DDSI_SERTYPE_FLAG_TOPICKIND_NO_KEY | DDSI_SERTYPE_FLAG_FIXED_SIZE);
-  ddsi_sertype_init_props (tp, type_name, sertype_ops, serdata_ops, 0, data_type_props, DDS_DATA_REPRESENTATION_RESTRICT_DEFAULT, flags);
 }
 
 void ddsi_sertype_init (struct ddsi_sertype *tp, const char *type_name, const struct ddsi_sertype_ops *sertype_ops, const struct ddsi_serdata_ops *serdata_ops, bool typekind_no_key)
@@ -222,8 +215,8 @@ uint32_t ddsi_sertype_compute_serdata_basehash (const struct ddsi_serdata_ops *o
 
 uint16_t ddsi_sertype_get_native_enc_identifier (uint32_t enc_version, uint32_t enc_format)
 {
-#define ENC_CONCAT_(a,b) (a ## b)
-#define ENC_CONCAT(id,suffix) ENC_CONCAT_(id,suffix)
+#define CONCAT_(a,b) (a ## b)
+#define CONCAT(id,suffix) CONCAT_(id,suffix)
 
 #if (DDSRT_ENDIAN == DDSRT_LITTLE_ENDIAN)
 #define SUFFIX _LE
@@ -233,34 +226,34 @@ uint16_t ddsi_sertype_get_native_enc_identifier (uint32_t enc_version, uint32_t 
 
   switch (enc_version)
   {
-    case DDSI_RTPS_CDR_ENC_VERSION_1:
-      if (enc_format == DDSI_RTPS_CDR_ENC_FORMAT_PL)
-        return ENC_CONCAT(DDSI_RTPS_PL_CDR, SUFFIX);
-      return ENC_CONCAT(DDSI_RTPS_CDR, SUFFIX);
-    case DDSI_RTPS_CDR_ENC_VERSION_2:
-      if (enc_format == DDSI_RTPS_CDR_ENC_FORMAT_PL)
-        return ENC_CONCAT(DDSI_RTPS_PL_CDR2, SUFFIX);
-      if (enc_format == DDSI_RTPS_CDR_ENC_FORMAT_DELIMITED)
-        return ENC_CONCAT(DDSI_RTPS_D_CDR2, SUFFIX);
-      return ENC_CONCAT(DDSI_RTPS_CDR2, SUFFIX);
+    case CDR_ENC_VERSION_1:
+      if (enc_format == CDR_ENC_FORMAT_PL)
+        return CONCAT(PL_CDR, SUFFIX);
+      return CONCAT(CDR, SUFFIX);
+    case CDR_ENC_VERSION_2:
+      if (enc_format == CDR_ENC_FORMAT_PL)
+        return CONCAT(PL_CDR2, SUFFIX);
+      if (enc_format == CDR_ENC_FORMAT_DELIMITED)
+        return CONCAT(D_CDR2, SUFFIX);
+      return CONCAT(CDR2, SUFFIX);
     default:
       abort (); /* unsupported */
   }
 #undef SUFFIX
-#undef ENC_CONCAT
-#undef ENC_CONCAT_
+#undef CONCAT
+#undef CONCAT_
 }
 
-uint16_t ddsi_sertype_extensibility_enc_format (enum dds_cdr_type_extensibility type_extensibility)
+uint16_t ddsi_sertype_extensibility_enc_format (enum ddsi_sertype_extensibility type_extensibility)
 {
   switch (type_extensibility)
   {
-    case DDS_CDR_TYPE_EXT_FINAL:
-      return DDSI_RTPS_CDR_ENC_FORMAT_PLAIN;
-    case DDS_CDR_TYPE_EXT_APPENDABLE:
-      return DDSI_RTPS_CDR_ENC_FORMAT_DELIMITED;
-    case DDS_CDR_TYPE_EXT_MUTABLE:
-      return DDSI_RTPS_CDR_ENC_FORMAT_PL;
+    case DDSI_SERTYPE_EXT_FINAL:
+      return CDR_ENC_FORMAT_PLAIN;
+    case DDSI_SERTYPE_EXT_APPENDABLE:
+      return CDR_ENC_FORMAT_DELIMITED;
+    case DDSI_SERTYPE_EXT_MUTABLE:
+      return CDR_ENC_FORMAT_PL;
     default:
       abort ();
   }
@@ -270,14 +263,14 @@ uint32_t ddsi_sertype_enc_id_xcdr_version (uint16_t cdr_identifier)
 {
   switch (cdr_identifier)
   {
-    case DDSI_RTPS_CDR_LE: case DDSI_RTPS_CDR_BE:
-      return DDSI_RTPS_CDR_ENC_VERSION_1;
-    case DDSI_RTPS_CDR2_LE: case DDSI_RTPS_CDR2_BE:
-    case DDSI_RTPS_D_CDR2_LE: case DDSI_RTPS_D_CDR2_BE:
-    case DDSI_RTPS_PL_CDR2_LE: case DDSI_RTPS_PL_CDR2_BE:
-      return DDSI_RTPS_CDR_ENC_VERSION_2;
+    case CDR_LE: case CDR_BE:
+      return CDR_ENC_VERSION_1;
+    case CDR2_LE: case CDR2_BE:
+    case D_CDR2_LE: case D_CDR2_BE:
+    case PL_CDR2_LE: case PL_CDR2_BE:
+      return CDR_ENC_VERSION_2;
     default:
-      return DDSI_RTPS_CDR_ENC_VERSION_UNDEF;
+      return CDR_ENC_VERSION_UNDEF;
   }
 }
 
@@ -285,13 +278,13 @@ uint32_t ddsi_sertype_enc_id_enc_format (uint16_t cdr_identifier)
 {
   switch (cdr_identifier)
   {
-    case DDSI_RTPS_CDR_LE: case DDSI_RTPS_CDR_BE:
-    case DDSI_RTPS_CDR2_LE: case DDSI_RTPS_CDR2_BE:
-      return DDSI_RTPS_CDR_ENC_FORMAT_PLAIN;
-    case DDSI_RTPS_D_CDR2_LE: case DDSI_RTPS_D_CDR2_BE:
-      return DDSI_RTPS_CDR_ENC_FORMAT_DELIMITED;
-    case DDSI_RTPS_PL_CDR2_LE: case DDSI_RTPS_PL_CDR2_BE:
-      return DDSI_RTPS_CDR_ENC_FORMAT_PL;
+    case CDR_LE: case CDR_BE:
+    case CDR2_LE: case CDR2_BE:
+      return CDR_ENC_FORMAT_PLAIN;
+    case D_CDR2_LE: case D_CDR2_BE:
+      return CDR_ENC_FORMAT_DELIMITED;
+    case PL_CDR2_LE: case PL_CDR2_BE:
+      return CDR_ENC_FORMAT_PL;
     default:
       abort ();
   }
@@ -309,5 +302,5 @@ DDS_EXPORT extern inline ddsi_typemap_t * ddsi_sertype_typemap (const struct dds
 DDS_EXPORT extern inline ddsi_typeinfo_t * ddsi_sertype_typeinfo (const struct ddsi_sertype *tp);
 DDS_EXPORT extern inline struct ddsi_sertype * ddsi_sertype_derive_sertype (const struct ddsi_sertype *base_sertype, dds_data_representation_id_t data_representation, dds_type_consistency_enforcement_qospolicy_t tce_qos);
 
-DDS_EXPORT extern inline dds_return_t ddsi_sertype_get_serialized_size(const struct ddsi_sertype *tp, enum ddsi_serdata_kind sdkind, const void *sample, size_t *size, uint16_t *enc_identifier);
-DDS_EXPORT extern inline bool ddsi_sertype_serialize_into(const struct ddsi_sertype *tp, enum ddsi_serdata_kind sdkind, const void *sample, void *dst_buffer, size_t dst_size);
+DDS_EXPORT extern inline size_t ddsi_sertype_get_serialized_size(const struct ddsi_sertype *tp, const void *sample);
+DDS_EXPORT extern inline bool ddsi_sertype_serialize_into(const struct ddsi_sertype *tp, const void *sample, void *dst_buffer, size_t dst_size);

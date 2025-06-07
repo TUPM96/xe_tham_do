@@ -1,13 +1,14 @@
-// Copyright(c) 2019 to 2020 ZettaScale Technology and others
-//
-// This program and the accompanying materials are made available under the
-// terms of the Eclipse Public License v. 2.0 which is available at
-// http://www.eclipse.org/legal/epl-2.0, or the Eclipse Distribution License
-// v. 1.0 which is available at
-// http://www.eclipse.org/org/documents/edl-v10.php.
-//
-// SPDX-License-Identifier: EPL-2.0 OR BSD-3-Clause
-
+/*
+ * Copyright(c) 2019 to 2020 ZettaScale Technology and others
+ *
+ * This program and the accompanying materials are made available under the
+ * terms of the Eclipse Public License v. 2.0 which is available at
+ * http://www.eclipse.org/legal/epl-2.0, or the Eclipse Distribution License
+ * v. 1.0 which is available at
+ * http://www.eclipse.org/org/documents/edl-v10.php.
+ *
+ * SPDX-License-Identifier: EPL-2.0 OR BSD-3-Clause
+ */
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
@@ -18,7 +19,6 @@
 #include "dds/ddsrt/heap.h"
 #include "dds/ddsrt/string.h"
 #include "dds/ddsrt/netstat.h"
-#include "dds/ddsrt/misc.h"
 
 #include "netload.h"
 
@@ -76,23 +76,18 @@ void record_netload (struct record_netload_state *st, const char *prefix, dds_ti
 
 struct record_netload_state *record_netload_new (const char *dev, double bw)
 {
-DDSRT_WARNING_MSVC_OFF(4996);
-  struct record_netload_state *st;
-  st = malloc (sizeof (*st));
-  assert (st);
+  struct record_netload_state *st = ddsrt_malloc (sizeof (*st));
   if (ddsrt_netstat_new (&st->ctrl, dev) != DDS_RETCODE_OK)
   {
-    free (st);
+    ddsrt_free (st);
     return NULL;
   }
-  st->name = strdup (dev);
-  assert (st->name);
+  st->name = ddsrt_strdup (dev);
   st->bw = bw;
   st->data_valid = false;
   st->errored = false;
   record_netload (st, "", dds_time ());
   return st;
-DDSRT_WARNING_MSVC_ON(4996);
 }
 
 void record_netload_free (struct record_netload_state *st)
@@ -100,8 +95,8 @@ void record_netload_free (struct record_netload_state *st)
   if (st)
   {
     ddsrt_netstat_free (st->ctrl);
-    free (st->name);
-    free (st);
+    ddsrt_free (st->name);
+    ddsrt_free (st);
   }
 }
 

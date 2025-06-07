@@ -9,29 +9,24 @@
 
    SPDX-License-Identifier: EPL-2.0 OR BSD-3-Clause
 
-.. _documentation_top:
+.. Eclipse Cyclone DDS documentation master file
 
-.. image:: _static/gettingstarted-figures/Cyclone_DDS_logo.svg
-
-|var-project| |var-release| documentation
-=========================================
+Welcome to Eclipse Cyclone DDS's documentation!
+===============================================
 
 .. toctree::
-   :maxdepth: 1
+   :maxdepth: 3
+   :caption: Contents
 
-   about_dds/eclipse_cyclone_dds
-   installation/installation
-   getting_started/index
-   config/index
-   examples/index
-   security/dds_security
-   shared_memory/shared_memory
+   getting_started
+   config
+   security
+   shared_memory
    ddsc
-   glossary
-   genindex
 
 Indices and tables
 ==================
 
+* :ref:`genindex`
 * :ref:`modindex`
 * :ref:`search`

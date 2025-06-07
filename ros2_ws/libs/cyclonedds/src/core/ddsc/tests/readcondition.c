@@ -1,13 +1,14 @@
-// Copyright(c) 2006 to 2021 ZettaScale Technology and others
-//
-// This program and the accompanying materials are made available under the
-// terms of the Eclipse Public License v. 2.0 which is available at
-// http://www.eclipse.org/legal/epl-2.0, or the Eclipse Distribution License
-// v. 1.0 which is available at
-// http://www.eclipse.org/org/documents/edl-v10.php.
-//
-// SPDX-License-Identifier: EPL-2.0 OR BSD-3-Clause
-
+/*
+ * Copyright(c) 2006 to 2021 ZettaScale Technology and others
+ *
+ * This program and the accompanying materials are made available under the
+ * terms of the Eclipse Public License v. 2.0 which is available at
+ * http://www.eclipse.org/legal/epl-2.0, or the Eclipse Distribution License
+ * v. 1.0 which is available at
+ * http://www.eclipse.org/org/documents/edl-v10.php.
+ *
+ * SPDX-License-Identifier: EPL-2.0 OR BSD-3-Clause
+ */
 #include "dds/dds.h"
 #include "dds/ddsrt/misc.h"
 #include "dds/ddsrt/atomics.h"
@@ -40,11 +41,11 @@
 #define SAMPLE_NO_WRITER_IST_CNT  (2)
 #define SAMPLE_LAST_READ_SST      (2)
 #define SAMPLE_LAST_OLD_VST       (3)
-#define SAMPLE_IST(idx)           (((idx % 3) == 0) ? DDS_ALIVE_INSTANCE_STATE              : \
-                                   ((idx % 3) == 1) ? DDS_NOT_ALIVE_DISPOSED_INSTANCE_STATE : \
-                                                      DDS_NOT_ALIVE_NO_WRITERS_INSTANCE_STATE )
-#define SAMPLE_VST(idx)           ((idx <= SAMPLE_LAST_OLD_VST ) ? DDS_NOT_NEW_VIEW_STATE  : DDS_NEW_VIEW_STATE)
-#define SAMPLE_SST(idx)           ((idx <= SAMPLE_LAST_READ_SST) ? DDS_READ_SAMPLE_STATE : DDS_NOT_READ_SAMPLE_STATE)
+#define SAMPLE_IST(idx)           (((idx % 3) == 0) ? DDS_IST_ALIVE              : \
+                                   ((idx % 3) == 1) ? DDS_IST_NOT_ALIVE_DISPOSED : \
+                                                      DDS_IST_NOT_ALIVE_NO_WRITERS )
+#define SAMPLE_VST(idx)           ((idx <= SAMPLE_LAST_OLD_VST ) ? DDS_VST_OLD  : DDS_VST_NEW)
+#define SAMPLE_SST(idx)           ((idx <= SAMPLE_LAST_READ_SST) ? DDS_SST_READ : DDS_SST_NOT_READ)
 
 
 static dds_entity_t g_participant;
@@ -124,12 +125,12 @@ static void readcondition_init (void)
     ret = dds_write (g_writer, &sample);
     CU_ASSERT_EQUAL_FATAL (ret, DDS_RETCODE_OK);
 
-    if (ist == DDS_NOT_ALIVE_DISPOSED_INSTANCE_STATE)
+    if (ist == DDS_IST_NOT_ALIVE_DISPOSED)
     {
       ret = dds_dispose (g_writer, &sample);
       CU_ASSERT_EQUAL_FATAL (ret, DDS_RETCODE_OK);
     }
-    if (ist == DDS_NOT_ALIVE_NO_WRITERS_INSTANCE_STATE)
+    if (ist == DDS_IST_NOT_ALIVE_NO_WRITERS)
     {
       ret = dds_unregister_instance (g_writer, &sample);
       CU_ASSERT_EQUAL_FATAL (ret, DDS_RETCODE_OK);
@@ -157,12 +158,12 @@ static void readcondition_init (void)
     ret = dds_write (g_writer, &sample);
     CU_ASSERT_EQUAL_FATAL (ret, DDS_RETCODE_OK);
 
-    if ((ist == DDS_NOT_ALIVE_DISPOSED_INSTANCE_STATE) && (i != 4))
+    if ((ist == DDS_IST_NOT_ALIVE_DISPOSED) && (i != 4))
     {
       ret = dds_dispose (g_writer, &sample);
       CU_ASSERT_EQUAL_FATAL (ret, DDS_RETCODE_OK);
     }
-    if (ist == DDS_NOT_ALIVE_NO_WRITERS_INSTANCE_STATE)
+    if (ist == DDS_IST_NOT_ALIVE_NO_WRITERS)
     {
       ret = dds_unregister_instance (g_writer, &sample);
       CU_ASSERT_EQUAL_FATAL (ret, DDS_RETCODE_OK);

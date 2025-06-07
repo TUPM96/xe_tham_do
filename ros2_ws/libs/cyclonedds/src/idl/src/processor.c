@@ -1,13 +1,14 @@
-// Copyright(c) 2021 to 2022 ZettaScale Technology and others
-//
-// This program and the accompanying materials are made available under the
-// terms of the Eclipse Public License v. 2.0 which is available at
-// http://www.eclipse.org/legal/epl-2.0, or the Eclipse Distribution License
-// v. 1.0 which is available at
-// http://www.eclipse.org/org/documents/edl-v10.php.
-//
-// SPDX-License-Identifier: EPL-2.0 OR BSD-3-Clause
-
+/*
+ * Copyright(c) 2021 to 2022 ZettaScale Technology and others
+ *
+ * This program and the accompanying materials are made available under the
+ * terms of the Eclipse Public License v. 2.0 which is available at
+ * http://www.eclipse.org/legal/epl-2.0, or the Eclipse Distribution License
+ * v. 1.0 which is available at
+ * http://www.eclipse.org/org/documents/edl-v10.php.
+ *
+ * SPDX-License-Identifier: EPL-2.0 OR BSD-3-Clause
+ */
 #include <stdlib.h>
 #include <assert.h>
 #include <errno.h>
@@ -17,7 +18,6 @@
 #include <stdbool.h>
 #include <inttypes.h>
 
-#include "idl/heap.h"
 #include "idl/processor.h"
 #include "idl/string.h"
 #include "annotation.h"
@@ -36,7 +36,7 @@ static const idl_source_t builtin_source =
 #define BUILTIN_POSITION { &builtin_source, &builtin_file, 1, 1 }
 #define BUILTIN_LOCATION { BUILTIN_POSITION, BUILTIN_POSITION }
 static const idl_name_t builtin_name =
-  { { BUILTIN_LOCATION }, "", false };
+  { { BUILTIN_LOCATION }, "" };
 
 static idl_retcode_t parse_grammar(idl_pstate_t *pstate, idl_token_t *tok);
 
@@ -89,7 +89,6 @@ parse_builtin_annotations(
           if (save) {
             name.symbol.location = token.location;
             name.identifier = token.value.str;
-            name.is_annotation = true;
           }
           /* fall through */
         case IDL_TOKEN_STRING_LITERAL:
@@ -97,7 +96,7 @@ parse_builtin_annotations(
         case IDL_TOKEN_COMMENT:
         case IDL_TOKEN_LINE_COMMENT:
           if (token.value.str && !save) {
-            idl_free(token.value.str);
+            free(token.value.str);
           }
           break;
         default:
@@ -120,7 +119,7 @@ parse_builtin_annotations(
     }
 
     if (name.identifier) {
-      idl_free(name.identifier);
+      free(name.identifier);
     }
 
     /* builtin annotations must not declare more than one annotation per block
@@ -147,7 +146,7 @@ idl_create_pstate(
   idl_pstate_t *pstate;
 
   (void)flags;
-  if (!(pstate = idl_calloc(1, sizeof(*pstate))))
+  if (!(pstate = calloc(1, sizeof(*pstate))))
     goto err_pstate;
   if (!(pstate->parser.yypstate = idl_yypstate_new()))
     goto err_yypstate;
@@ -183,7 +182,7 @@ idl_create_pstate(
 err_scope:
   idl_yypstate_delete(pstate->parser.yypstate);
 err_yypstate:
-  idl_free(pstate);
+  free(pstate);
 err_pstate:
   return IDL_RETCODE_NO_MEMORY;
 }
@@ -195,7 +194,7 @@ static void delete_source(idl_source_t *src)
   for (idl_source_t *n, *s=src; s; s = n) {
     n = s->next;
     delete_source(s->includes);
-    idl_free(s);
+    free(s);
   }
 }
 
@@ -218,20 +217,20 @@ void idl_delete_pstate(idl_pstate_t *pstate)
     for (idl_file_t *n, *f=pstate->files; f; f = n) {
       n = f->next;
       if (f->name)
-        idl_free(f->name);
-      idl_free(f);
+        free(f->name);
+      free(f);
     }
     /* paths */
     for (idl_file_t *n, *f=pstate->paths; f; f = n) {
       n = f->next;
       if (f->name)
-        idl_free(f->name);
-      idl_free(f);
+        free(f->name);
+      free(f);
     }
     /* buffer */
     if (pstate->buffer.data)
-      idl_free(pstate->buffer.data);
-    idl_free(pstate);
+      free(pstate->buffer.data);
+    free(pstate);
   }
 }
 
@@ -293,8 +292,9 @@ idl_warning(
 {
   va_list ap;
 
-  if (pstate->track_warning && !pstate->track_warning(warning))
-    return;
+  for (size_t n = 0; n < pstate->config.n_disable_warnings; n++)
+    if (pstate->config.disable_warnings[n] == warning)
+      return;
 
   va_start(ap, fmt);
   idl_log(pstate, IDL_LC_WARNING, loc, fmt, ap);
@@ -536,7 +536,7 @@ grammar:
         ret = parse_grammar(pstate, &tok);
       }
     }
-    /* idl_free memory associated with token value */
+    /* free memory associated with token value */
     switch (tok.code) {
       case '\n':
         pstate->scanner.state = IDL_SCAN;
@@ -547,7 +547,7 @@ grammar:
       case IDL_TOKEN_COMMENT:
       case IDL_TOKEN_LINE_COMMENT:
         if (tok.value.str)
-          idl_free(tok.value.str);
+          free(tok.value.str);
         break;
       default:
         break;

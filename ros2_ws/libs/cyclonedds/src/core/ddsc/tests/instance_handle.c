@@ -1,13 +1,14 @@
-// Copyright(c) 2020 to 2021 ZettaScale Technology and others
-//
-// This program and the accompanying materials are made available under the
-// terms of the Eclipse Public License v. 2.0 which is available at
-// http://www.eclipse.org/legal/epl-2.0, or the Eclipse Distribution License
-// v. 1.0 which is available at
-// http://www.eclipse.org/org/documents/edl-v10.php.
-//
-// SPDX-License-Identifier: EPL-2.0 OR BSD-3-Clause
-
+/*
+ * Copyright(c) 2020 to 2021 ZettaScale Technology and others
+ *
+ * This program and the accompanying materials are made available under the
+ * terms of the Eclipse Public License v. 2.0 which is available at
+ * http://www.eclipse.org/legal/epl-2.0, or the Eclipse Distribution License
+ * v. 1.0 which is available at
+ * http://www.eclipse.org/org/documents/edl-v10.php.
+ *
+ * SPDX-License-Identifier: EPL-2.0 OR BSD-3-Clause
+ */
 #include <assert.h>
 #include <limits.h>
 
@@ -36,13 +37,13 @@ static void instance_handle_init (void)
   dds_qset_history (qos, DDS_HISTORY_KEEP_LAST, 1);
   dds_qset_reliability (qos, DDS_RELIABILITY_RELIABLE, DDS_INFINITY);
   create_unique_topic_name ("instance_handle", topicname, sizeof (topicname));
-  tp[0] = dds_create_topic (dp, &InstanceHandleTypes_A_desc, topicname, qos, NULL);
+  tp[0] = dds_create_topic (dp, &InstanceHandleTypes_A_desc, topicname, NULL, NULL);
   CU_ASSERT_FATAL (tp[0] > 0);
   create_unique_topic_name ("instance_handle", topicname, sizeof (topicname));
-  tp[1] = dds_create_topic (dp, &InstanceHandleTypes_A_desc, topicname, qos, NULL);
+  tp[1] = dds_create_topic (dp, &InstanceHandleTypes_A_desc, topicname, NULL, NULL);
   CU_ASSERT_FATAL (tp[1] > 0);
   create_unique_topic_name ("instance_handle", topicname, sizeof (topicname));
-  tp[2] = dds_create_topic (dp, &InstanceHandleTypes_C_desc, topicname, qos, NULL);
+  tp[2] = dds_create_topic (dp, &InstanceHandleTypes_C_desc, topicname, NULL, NULL);
   CU_ASSERT_FATAL (tp[2] > 0);
   dds_delete_qos (qos);
   for (size_t i = 0; i < 3; i++)

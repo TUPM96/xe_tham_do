@@ -1,13 +1,14 @@
-// Copyright(c) 2006 to 2020 ZettaScale Technology and others
-//
-// This program and the accompanying materials are made available under the
-// terms of the Eclipse Public License v. 2.0 which is available at
-// http://www.eclipse.org/legal/epl-2.0, or the Eclipse Distribution License
-// v. 1.0 which is available at
-// http://www.eclipse.org/org/documents/edl-v10.php.
-//
-// SPDX-License-Identifier: EPL-2.0 OR BSD-3-Clause
-
+/*
+ * Copyright(c) 2006 to 2020 ZettaScale Technology and others
+ *
+ * This program and the accompanying materials are made available under the
+ * terms of the Eclipse Public License v. 2.0 which is available at
+ * http://www.eclipse.org/legal/epl-2.0, or the Eclipse Distribution License
+ * v. 1.0 which is available at
+ * http://www.eclipse.org/org/documents/edl-v10.php.
+ *
+ * SPDX-License-Identifier: EPL-2.0 OR BSD-3-Clause
+ */
 #ifndef DDSRT_EXPAND_VARS_H
 #define DDSRT_EXPAND_VARS_H
 
@@ -39,7 +40,7 @@ typedef const char * (*expand_lookup_fn)(const char *name, void *data);
  * @retval Pointer
  *             Copy of the string argument with the variables expanded.
  */
-char*
+DDS_EXPORT char*
 ddsrt_expand_vars(
   const char *string,
   expand_lookup_fn lookup,
@@ -64,7 +65,7 @@ ddsrt_expand_vars(
  * @retval Pointer
  *             Copy of the string argument with the variables expanded.
  */
-char*
+DDS_EXPORT char*
 ddsrt_expand_vars_sh(
   const char *string,
   expand_lookup_fn lookup,

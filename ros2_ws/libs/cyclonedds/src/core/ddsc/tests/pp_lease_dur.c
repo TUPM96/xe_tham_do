@@ -1,23 +1,25 @@
-// Copyright(c) 2022 ZettaScale Technology BV
-//
-// This program and the accompanying materials are made available under the
-// terms of the Eclipse Public License v. 2.0 which is available at
-// http://www.eclipse.org/legal/epl-2.0, or the Eclipse Distribution License
-// v. 1.0 which is available at
-// http://www.eclipse.org/org/documents/edl-v10.php.
-//
-// SPDX-License-Identifier: EPL-2.0 OR BSD-3-Clause
-
+/*
+ * Copyright(c) 2022 ZettaScale Technology BV
+ *
+ * This program and the accompanying materials are made available under the
+ * terms of the Eclipse Public License v. 2.0 which is available at
+ * http://www.eclipse.org/legal/epl-2.0, or the Eclipse Distribution License
+ * v. 1.0 which is available at
+ * http://www.eclipse.org/org/documents/edl-v10.php.
+ *
+ * SPDX-License-Identifier: EPL-2.0 OR BSD-3-Clause
+ */
 #include "dds/ddsrt/heap.h"
 #include "dds/ddsrt/io.h"
 #include "dds/ddsrt/environ.h"
+#include "dds/dds.h"
+
 #include "dds__entity.h"
-#include "dds/ddsi/ddsi_guid.h"
+#include "dds/ddsi/q_bswap.h"
+#include "dds/ddsi/q_lease.h"
 #include "dds/ddsi/ddsi_entity.h"
 #include "dds/ddsi/ddsi_proxy_participant.h"
-#include "ddsi__lease.h"
-#include "ddsi__entity_index.h"
-#include "dds/dds.h"
+#include "dds/ddsi/ddsi_entity_index.h"
 
 #include "test_common.h"
 
@@ -149,6 +151,7 @@ CU_Test(ddsc_participant_lease_duration, builtin_topic)
         if (memcmp (&ppg[i], &s->key, sizeof (s->key)) == 0)
           break;
       CU_ASSERT_FATAL (i < 3); // thanks to domain tag
+      assert (i < 3); // Clang static analyzer doesn't get CU_ASSERT_FATAL
       if (!si.valid_data)
         continue;
       nseen += !seen[i];
@@ -180,24 +183,24 @@ static bool make_pp0_deaf (const dds_entity_t pp[3], const dds_guid_t ppg[3], co
   bool lax_check = false;
   ret = dds_entity_pin (pp[0], &ppe);
   CU_ASSERT_FATAL (ret == 0);
-  ddsi_thread_state_awake (ddsi_lookup_thread_state (), &ppe->m_domain->gv);
+  thread_state_awake (lookup_thread_state (), &ppe->m_domain->gv);
   for (int i = 1; i < 3; i++)
   {
     DDSRT_STATIC_ASSERT (sizeof (dds_guid_t) == sizeof (ddsi_guid_t));
     ddsi_guid_t tmp;
     memcpy (&tmp, &ppg[i], sizeof (tmp));
-    tmp = ddsi_ntoh_guid (tmp);
-    struct ddsi_proxy_participant *proxypp = ddsi_entidx_lookup_proxy_participant_guid (ppe->m_domain->gv.entity_index, &tmp);
+    tmp = nn_ntoh_guid (tmp);
+    struct ddsi_proxy_participant *proxypp = entidx_lookup_proxy_participant_guid (ppe->m_domain->gv.entity_index, &tmp);
     if (proxypp == NULL) {
       // there's always the possibility that adverse timing means it expired just now
       lax_check = true;
     } else {
-      struct ddsi_lease *lease;
+      struct lease *lease;
       if ((lease = ddsrt_atomic_ldvoidp (&proxypp->minl_auto)) != NULL)
       {
         const int64_t old_tend = sub_tref_et ((int64_t) ddsrt_atomic_ld64 (&lease->tend), tref_et);
         const int64_t old_tsched_unsafe = sub_tref_et (((volatile ddsrt_etime_t *) &lease->tsched)->v, tref_et);
-        ddsi_lease_renew (lease, tdeaf_et);
+        lease_renew (lease, tdeaf_et);
         const int64_t new_tend = sub_tref_et ((int64_t) ddsrt_atomic_ld64 (&lease->tend), tref_et);
         const int64_t new_tsched_unsafe = sub_tref_et (((volatile ddsrt_etime_t *) &lease->tsched)->v, tref_et);
         struct guidstr gs;
@@ -206,7 +209,7 @@ static bool make_pp0_deaf (const dds_entity_t pp[3], const dds_guid_t ppg[3], co
       }
     }
   }
-  ddsi_thread_state_asleep (ddsi_lookup_thread_state ());
+  thread_state_asleep (lookup_thread_state ());
   dds_entity_unpin (ppe);
   // make pp[0] deaf
   tprintf ("making pp0 deaf @ %"PRId64"\n", sub_tref_et (tdeaf_et.v, tref_et));
@@ -271,7 +274,7 @@ static struct read_with_timeout_result read_with_timeout (dds_entity_t rd, void 
     ddsrt_log_cfg_t logcfg;
     tprintf ("%s timed out\n", whatstr);
     dds_log_cfg_init (&logcfg, 0, ~0u, stdout, stdout);
-    ddsi_log_stack_traces (&logcfg, NULL);
+    log_stack_traces (&logcfg, NULL);
     n = read_with_timeout1 (rd, raw, si, maxn, n, reqistate);
     ninst = countinst (si, n);
   }

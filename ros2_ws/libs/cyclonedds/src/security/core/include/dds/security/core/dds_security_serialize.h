@@ -1,12 +1,14 @@
-// Copyright(c) 2006 to 2019 ZettaScale Technology and others
-//
-// This program and the accompanying materials are made available under the
-// terms of the Eclipse Public License v. 2.0 which is available at
-// http://www.eclipse.org/legal/epl-2.0, or the Eclipse Distribution License
-// v. 1.0 which is available at
-// http://www.eclipse.org/org/documents/edl-v10.php.
-//
-// SPDX-License-Identifier: EPL-2.0 OR BSD-3-Clause
+/*
+ * Copyright(c) 2006 to 2019 ZettaScale Technology and others
+ *
+ * This program and the accompanying materials are made available under the
+ * terms of the Eclipse Public License v. 2.0 which is available at
+ * http://www.eclipse.org/legal/epl-2.0, or the Eclipse Distribution License
+ * v. 1.0 which is available at
+ * http://www.eclipse.org/org/documents/edl-v10.php.
+ *
+ * SPDX-License-Identifier: EPL-2.0 OR BSD-3-Clause
+ */
 
 #ifndef DDS_SECURITY_CDR_SER_H
 #define DDS_SECURITY_CDR_SER_H
@@ -56,6 +58,11 @@ DDS_EXPORT void
 DDS_Security_Serialize_BinaryPropertySeq(
      DDS_Security_Serializer serializer,
      const DDS_Security_BinaryPropertySeq *seq);
+
+DDS_EXPORT void
+DDS_Security_Serialize_DataHolderSeq(
+     DDS_Security_Serializer serializer,
+     const DDS_Security_DataHolderSeq *seq);
 
 DDS_EXPORT void
 DDS_Security_Serialize_ParticipantBuiltinTopicData(

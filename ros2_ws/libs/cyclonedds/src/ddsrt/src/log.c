@@ -1,13 +1,14 @@
-// Copyright(c) 2006 to 2021 ZettaScale Technology and others
-//
-// This program and the accompanying materials are made available under the
-// terms of the Eclipse Public License v. 2.0 which is available at
-// http://www.eclipse.org/legal/epl-2.0, or the Eclipse Distribution License
-// v. 1.0 which is available at
-// http://www.eclipse.org/org/documents/edl-v10.php.
-//
-// SPDX-License-Identifier: EPL-2.0 OR BSD-3-Clause
-
+/*
+ * Copyright(c) 2006 to 2021 ZettaScale Technology and others
+ *
+ * This program and the accompanying materials are made available under the
+ * terms of the Eclipse Public License v. 2.0 which is available at
+ * http://www.eclipse.org/legal/epl-2.0, or the Eclipse Distribution License
+ * v. 1.0 which is available at
+ * http://www.eclipse.org/org/documents/edl-v10.php.
+ *
+ * SPDX-License-Identifier: EPL-2.0 OR BSD-3-Clause
+ */
 #include <assert.h>
 #include <stdio.h>
 #include <stdint.h>
@@ -115,7 +116,7 @@ static void set_log_sink (log_sink_t *sink, dds_log_write_fn_t func, void *ptr)
      responsible for that. Ensure this operation is deterministic and that on
      return, no thread in the DDS stack still uses the deprecated sink. */
   lock_sink (WRLOCK);
-  sink->func = (func != NULL) ? func : default_sink;
+  sink->func = (func != 0) ? func : default_sink;
   sink->ptr = ptr;
   unlock_sink ();
 }
@@ -145,7 +146,7 @@ void dds_set_trace_sink (dds_log_write_fn_t callback, void *userdata)
   set_log_sink (&sinks[TRACE], callback, userdata);
 }
 
-extern inline uint32_t dds_get_log_mask (void);
+DDS_EXPORT extern inline uint32_t dds_get_log_mask (void);
 
 void dds_set_log_mask (uint32_t cats)
 {
@@ -260,20 +261,19 @@ static void vlog1 (const struct ddsrt_log_cfg_impl *cfg, uint32_t cat, uint32_t 
 
     data.priority = cat;
     data.file = file;
-    data.domid = domid;
     data.function = func;
     data.line = line;
     data.message = lb->buf + BUF_OFFSET;
     data.size = lb->pos - BUF_OFFSET - 1;
     data.hdrsize = hdrsize;
 
-    dds_log_write_fn_t f = NULL;
+    dds_log_write_fn_t f = 0;
     void *f_arg = NULL;
     if (cat & DDS_LOG_MASK)
     {
       f = sinks[LOG].func;
       f_arg = (f == default_sink) ? cfg->sink_fps[LOG] : sinks[LOG].ptr;
-      assert (f != NULL);
+      assert (f != 0);
       f (f_arg, &data);
     }
     /* if tracing is enabled, then print to trace if it matches the
@@ -283,7 +283,7 @@ static void vlog1 (const struct ddsrt_log_cfg_impl *cfg, uint32_t cat, uint32_t 
     {
       dds_log_write_fn_t const g = sinks[TRACE].func;
       void * const g_arg = (g == default_sink) ? cfg->sink_fps[TRACE] : sinks[TRACE].ptr;
-      assert (g != NULL);
+      assert (g != 0);
       if (g != f || g_arg != f_arg)
         g (g_arg, &data);
     }
@@ -316,12 +316,12 @@ void dds_log_cfg (const struct ddsrt_log_cfg *cfg, uint32_t cat, const char *fil
   }
 }
 
-void dds_log_id (uint32_t cat, uint32_t domid, const char *file, uint32_t line, const char *func, const char *fmt, ...)
+void dds_log_id (uint32_t cat, uint32_t id, const char *file, uint32_t line, const char *func, const char *fmt, ...)
 {
   if (dds_get_log_mask () & cat) {
     va_list ap;
     va_start (ap, fmt);
-    vlog (&logconfig, cat, domid, file, line, func, fmt, ap);
+    vlog (&logconfig, cat, id, file, line, func, fmt, ap);
     va_end (ap);
   }
 }

@@ -1,13 +1,14 @@
-// Copyright(c) 2019 to 2021 ZettaScale Technology and others
-//
-// This program and the accompanying materials are made available under the
-// terms of the Eclipse Public License v. 2.0 which is available at
-// http://www.eclipse.org/legal/epl-2.0, or the Eclipse Distribution License
-// v. 1.0 which is available at
-// http://www.eclipse.org/org/documents/edl-v10.php.
-//
-// SPDX-License-Identifier: EPL-2.0 OR BSD-3-Clause
-
+/*
+ * Copyright(c) 2019 to 2021 ZettaScale Technology and others
+ *
+ * This program and the accompanying materials are made available under the
+ * terms of the Eclipse Public License v. 2.0 which is available at
+ * http://www.eclipse.org/legal/epl-2.0, or the Eclipse Distribution License
+ * v. 1.0 which is available at
+ * http://www.eclipse.org/org/documents/edl-v10.php.
+ *
+ * SPDX-License-Identifier: EPL-2.0 OR BSD-3-Clause
+ */
 #define _ISOC99_SOURCE
 #include <stdio.h>
 #include <string.h>
@@ -22,7 +23,6 @@
 #include "dds/ddsrt/threads.h"
 #include "dds/ddsrt/string.h"
 #include "dds/ddsrt/rusage.h"
-#include "dds/ddsrt/misc.h"
 
 #include "cputime.h"
 #include "ddsperf_types.h"
@@ -227,20 +227,11 @@ struct record_cputime_state *record_cputime_new (dds_entity_t wr)
   char hostname[128];
   if (ddsrt_gethostname (hostname, sizeof (hostname)) != DDS_RETCODE_OK)
     strcpy (hostname, "?");
-DDSRT_WARNING_MSVC_OFF(4996);
-  state->s.hostname = strdup (hostname);
-DDSRT_WARNING_MSVC_ON(4996);
-  assert (state->s.hostname);
+  state->s.hostname = ddsrt_strdup (hostname);
   state->s.pid = (uint32_t) ddsrt_getpid ();
   state->s.cpu._length = 0;
   state->s.cpu._maximum = (uint32_t) state->nthreads;
-  if (state->s.cpu._maximum > 0)
-  {
-    state->s.cpu._buffer = malloc (state->s.cpu._maximum * sizeof (*state->s.cpu._buffer));
-    assert (state->s.cpu._buffer);
-  }
-  else
-    state->s.cpu._buffer = NULL;
+  state->s.cpu._buffer = ddsrt_malloc (state->s.cpu._maximum * sizeof (*state->s.cpu._buffer));
   state->s.cpu._release = false;
   return state;
 }
@@ -250,9 +241,9 @@ void record_cputime_free (struct record_cputime_state *state)
   if (state)
   {
     free (state->threads);
-    free (state->s.hostname);
+    ddsrt_free (state->s.hostname);
     /* we alias thread names in state->s->cpu._buffer, so no need to free */
-    free (state->s.cpu._buffer);
+    ddsrt_free (state->s.cpu._buffer);
     free (state);
   }
 }

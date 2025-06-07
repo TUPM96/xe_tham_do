@@ -1,13 +1,14 @@
-// Copyright(c) 2006 to 2020 ZettaScale Technology and others
-//
-// This program and the accompanying materials are made available under the
-// terms of the Eclipse Public License v. 2.0 which is available at
-// http://www.eclipse.org/legal/epl-2.0, or the Eclipse Distribution License
-// v. 1.0 which is available at
-// http://www.eclipse.org/org/documents/edl-v10.php.
-//
-// SPDX-License-Identifier: EPL-2.0 OR BSD-3-Clause
-
+/*
+ * Copyright(c) 2006 to 2020 ZettaScale Technology and others
+ *
+ * This program and the accompanying materials are made available under the
+ * terms of the Eclipse Public License v. 2.0 which is available at
+ * http://www.eclipse.org/legal/epl-2.0, or the Eclipse Distribution License
+ * v. 1.0 which is available at
+ * http://www.eclipse.org/org/documents/edl-v10.php.
+ *
+ * SPDX-License-Identifier: EPL-2.0 OR BSD-3-Clause
+ */
 #include <stdio.h>
 #include <stdbool.h>
 #include "CUnit/CUnit.h"
@@ -403,7 +404,7 @@ CU_Test(ddssec_fsm, create, .init = fsm_control_init, .fini = fsm_control_fini)
 {
   /* Test single running state machine. Check creation of a single State Machine */
   fsm_auth = dds_security_fsm_create (g_fsm_control, HandshakeTransistions, HandshakeTransistionsSize, &fsm_arg);
-  CU_ASSERT_FATAL (fsm_auth != NULL);
+  CU_ASSERT_FATAL (fsm_auth != NULL)
 
   /* set a delay that doesn't expire. Should be terminate when fsm is freed. */
   dds_security_fsm_set_timeout (fsm_auth, timeout_cb, DDS_SECS(30));
@@ -424,12 +425,12 @@ CU_Test(ddssec_fsm, create, .init = fsm_control_init, .fini = fsm_control_fini)
   CU_ASSERT (visited_auth == 0xff);
   ddsrt_mutex_unlock (&g_lock);
 
+  /* Check correct callback parameter passing (from fsm to user defined methods) */
+  CU_ASSERT(correct_arg && correct_fsm);
   dds_security_fsm_free (fsm_auth);
 
   /* Check whether timeout callback has NOT been invoked */
-  /* Check correct callback parameter passing (from fsm to user defined methods) */
   ddsrt_mutex_lock (&g_lock);
-  CU_ASSERT (correct_arg && correct_fsm);
   CU_ASSERT (visited_timeout == 0);
   ddsrt_mutex_unlock (&g_lock);
 }
@@ -559,7 +560,7 @@ CU_Test(ddssec_fsm, parallel_timeout, .init = fsm_control_init, .fini = fsm_cont
 CU_Test(ddssec_fsm, delete_with_timeout, .init = fsm_control_init, .fini = fsm_control_fini)
 {
   fsm_timeout = dds_security_fsm_create (g_fsm_control, timeout_transitions, timeout_transitionsSize, &fsm_arg);
-  CU_ASSERT_FATAL (fsm_timeout != NULL);
+  CU_ASSERT_FATAL (fsm_timeout != NULL)
   dds_security_fsm_start (fsm_timeout);
   ddsrt_mutex_lock (&g_lock);
   while (visited_timeout == 0)

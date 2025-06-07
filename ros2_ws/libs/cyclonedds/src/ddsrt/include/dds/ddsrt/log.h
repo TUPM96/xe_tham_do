@@ -1,13 +1,14 @@
-// Copyright(c) 2006 to 2021 ZettaScale Technology and others
-//
-// This program and the accompanying materials are made available under the
-// terms of the Eclipse Public License v. 2.0 which is available at
-// http://www.eclipse.org/legal/epl-2.0, or the Eclipse Distribution License
-// v. 1.0 which is available at
-// http://www.eclipse.org/org/documents/edl-v10.php.
-//
-// SPDX-License-Identifier: EPL-2.0 OR BSD-3-Clause
-
+/*
+ * Copyright(c) 2006 to 2021 ZettaScale Technology and others
+ *
+ * This program and the accompanying materials are made available under the
+ * terms of the Eclipse Public License v. 2.0 which is available at
+ * http://www.eclipse.org/legal/epl-2.0, or the Eclipse Distribution License
+ * v. 1.0 which is available at
+ * http://www.eclipse.org/org/documents/edl-v10.php.
+ *
+ * SPDX-License-Identifier: EPL-2.0 OR BSD-3-Clause
+ */
 
 /** @file
  *
@@ -76,24 +77,14 @@ extern "C" {
 #define DDS_LC_RHC (65536u)
 /** Include content in traces. */
 #define DDS_LC_CONTENT (131072u)
-/** Output full dump of malformed messages as warnings */
-#define DDS_LC_MALFORMED (262144u)
-/** Debug/trace messages related to sysdef parser. */
-#define DDS_LC_SYSDEF (524288u)
-/** Debug/trace messages related to qos provider. */
-#define DDS_LC_QOSPROV (1048576u)
-/** Reserved for user defined log categories (e.g. user application that uses Cyclone logger) */
-#define DDS_LC_USER1 (1u << 29)
-#define DDS_LC_USER2 (1u << 30)
-#define DDS_LC_USER3 (1u << 31)
-#define DDS_LC_USER (DDS_LC_USER1 | DDS_LC_USER2 | DDS_LC_USER3)
-
+/** Debug/trace messages related to SHMEM */
+#define DDS_LC_SHM (262144u)
 /** All common trace categories. */
 #define DDS_LC_ALL \
     (DDS_LC_FATAL | DDS_LC_ERROR | DDS_LC_WARNING | DDS_LC_INFO | \
      DDS_LC_CONFIG | DDS_LC_DISCOVERY | DDS_LC_DATA | DDS_LC_TRACE | \
      DDS_LC_TIMING | DDS_LC_TRAFFIC | DDS_LC_TCP | DDS_LC_THROTTLE | \
-     DDS_LC_CONTENT | DDS_LC_USER)
+     DDS_LC_CONTENT | DDS_LC_SHM)
 /** @}*/
 
 #define DDS_LOG_MASK \
@@ -123,7 +114,7 @@ typedef struct {
 } dds_log_data_t;
 
 /** Function signature that log and trace callbacks must adhere too. */
-typedef void (*dds_log_write_fn_t) (void * p, const dds_log_data_t * d);
+typedef void (*dds_log_write_fn_t) (void *, const dds_log_data_t *);
 
 /** Semi-opaque type for log/trace configuration. */
 struct ddsrt_log_cfg_common {
@@ -176,14 +167,14 @@ dds_set_log_mask(
 /**
  * @private
  */
-void
+DDS_EXPORT void
 dds_set_log_file(
     FILE *file);
 
 /**
  * @private
  */
-void
+DDS_EXPORT void
 dds_set_trace_file(
     FILE *file);
 
@@ -203,7 +194,7 @@ dds_set_trace_file(
  * @param[in]  userdata  User specified data passed along with each invocation
  *                       of callback.
  */
-void
+DDS_EXPORT void
 dds_set_log_sink(
     dds_log_write_fn_t callback,
     void *userdata);
@@ -224,7 +215,7 @@ dds_set_log_sink(
  * @param[in]  userdata  User specified data passed along with each invocation
  *                       of callback.
  */
-void
+DDS_EXPORT void
 dds_set_trace_sink(
     dds_log_write_fn_t callback,
     void *userdata);
@@ -253,7 +244,7 @@ dds_set_trace_sink(
  * @param[in]  log_fp         File for default sink.
  * @param[in]  trace_fp       File for default sink.
  */
-void
+DDS_EXPORT void
 dds_log_cfg_init(
     struct ddsrt_log_cfg *cfg,
     uint32_t domid,
@@ -268,10 +259,10 @@ dds_log_cfg_init(
  * Direct use of #dds_log is discouraged. Use #DDS_CINFO, #DDS_CWARNING,
  * #DDS_CERROR, #DDS_CTRACE or #DDS_CLOG instead.
  */
-void
+DDS_EXPORT void
 dds_log_cfg(
     const struct ddsrt_log_cfg *cfg,
-    uint32_t cat,
+    uint32_t prio,
     const char *file,
     uint32_t line,
     const char *func,
@@ -288,9 +279,9 @@ dds_log_cfg(
  *
  * Direct use of #dds_log_id is discouraged. Use #DDS_ILOG instead.
  */
-void
+DDS_EXPORT void
 dds_log_id(
-    uint32_t cat,
+    uint32_t prio,
     uint32_t domid,
     const char *file,
     uint32_t line,
@@ -309,7 +300,7 @@ dds_log_id(
  */
 DDS_EXPORT void
 dds_log(
-    uint32_t cat,
+    uint32_t prio,
     const char *file,
     uint32_t line,
     const char *func,

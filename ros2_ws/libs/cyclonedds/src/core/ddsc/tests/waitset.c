@@ -1,13 +1,14 @@
-// Copyright(c) 2006 to 2021 ZettaScale Technology and others
-//
-// This program and the accompanying materials are made available under the
-// terms of the Eclipse Public License v. 2.0 which is available at
-// http://www.eclipse.org/legal/epl-2.0, or the Eclipse Distribution License
-// v. 1.0 which is available at
-// http://www.eclipse.org/org/documents/edl-v10.php.
-//
-// SPDX-License-Identifier: EPL-2.0 OR BSD-3-Clause
-
+/*
+ * Copyright(c) 2006 to 2021 ZettaScale Technology and others
+ *
+ * This program and the accompanying materials are made available under the
+ * terms of the Eclipse Public License v. 2.0 which is available at
+ * http://www.eclipse.org/legal/epl-2.0, or the Eclipse Distribution License
+ * v. 1.0 which is available at
+ * http://www.eclipse.org/org/documents/edl-v10.php.
+ *
+ * SPDX-License-Identifier: EPL-2.0 OR BSD-3-Clause
+ */
 #include <assert.h>
 #include <limits.h>
 
@@ -38,7 +39,7 @@ typedef struct thread_arg_t {
 static void waiting_thread_start(struct thread_arg_t *arg, dds_entity_t expected);
 static dds_return_t waiting_thread_expect_exit(struct thread_arg_t *arg);
 
-static dds_entity_t participant, topic, writer, reader, waitset, publisher, subscriber, rdcond;
+static dds_entity_t participant, topic, writer, reader, waitset, publisher, subscriber, readcond;
 
 static void ddsc_waitset_basic_init (void)
 {
@@ -71,8 +72,8 @@ static void ddsc_waitset_init (void)
   CU_ASSERT_FATAL (reader >  0);
   writer = dds_create_writer (publisher, topic, NULL, NULL);
   CU_ASSERT_FATAL (writer >  0);
-  rdcond = dds_create_readcondition (reader, mask);
-  CU_ASSERT_FATAL (rdcond >  0);
+  readcond = dds_create_readcondition (reader, mask);
+  CU_ASSERT_FATAL (readcond >  0);
 }
 
 static void ddsc_waitset_fini (void)
@@ -140,7 +141,7 @@ CU_Theory((dds_entity_t par), ddsc_waitset_create, invalid_params, .init=ddsc_wa
 }
 
 CU_TheoryDataPoints(ddsc_waitset_create, non_participants) = {
-  CU_DataPoints(dds_entity_t*, &topic, &writer, &reader, &waitset, &publisher, &subscriber, &rdcond),
+  CU_DataPoints(dds_entity_t*, &topic, &writer, &reader, &waitset, &publisher, &subscriber, &readcond),
 };
 CU_Theory((dds_entity_t *par), ddsc_waitset_create, non_participants, .init=ddsc_waitset_init, .fini=ddsc_waitset_fini)
 {
@@ -199,8 +200,8 @@ CU_Theory((dds_entity_t ws, dds_attach_t a), ddsc_waitset_attach, invalid_waitse
 }
 
 CU_TheoryDataPoints(ddsc_waitset_attach, non_waitsets) = {
-  CU_DataPoints(dds_entity_t*, &participant, &topic, &writer, &reader,           &publisher, &subscriber, &rdcond),
-  CU_DataPoints(dds_entity_t*, &participant, &topic, &writer, &reader, &waitset, &publisher, &subscriber, &rdcond),
+  CU_DataPoints(dds_entity_t*, &participant, &topic, &writer, &reader,           &publisher, &subscriber, &readcond),
+  CU_DataPoints(dds_entity_t*, &participant, &topic, &writer, &reader, &waitset, &publisher, &subscriber, &readcond),
   CU_DataPoints(dds_attach_t,  (dds_attach_t)NULL, (dds_attach_t)&reader, (dds_attach_t)3, (dds_attach_t)0, (dds_attach_t)0, (dds_attach_t)0, (dds_attach_t)0),
 };
 CU_Theory((dds_entity_t *ws, dds_entity_t *e, dds_attach_t a), ddsc_waitset_attach, non_waitsets, .init=ddsc_waitset_init, .fini=ddsc_waitset_fini)
@@ -261,8 +262,8 @@ CU_Theory ((int owner, int ok1, int ok2, int fail), ddsc_waitset_attach, scoping
 }
 
 CU_TheoryDataPoints(ddsc_waitset_attach_detach, valid_entities) = {
-  CU_DataPoints(dds_entity_t*, &participant, &topic, &writer, &reader, &waitset, &publisher, &subscriber, &rdcond),
-  CU_DataPoints(dds_entity_t*, &participant, &topic, &writer, &reader, &waitset, &publisher, &subscriber, &rdcond),
+  CU_DataPoints(dds_entity_t*, &participant, &topic, &writer, &reader, &waitset, &publisher, &subscriber, &readcond),
+  CU_DataPoints(dds_entity_t*, &participant, &topic, &writer, &reader, &waitset, &publisher, &subscriber, &readcond),
   CU_DataPoints(dds_attach_t,  (dds_attach_t)NULL, (dds_attach_t)&reader, (dds_attach_t)3, (dds_attach_t)3, (dds_attach_t)3, (dds_attach_t)3, (dds_attach_t)3, (dds_attach_t)3),
 };
 CU_Theory((dds_entity_t *ws, dds_entity_t *e, dds_attach_t a), ddsc_waitset_attach_detach, valid_entities, .init=ddsc_waitset_init, .fini=ddsc_waitset_fini)
@@ -318,8 +319,8 @@ CU_Theory((dds_entity_t ws), ddsc_waitset_detach, invalid_waitsets, .init=ddsc_w
 }
 
 CU_TheoryDataPoints(ddsc_waitset_detach, valid_entities) = {
-  CU_DataPoints(dds_entity_t*, &participant, &topic, &writer, &reader, &waitset, &publisher, &subscriber, &rdcond),
-  CU_DataPoints(dds_entity_t*, &participant, &topic, &writer, &reader, &waitset, &publisher, &subscriber, &rdcond),
+  CU_DataPoints(dds_entity_t*, &participant, &topic, &writer, &reader, &waitset, &publisher, &subscriber, &readcond),
+  CU_DataPoints(dds_entity_t*, &participant, &topic, &writer, &reader, &waitset, &publisher, &subscriber, &readcond),
 };
 CU_Theory((dds_entity_t *ws, dds_entity_t *e), ddsc_waitset_detach, valid_entities, .init=ddsc_waitset_init, .fini=ddsc_waitset_fini)
 {
@@ -338,7 +339,7 @@ CU_Theory((dds_entity_t *ws, dds_entity_t *e), ddsc_waitset_detach, valid_entiti
 
 CU_Test(ddsc_waitset_attach_detach, various, .init=ddsc_waitset_init, .fini=ddsc_waitset_fini)
 {
-  const dds_entity_t es[] = { rdcond, writer, reader, topic, publisher, subscriber, waitset, participant };
+  const dds_entity_t es[] = { readcond, writer, reader, topic, publisher, subscriber, waitset, participant };
   dds_return_t ret;
   for (size_t i = 0; i < sizeof (es) / sizeof (es[0]); i++)
   {
@@ -354,7 +355,7 @@ CU_Test(ddsc_waitset_attach_detach, various, .init=ddsc_waitset_init, .fini=ddsc
 
 CU_Test(ddsc_waitset_attach_detach, combinations, .init=ddsc_waitset_init, .fini=ddsc_waitset_fini)
 {
-  const dds_entity_t entities[] = { rdcond, writer, reader, topic, publisher, subscriber, waitset, participant };
+  const dds_entity_t entities[] = { readcond, writer, reader, topic, publisher, subscriber, waitset, participant };
   const uint32_t count = (uint32_t) (sizeof (entities) / sizeof (entities[0]));
   dds_return_t ret;
   dds_entity_t es[MAX_ENTITIES_CNT];
@@ -447,7 +448,7 @@ CU_Test(ddsc_waitset_delete_attached, reader, .init=ddsc_waitset_init, .fini=dds
 {
   dds_entity_t es[MAX_ENTITIES_CNT];
   dds_return_t ret;
-  ret = dds_waitset_attach (waitset, rdcond, 0);
+  ret = dds_waitset_attach (waitset, readcond, 0);
   CU_ASSERT_FATAL (ret == 0);
   ret = dds_waitset_attach (waitset, reader, 1);
   CU_ASSERT_FATAL (ret == 0);
@@ -462,7 +463,7 @@ CU_Test(ddsc_waitset_delete_attached, various, .init=ddsc_waitset_init, .fini=dd
 {
   // order matters: deleting the reader will also delete readcond; deleting pub/sub will delete wr/rd
   // this order should be ok, but the number of alive entities will dwindle
-  const dds_entity_t es[] = { rdcond, writer, reader, topic, publisher, subscriber };
+  const dds_entity_t es[] = { readcond, writer, reader, topic, publisher, subscriber };
   dds_return_t ret;
   for (size_t i = 0; i < sizeof (es) / sizeof (es[0]); i++)
   {
@@ -490,7 +491,7 @@ CU_Theory((dds_entity_t ws), ddsc_waitset_set_trigger, invalid_params, .init=dds
 }
 
 CU_TheoryDataPoints(ddsc_waitset_set_trigger, non_waitsets) = {
-  CU_DataPoints(dds_entity_t*, &participant, &topic, &writer, &reader, &publisher, &subscriber, &rdcond),
+  CU_DataPoints(dds_entity_t*, &participant, &topic, &writer, &reader, &publisher, &subscriber, &readcond),
 };
 CU_Theory((dds_entity_t *ws), ddsc_waitset_set_trigger, non_waitsets, .init=ddsc_waitset_init, .fini=ddsc_waitset_fini)
 {
@@ -517,7 +518,7 @@ CU_Theory((dds_entity_t ws), ddsc_waitset_wait, invalid_waitsets, .init=ddsc_wai
 }
 
 CU_TheoryDataPoints(ddsc_waitset_wait, non_waitsets) = {
-  CU_DataPoints(dds_entity_t*, &participant, &topic, &writer, &reader, &publisher, &subscriber, &rdcond),
+  CU_DataPoints(dds_entity_t*, &participant, &topic, &writer, &reader, &publisher, &subscriber, &readcond),
 };
 CU_Theory((dds_entity_t *ws), ddsc_waitset_wait, non_waitsets, .init=ddsc_waitset_init, .fini=ddsc_waitset_fini)
 {
@@ -558,7 +559,7 @@ CU_Theory((dds_entity_t ws), ddsc_waitset_wait_until, invalid_waitsets, .init=dd
 }
 
 CU_TheoryDataPoints(ddsc_waitset_wait_until, non_waitsets) = {
-  CU_DataPoints(dds_entity_t*, &participant, &topic, &writer, &reader, &publisher, &subscriber, &rdcond),
+  CU_DataPoints(dds_entity_t*, &participant, &topic, &writer, &reader, &publisher, &subscriber, &readcond),
 };
 CU_Theory((dds_entity_t *ws), ddsc_waitset_wait_until, non_waitsets, .init=ddsc_waitset_init, .fini=ddsc_waitset_fini)
 {
@@ -653,7 +654,7 @@ CU_Theory((dds_entity_t ws), ddsc_waitset_get_entities, invalid_params, .init=dd
 }
 
 CU_TheoryDataPoints(ddsc_waitset_get_entities, non_waitsets) = {
-  CU_DataPoints(dds_entity_t*, &participant, &topic, &writer, &reader, &publisher, &subscriber, &rdcond),
+  CU_DataPoints(dds_entity_t*, &participant, &topic, &writer, &reader, &publisher, &subscriber, &readcond),
 };
 CU_Theory((dds_entity_t *ws), ddsc_waitset_get_entities, non_waitsets, .init=ddsc_waitset_attached_init, .fini=ddsc_waitset_attached_fini)
 {
@@ -721,10 +722,10 @@ CU_Test(ddsc_waitset_triggering, on_reader, .init=ddsc_waitset_attached_init, .f
 CU_Test(ddsc_waitset_triggering, on_readcondition, .init=ddsc_waitset_attached_init, .fini=ddsc_waitset_attached_fini)
 {
   dds_return_t ret;
-  ret = dds_waitset_attach (waitset, rdcond, rdcond);
+  ret = dds_waitset_attach (waitset, readcond, readcond);
   CU_ASSERT_FATAL (ret == 0);
-  check_waitset_trigger (rdcond, cw_trig_write);
-  ret = dds_waitset_detach (waitset, rdcond);
+  check_waitset_trigger (readcond, cw_trig_write);
+  ret = dds_waitset_detach (waitset, readcond);
   CU_ASSERT_FATAL (ret == 0);
 }
 

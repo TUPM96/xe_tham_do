@@ -1,12 +1,14 @@
-// Copyright(c) 2021 ZettaScale Technology and others
-//
-// This program and the accompanying materials are made available under the
-// terms of the Eclipse Public License v. 2.0 which is available at
-// http://www.eclipse.org/legal/epl-2.0, or the Eclipse Distribution License
-// v. 1.0 which is available at
-// http://www.eclipse.org/org/documents/edl-v10.php.
-//
-// SPDX-License-Identifier: EPL-2.0 OR BSD-3-Clause
+/*
+ * Copyright(c) 2021 ZettaScale Technology and others
+ *
+ * This program and the accompanying materials are made available under the
+ * terms of the Eclipse Public License v. 2.0 which is available at
+ * http://www.eclipse.org/legal/epl-2.0, or the Eclipse Distribution License
+ * v. 1.0 which is available at
+ * http://www.eclipse.org/org/documents/edl-v10.php.
+ *
+ * SPDX-License-Identifier: EPL-2.0 OR BSD-3-Clause
+ */
 
 #include <ctype.h>
 #include <stdio.h>
@@ -18,7 +20,7 @@
 #include "dds/ddsrt/sync.h"
 #include "dds/ddsrt/threads.h"
 #include "dds/ddsrt/avl.h"
-#include "ddsi__sysdeps.h"
+#include "dds/ddsi/sysdeps.h"
 #include "CUnit/Theory.h"
 
 enum loggerstate {
@@ -136,7 +138,7 @@ static void teardown (void)
 
 CU_Test (ddsi_sysdeps, log_stacktrace_self, .init = setup, .fini = teardown)
 {
-  ddsi_log_stacktrace (&logconfig, "self", ddsrt_thread_self ());
+  log_stacktrace (&logconfig, "self", ddsrt_thread_self ());
   CU_ASSERT_FATAL (loggerstate == STL_TEST_PASSED || loggerstate == STL_INIT);
 }
 
@@ -162,7 +164,7 @@ static ddsrt_avl_tree_t helper_tree = {
   &helper_node.avlnode
 };
 
-static void log_stacktrace_helper (const void *vnode, void *varg)
+static void log_stacktrace_helper (void *vnode, void *varg)
 {
   struct log_stacktrace_thread_arg * const arg = varg;
   (void) vnode;
@@ -176,7 +178,7 @@ static void log_stacktrace_helper (const void *vnode, void *varg)
 
 static uint32_t log_stacktrace_thread (void *varg)
 {
-  ddsrt_avl_const_walk (&helper_treedef, &helper_tree, log_stacktrace_helper, varg);
+  ddsrt_avl_walk (&helper_treedef, &helper_tree, log_stacktrace_helper, varg);
   return 0;
 }
 
@@ -205,7 +207,7 @@ CU_Test (ddsi_sysdeps, log_stacktrace_other, .init = setup, .fini = teardown)
   }
   ddsrt_mutex_unlock (&arg.lock);
 
-  ddsi_log_stacktrace (&logconfig, "other", tid);
+  log_stacktrace (&logconfig, "other", tid);
 
   ddsrt_mutex_lock (&arg.lock);
   arg.stop = 1;

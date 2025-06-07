@@ -1,13 +1,14 @@
-// Copyright(c) 2006 to 2021 ZettaScale Technology and others
-//
-// This program and the accompanying materials are made available under the
-// terms of the Eclipse Public License v. 2.0 which is available at
-// http://www.eclipse.org/legal/epl-2.0, or the Eclipse Distribution License
-// v. 1.0 which is available at
-// http://www.eclipse.org/org/documents/edl-v10.php.
-//
-// SPDX-License-Identifier: EPL-2.0 OR BSD-3-Clause
-
+/*
+ * Copyright(c) 2006 to 2021 ZettaScale Technology and others
+ *
+ * This program and the accompanying materials are made available under the
+ * terms of the Eclipse Public License v. 2.0 which is available at
+ * http://www.eclipse.org/legal/epl-2.0, or the Eclipse Distribution License
+ * v. 1.0 which is available at
+ * http://www.eclipse.org/org/documents/edl-v10.php.
+ *
+ * SPDX-License-Identifier: EPL-2.0 OR BSD-3-Clause
+ */
 #include <assert.h>
 
 #include "dds/ddsrt/heap.h"
@@ -17,13 +18,17 @@
 #include "dds/security/dds_security_api.h"
 #include "dds/security/core/dds_security_serialize.h"
 #include "dds/security/core/dds_security_utils.h"
-#include "dds/security/core/dds_security_shared_secret.h"
+#include "dds/security/core/shared_secret.h"
 #include "dds/security/openssl_support.h"
 #include "CUnit/CUnit.h"
 #include "CUnit/Test.h"
 #include "common/src/loader.h"
 #include "common/src/crypto_helper.h"
 #include "crypto_objects.h"
+
+#if OPENSLL_VERSION_NUMBER >= 0x10002000L
+#define AUTH_INCLUDE_EC
+#endif
 
 #define TEST_SHARED_SECRET_SIZE 32
 
@@ -55,7 +60,7 @@ static void prepare_endpoint_security_attributes(DDS_Security_EndpointSecurityAt
   attributes->plugin_endpoint_attributes |= DDS_SECURITY_PLUGIN_ENDPOINT_ATTRIBUTES_FLAG_IS_SUBMESSAGE_ENCRYPTED;
 }
 
-static void register_local_regular(void)
+static void register_local_regular()
 {
   DDS_Security_SecurityException exception = {NULL, 0, 0};
   DDS_Security_PropertySeq datareader_properties;
@@ -107,7 +112,7 @@ static void suite_register_matched_remote_datawriter_init(void)
   shared_secret_handle = (DDS_Security_SharedSecretHandle)shared_secret_handle_impl;
 
   /* Check if we actually have the validate_local_identity() function. */
-  CU_ASSERT_FATAL (crypto != NULL && crypto->crypto_key_factory != NULL && crypto->crypto_key_factory->register_local_participant != NULL);
+  CU_ASSERT_FATAL (crypto != NULL && crypto->crypto_key_factory != NULL && crypto->crypto_key_factory->register_local_participant != NULL)
   memset(&exception, 0, sizeof(DDS_Security_SecurityException));
   memset(&participant_properties, 0, sizeof(participant_properties));
 
@@ -193,10 +198,12 @@ CU_Test(ddssec_builtin_register_remote_datawriter, happy_day, .init = suite_regi
   /* A valid handle to be returned */
   CU_ASSERT_FATAL(result != 0);
   CU_ASSERT_FATAL(exception.code == DDS_SECURITY_ERR_OK_CODE);
+  assert(result != 0); // for Clang's static analyzer
 
   /* NOTE: It would be better to check if the keys have been generated but there is no interface to get them from handle */
   writer_crypto = (remote_datawriter_crypto *)result;
   CU_ASSERT_FATAL(writer_crypto->reader2writer_key_material != NULL);
+  assert(writer_crypto->reader2writer_key_material != NULL); // for Clang's static analyzer
   CU_ASSERT(master_salt_not_empty(writer_crypto->reader2writer_key_material));
   CU_ASSERT(master_key_not_empty(writer_crypto->reader2writer_key_material));
   CU_ASSERT_FATAL(writer_crypto->reader2writer_key_material->receiver_specific_key_id == 0);
@@ -248,6 +255,7 @@ CU_Test(ddssec_builtin_register_remote_datawriter, volatile_secure, .init = suit
 
   /* A valid handle to be returned */
   CU_ASSERT_FATAL(result != 0);
+  assert(result != 0); // for Clang's static analyzer
   CU_ASSERT_FATAL(((remote_datawriter_crypto *)result)->is_builtin_participant_volatile_message_secure_writer);
   CU_ASSERT_FATAL(exception.code == DDS_SECURITY_ERR_OK_CODE);
   reset_exception(&exception);
@@ -294,10 +302,12 @@ CU_Test(ddssec_builtin_register_remote_datawriter, with_origin_authentication, .
   /* A valid handle to be returned */
   CU_ASSERT_FATAL(result != 0);
   CU_ASSERT_FATAL(exception.code == DDS_SECURITY_ERR_OK_CODE);
+  assert(result != 0); // for Clang's static analyzer
 
   /* NOTE: It would be better to check if the keys have been generated but there is no interface to get them from handle */
   writer_crypto = (remote_datawriter_crypto *)result;
   CU_ASSERT_FATAL(writer_crypto->reader2writer_key_material != NULL);
+  assert(writer_crypto->reader2writer_key_material != NULL); // for Clang's static analyzer
   CU_ASSERT(master_salt_not_empty(writer_crypto->reader2writer_key_material));
   CU_ASSERT(master_key_not_empty(writer_crypto->reader2writer_key_material));
   CU_ASSERT_FATAL(writer_crypto->reader2writer_key_material->receiver_specific_key_id != 0);

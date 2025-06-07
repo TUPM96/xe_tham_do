@@ -1,13 +1,14 @@
-// Copyright(c) 2006 to 2022 ZettaScale Technology and others
-//
-// This program and the accompanying materials are made available under the
-// terms of the Eclipse Public License v. 2.0 which is available at
-// http://www.eclipse.org/legal/epl-2.0, or the Eclipse Distribution License
-// v. 1.0 which is available at
-// http://www.eclipse.org/org/documents/edl-v10.php.
-//
-// SPDX-License-Identifier: EPL-2.0 OR BSD-3-Clause
-
+/*
+ * Copyright(c) 2006 to 2022 ZettaScale Technology and others
+ *
+ * This program and the accompanying materials are made available under the
+ * terms of the Eclipse Public License v. 2.0 which is available at
+ * http://www.eclipse.org/legal/epl-2.0, or the Eclipse Distribution License
+ * v. 1.0 which is available at
+ * http://www.eclipse.org/org/documents/edl-v10.php.
+ *
+ * SPDX-License-Identifier: EPL-2.0 OR BSD-3-Clause
+ */
 #include <assert.h>
 
 #include "dds/ddsrt/bswap.h"
@@ -18,7 +19,7 @@
 #include "dds/security/dds_security_api.h"
 #include "dds/security/core/dds_security_serialize.h"
 #include "dds/security/core/dds_security_utils.h"
-#include "dds/security/core/dds_security_shared_secret.h"
+#include "dds/security/core/shared_secret.h"
 #include "dds/security/openssl_support.h"
 #include "CUnit/CUnit.h"
 #include "CUnit/Test.h"
@@ -237,7 +238,7 @@ static bool check_encoded_data(DDS_Security_OctetSeq *data, bool encrypted, stru
 
   prefix = (struct submsg_header *)ptr;
 
-  if (prefix->id != DDSI_RTPS_SMID_SRTPS_PREFIX)
+  if (prefix->id != SMID_SRTPS_PREFIX)
   {
     printf("check_encoded_data: prefix incorrect smid 0x%x02\n", prefix->id);
     goto fail_prefix;
@@ -281,7 +282,7 @@ static bool check_encoded_data(DDS_Security_OctetSeq *data, bool encrypted, stru
   if (encrypted)
   {
     body = (struct submsg_header *)ptr;
-    if (body->id != DDSI_RTPS_SMID_SEC_BODY)
+    if (body->id != SMID_SEC_BODY)
     {
       printf("check_encoded_data: submessage SEC_BODY missing\n");
       goto fail_body;
@@ -309,7 +310,7 @@ static bool check_encoded_data(DDS_Security_OctetSeq *data, bool encrypted, stru
   else
   {
     body = (struct submsg_header *)(ptr + 24); /* header after info_src */
-    if (body->id == DDSI_RTPS_SMID_SEC_BODY)
+    if (body->id == SMID_SEC_BODY)
     {
       printf("check_encoded_data: submessage SEC_BODY not expected\n");
       goto fail_body;
@@ -339,7 +340,7 @@ static bool check_encoded_data(DDS_Security_OctetSeq *data, bool encrypted, stru
 
   postfix = (struct submsg_header *)ptr;
 
-  if (postfix->id != DDSI_RTPS_SMID_SRTPS_POSTFIX)
+  if (postfix->id != SMID_SRTPS_POSTFIX)
   {
     printf("check_encoded_data: postfix invalid smid\n");
     goto fail_postfix;
@@ -604,9 +605,9 @@ static void set_remote_participant_protection_kind(DDS_Security_ParticipantCrypt
 static unsigned char submsg_header_endianness_flag (enum ddsrt_byte_order_selector bo)
 {
 #if DDSRT_ENDIAN == DDSRT_LITTLE_ENDIAN
-  return (unsigned char) ((bo == DDSRT_BOSEL_BE) ? 0 : DDSI_RTPS_SUBMESSAGE_FLAG_ENDIANNESS);
+  return (unsigned char) ((bo == DDSRT_BOSEL_BE) ? 0 : SMFLAG_ENDIANNESS);
 #else
-  return (unsigned char) ((bo == DDSRT_BOSEL_LE) ? DDSI_RTPS_SUBMESSAGE_FLAG_ENDIANNESS : 0);
+  return (unsigned char) ((bo == DDSRT_BO_LE) ? SMFLAG_ENDIANNESS : 0);
 #endif
 }
 
@@ -826,6 +827,7 @@ static void encode_rtps_message_not_authenticated(DDS_Security_CryptoTransformKi
   }
 
   CU_ASSERT_FATAL(result);
+  assert(result); // for Clang's static analyzer
   CU_ASSERT(exception.code == 0);
   CU_ASSERT(exception.message == NULL);
 
@@ -833,6 +835,7 @@ static void encode_rtps_message_not_authenticated(DDS_Security_CryptoTransformKi
 
   result = check_encoded_data(&encoded_buffer, encrypted, &header, &footer, &data);
   CU_ASSERT_FATAL(result);
+  assert(result); // for Clang's static analyzer
 
   CU_ASSERT(header->transform_identifier.transformation_kind[3] == transformation_kind);
 
@@ -959,7 +962,6 @@ static void encode_rtps_message_sign(DDS_Security_CryptoTransformKind_Enum trans
   /* Now call the function. */
 
   buffer = &plain_buffer;
-  encoded_buffer._buffer = NULL;
   while ((uint32_t) index != reader_list._length)
   {
     result = crypto->crypto_transform->encode_rtps_message(
@@ -977,17 +979,12 @@ static void encode_rtps_message_sign(DDS_Security_CryptoTransformKind_Enum trans
     }
 
     CU_ASSERT_FATAL(result);
-    assert(result);
     CU_ASSERT(exception.code == 0);
     CU_ASSERT(exception.message == NULL);
-
-    if (index == 0)
-      assert (encoded_buffer._buffer != NULL);
 
     reset_exception(&exception);
     buffer = NULL;
   }
-  assert (encoded_buffer._buffer != NULL);
 
   result = check_encoded_data(&encoded_buffer, encoded, &header, &footer, &data);
   CU_ASSERT_FATAL(result);
@@ -1093,6 +1090,7 @@ CU_Test(ddssec_builtin_encode_rtps_message, invalid_args, .init = suite_encode_r
   memset(&empty_reader_list, 0, sizeof(empty_reader_list));
 
   CU_ASSERT_FATAL(local_particpant_crypto != 0);
+  assert(local_particpant_crypto != 0); // for Clang's static analyzer
 
   register_remote_participants();
   for (i = 0; i < sizeof (remote_particpant_cryptos) / sizeof (remote_particpant_cryptos[0]); i++)
@@ -1102,6 +1100,7 @@ CU_Test(ddssec_builtin_encode_rtps_message, invalid_args, .init = suite_encode_r
   }
 
   CU_ASSERT_FATAL(remote_particpant_cryptos[0] != 0);
+  assert(remote_particpant_cryptos[0] != 0); // for Clang's static analyzer
 
   reader_list._length = reader_list._maximum = 1;
   reader_list._buffer = DDS_Security_ParticipantCryptoHandleSeq_allocbuf(1);

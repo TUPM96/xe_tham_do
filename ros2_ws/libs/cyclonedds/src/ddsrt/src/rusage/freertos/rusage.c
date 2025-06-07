@@ -1,13 +1,14 @@
-// Copyright(c) 2006 to 2019 ZettaScale Technology and others
-//
-// This program and the accompanying materials are made available under the
-// terms of the Eclipse Public License v. 2.0 which is available at
-// http://www.eclipse.org/legal/epl-2.0, or the Eclipse Distribution License
-// v. 1.0 which is available at
-// http://www.eclipse.org/org/documents/edl-v10.php.
-//
-// SPDX-License-Identifier: EPL-2.0 OR BSD-3-Clause
-
+/*
+ * Copyright(c) 2006 to 2019 ZettaScale Technology and others
+ *
+ * This program and the accompanying materials are made available under the
+ * terms of the Eclipse Public License v. 2.0 which is available at
+ * http://www.eclipse.org/legal/epl-2.0, or the Eclipse Distribution License
+ * v. 1.0 which is available at
+ * http://www.eclipse.org/org/documents/edl-v10.php.
+ *
+ * SPDX-License-Identifier: EPL-2.0 OR BSD-3-Clause
+ */
 #include <FreeRTOS.h>
 #include <task.h>
 #include <string.h>
@@ -81,7 +82,7 @@ rusage_thread(ddsrt_thread_list_id_t tid, ddsrt_rusage_t *usage)
 static
 #endif
 dds_return_t
-ddsrt_getrusage_anythread(ddsrt_thread_list_id_t tid, ddsrt_rusage_t *usage)
+ddsrt_getrusage_anythread(ddsrt_thread_list_id_t tid, ddsrt_rusage_t *__restrict usage)
 {
   assert(usage != NULL);
   return rusage_thread(tid, usage);

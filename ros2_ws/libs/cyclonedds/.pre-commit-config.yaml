@@ -21,12 +21,12 @@ repos:
     entry: python hooks/must-match-hash.py
     args: [
       '--hash-files',
+        'src/core/ddsi/include/dds/ddsi/ddsi_cfgelems.h',
+        'src/core/ddsi/include/dds/ddsi/ddsi_cfgunits.h',
         'src/core/ddsi/include/dds/ddsi/ddsi_config.h',
-        'src/core/ddsi/src/ddsi__cfgelems.h',
         'src/core/ddsi/src/ddsi_config.c',
         'src/tools/_confgen/_confgen.h',
         'src/tools/_confgen/_confgen.c',
-        'src/tools/_confgen/cfgunits.h',
         'src/tools/_confgen/generate_rnc.c',
         'src/tools/_confgen/generate_md.c',
         'src/tools/_confgen/generate_xsd.c',
@@ -35,8 +35,7 @@ repos:
         'src/core/ddsi/defconfig.c',
         'etc/cyclonedds.rnc',
         'etc/cyclonedds.xsd',
-        'docs/manual/options.md',
-        'docs/manual/config/config_file_reference.rst'
+        'docs/manual/options.md'
     ]
     pass_filenames: false
   - id: version-check

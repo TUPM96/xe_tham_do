@@ -1,13 +1,15 @@
-// Copyright(c) 2006 to 2022 ZettaScale Technology and others
-// Copyright(c) 2021 Apex.AI, Inc
-//
-// This program and the accompanying materials are made available under the
-// terms of the Eclipse Public License v. 2.0 which is available at
-// http://www.eclipse.org/legal/epl-2.0, or the Eclipse Distribution License
-// v. 1.0 which is available at
-// http://www.eclipse.org/org/documents/edl-v10.php.
-//
-// SPDX-License-Identifier: EPL-2.0 OR BSD-3-Clause
+/*
+ * Copyright(c) 2006 to 2022 ZettaScale Technology and others
+ * Copyright(c) 2021 Apex.AI, Inc
+ *
+ * This program and the accompanying materials are made available under the
+ * terms of the Eclipse Public License v. 2.0 which is available at
+ * http://www.eclipse.org/legal/epl-2.0, or the Eclipse Distribution License
+ * v. 1.0 which is available at
+ * http://www.eclipse.org/org/documents/edl-v10.php.
+ *
+ * SPDX-License-Identifier: EPL-2.0 OR BSD-3-Clause
+ */
 
 #ifndef _DDS_BASIC_TYPES_H_
 #define _DDS_BASIC_TYPES_H_
@@ -42,23 +44,5 @@ typedef int32_t dds_entity_t;
  * @brief Special handle representing the entity corresponding to the CycloneDDS library itself
  */
 #define DDS_CYCLONEDDS_HANDLE ((dds_entity_t)(DDS_MIN_PSEUDO_HANDLE + 256))
-
-/**
- * @brief Structure of a GUID in any builtin topic sample.
- * @ingroup builtintopic
- */
-typedef struct dds_builtintopic_guid
-{
-  uint8_t v[16]; /**< 16-byte unique identifier */
-}
-dds_builtintopic_guid_t;
-
-/**
- * @brief Structure of a GUID in any builtin topic sample.
- * @ingroup builtintopic
- * @ref dds_builtintopic_guid_t is a bit of a weird name for what everyone just calls a GUID,
- * so let us try and switch to using the more logical one.
- */
-typedef struct dds_builtintopic_guid dds_guid_t;
 
 #endif /*_DDS_PUBLIC_TYPES_H_*/

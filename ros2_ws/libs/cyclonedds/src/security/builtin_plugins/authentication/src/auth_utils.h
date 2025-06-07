@@ -1,12 +1,14 @@
-// Copyright(c) 2006 to 2021 ZettaScale Technology and others
-//
-// This program and the accompanying materials are made available under the
-// terms of the Eclipse Public License v. 2.0 which is available at
-// http://www.eclipse.org/legal/epl-2.0, or the Eclipse Distribution License
-// v. 1.0 which is available at
-// http://www.eclipse.org/org/documents/edl-v10.php.
-//
-// SPDX-License-Identifier: EPL-2.0 OR BSD-3-Clause
+/*
+ * Copyright(c) 2006 to 2021 ZettaScale Technology and others
+ *
+ * This program and the accompanying materials are made available under the
+ * terms of the Eclipse Public License v. 2.0 which is available at
+ * http://www.eclipse.org/legal/epl-2.0, or the Eclipse Distribution License
+ * v. 1.0 which is available at
+ * http://www.eclipse.org/org/documents/edl-v10.php.
+ *
+ * SPDX-License-Identifier: EPL-2.0 OR BSD-3-Clause
+ */
 
 #ifndef AUTH_UTILS_H
 #define AUTH_UTILS_H
@@ -17,12 +19,6 @@
 #endif
 #include <openssl/x509.h>
 #include <openssl/evp.h>
-#if OPENSSL_VERSION_NUMBER < 0x30000000L
-#include <openssl/engine.h>
-#else
-#include <openssl/provider.h>
-#endif
-#include <openssl/store.h>
 
 #include "dds/security/dds_security_api.h"
 #include "dds/ddsrt/time.h"
@@ -61,22 +57,20 @@ dds_time_t get_certificate_expiry(const X509 *cert);
  */
 DDS_Security_ValidationResult_t get_subject_name_DER_encoded(const X509 *cert, unsigned char **buffer, size_t *size, DDS_Security_SecurityException *ex);
 
-typedef bool (*load_callback_func)(void *arg);
-
 /* Load a X509 certificate for the provided data (PEM format) */
 DDS_Security_ValidationResult_t load_X509_certificate_from_data(const char *data, int len, X509 **x509Cert, DDS_Security_SecurityException *ex);
 
 /* Load a X509 certificate for the provided data (certificate uri) */
-DDS_Security_ValidationResult_t load_X509_certificate(const char *data, X509 **x509Cert, load_callback_func cb, void *cb_arg, DDS_Security_SecurityException *ex);
+DDS_Security_ValidationResult_t load_X509_certificate(const char *data, X509 **x509Cert, DDS_Security_SecurityException *ex);
 
 /* Load a X509 certificate for the provided file */
 DDS_Security_ValidationResult_t load_X509_certificate_from_file(const char *filename, X509 **x509Cert, DDS_Security_SecurityException *ex);
 
 /* Load a Private Key for the provided data (private key uri) */
-DDS_Security_ValidationResult_t load_X509_private_key(const char *data, const char *password, EVP_PKEY **privateKey, load_callback_func cb, void *cb_arg, DDS_Security_SecurityException *ex);
+DDS_Security_ValidationResult_t load_X509_private_key(const char *data, const char *password, EVP_PKEY **privateKey, DDS_Security_SecurityException *ex);
 
 /* Load a Certificate Revocation List (CRL) for the provided data (CRL uri) */
-DDS_Security_ValidationResult_t load_X509_CRL(const char *data, X509_CRL **crl, load_callback_func cb, void *cb_arg, DDS_Security_SecurityException *ex);
+DDS_Security_ValidationResult_t load_X509_CRL(const char *data, X509_CRL **crl, DDS_Security_SecurityException *ex);
 
 /* Validate an identity certificate against the identityCA
  * The provided identity certificate is checked if it is

@@ -13,7 +13,7 @@ set(sources
   dds_security_serialize.c
   dds_security_utils.c
   dds_security_plugins.c
-  dds_security_shared_secret.c
+  shared_secret.c
   dds_security_fsm.c
   dds_security_timed_cb.c)
 prepend(sources "${CMAKE_CURRENT_LIST_DIR}/src" ${sources})
@@ -25,7 +25,7 @@ set(headers
   dds_security_timed_cb.h
   dds_security_types.h
   dds_security_utils.h
-  dds_security_shared_secret.h)
+  shared_secret.h)
 prepend(headers "${CMAKE_CURRENT_LIST_DIR}/include/dds/security/core" ${headers})
 
 if(NOT WIN32)
@@ -45,7 +45,7 @@ target_include_directories(security_core
         "$<BUILD_INTERFACE:$<TARGET_PROPERTY:ddsc,INTERFACE_INCLUDE_DIRECTORIES>>"
 )
 
-if(BUILD_TESTING)
+if(BUILD_TESTING AND BUILD_IDLC)
   add_subdirectory(tests)
 endif()
 

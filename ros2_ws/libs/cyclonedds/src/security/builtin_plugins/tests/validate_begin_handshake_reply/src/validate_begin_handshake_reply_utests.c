@@ -1,13 +1,3 @@
-// Copyright(c) 2006 to 2021 ZettaScale Technology and others
-//
-// This program and the accompanying materials are made available under the
-// terms of the Eclipse Public License v. 2.0 which is available at
-// http://www.eclipse.org/legal/epl-2.0, or the Eclipse Distribution License
-// v. 1.0 which is available at
-// http://www.eclipse.org/org/documents/edl-v10.php.
-//
-// SPDX-License-Identifier: EPL-2.0 OR BSD-3-Clause
-
 #include <stdio.h>
 #include <string.h>
 #include <assert.h>
@@ -22,7 +12,6 @@
 #include "dds/security/openssl_support.h"
 #include "CUnit/CUnit.h"
 #include "CUnit/Test.h"
-#include "common/src/handshake_helper.h"
 #include "common/src/loader.h"
 #include "config_env.h"
 #include "auth_tokens.h"
@@ -333,7 +322,30 @@ static DDS_Security_GUID_t remote_participant_guid2;
 static bool future_challenge_done = false;
 
 
+#if OPENSSL_VERSION_NUMBER >= 0x1000200fL
+#define AUTH_INCLUDE_EC
 #include <openssl/ec.h>
+#if OPENSSL_VERSION_NUMBER >= 0x10100000L
+#define AUTH_INCLUDE_DH_ACCESSORS
+#endif
+#else
+#error "version not found"
+#endif
+
+
+static const BIGNUM *
+dh_get_public_key(
+    DH *dhkey)
+{
+#ifdef AUTH_INCLUDE_DH_ACCESSORS
+    const BIGNUM *pubkey, *privkey;
+    DH_get0_key(dhkey, &pubkey, &privkey);
+    return pubkey;
+#else
+    return dhkey->pub_key;
+#endif
+}
+
 
 static void
 serializer_participant_data(
@@ -682,10 +694,12 @@ set_dh_public_key(
     int r = 0;
     BIO *bio = NULL;
     EVP_PKEY *pkey;
+    DH *dhkey;
     unsigned char *buffer = NULL;
     ASN1_INTEGER *asn1int;
 
     *pubkey = NULL;
+
 
     /* load certificate in buffer */
     bio = BIO_new_mem_buf((void *) keystr, -1);
@@ -706,7 +720,17 @@ set_dh_public_key(
         goto fail_key_read;
     }
 
-    asn1int = get_pubkey_asn1int(pkey);
+    dhkey = EVP_PKEY_get1_DH(pkey);
+    if (!dhkey) {
+        char *msg = get_openssl_error();
+        r = -1;
+        printf("Failed to get DH key from PKEY: %s", msg);
+        ddsrt_free(msg);
+        goto fail_get_dhkey;
+    }
+
+    asn1int = BN_to_ASN1_INTEGER(dh_get_public_key(dhkey), NULL);
+
     if (!asn1int) {
         char *msg = get_openssl_error();
         r = -1;
@@ -724,6 +748,8 @@ set_dh_public_key(
     ASN1_INTEGER_free(asn1int);
 
 fail_get_pubkey:
+    DH_free(dhkey);
+fail_get_dhkey:
     EVP_PKEY_free(pkey);
 fail_key_read:
     BIO_free(bio);
@@ -1592,6 +1618,7 @@ CU_Test(ddssec_builtin_validate_begin_handshake_reply,invalid_participant_data ,
 
     property = find_binary_property(&handshake_token_in, "c.pdata");
     CU_ASSERT_FATAL(property != NULL);
+    assert(property != NULL); // for Clang's static analyzer
 
     ddsrt_free(property->name);
     property->name = ddsrt_strdup("c.pdatax");

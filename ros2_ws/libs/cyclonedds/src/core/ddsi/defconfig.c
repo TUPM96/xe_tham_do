@@ -27,17 +27,13 @@ void ddsi_config_init_default (struct ddsi_config *cfg)
   cfg->rmsg_chunk_size = UINT32_C (131072);
   cfg->standards_conformance = INT32_C (2);
   cfg->many_sockets_mode = INT32_C (1);
-  cfg->protocol_version.major = 2;
-  cfg->protocol_version.minor = 5;
   cfg->domainTag = "";
   cfg->extDomainId.isdefault = 1;
   cfg->ds_grace_period = INT64_C (30000000000);
-  cfg->participantIndex = INT32_C (-3);
-  cfg->maxAutoParticipantIndex = INT32_C (99);
+  cfg->participantIndex = INT32_C (-2);
+  cfg->maxAutoParticipantIndex = INT32_C (9);
   cfg->spdpMulticastAddressString = "239.255.0.1";
-  cfg->spdp_interval.isdefault = 1;
-  cfg->spdp_prune_delay_initial = INT64_C (30000000000);
-  cfg->spdp_prune_delay_discovered = INT64_C (60000000000);
+  cfg->spdp_interval = INT64_C (30000000000);
   cfg->ports.base = UINT32_C (7400);
   cfg->ports.dg = UINT32_C (250);
   cfg->ports.pg = UINT32_C (2);
@@ -55,6 +51,7 @@ void ddsi_config_init_default (struct ddsi_config *cfg)
   cfg->defrag_unreliable_maxsamples = UINT32_C (4);
   cfg->defrag_reliable_maxsamples = UINT32_C (16);
   cfg->besmode = INT32_C (1);
+  cfg->unicast_response_to_spdp_messages = INT32_C (1);
   cfg->synchronous_delivery_latency_bound = INT64_C (9223372036854775807);
   cfg->retransmit_merging_period = INT64_C (5000000);
   cfg->const_hb_intv_sched = INT64_C (100000000);
@@ -73,6 +70,7 @@ void ddsi_config_init_default (struct ddsi_config *cfg)
   cfg->ack_delay = INT64_C (10000000);
   cfg->auto_resched_nack_delay = INT64_C (3000000000);
   cfg->preemptive_ack_delay = INT64_C (10000000);
+  cfg->ddsi2direct_max_threads = UINT32_C (1);
   cfg->max_sample_size = UINT32_C (2147483647);
   cfg->noprogress_log_stacktraces = INT32_C (1);
   cfg->liveliness_monitoring_interval = INT64_C (1000000000);
@@ -86,13 +84,11 @@ void ddsi_config_init_default (struct ddsi_config *cfg)
   cfg->whc_adaptive = INT32_C (1);
   cfg->max_rexmit_burst_size = UINT32_C (1048576);
   cfg->init_transmit_extra_pct = UINT32_C (4294967295);
-  cfg->max_frags_in_rexmit_of_sample = UINT32_C (1);
-  cfg->extended_packet_info = INT32_C (1);
   cfg->tcp_nodelay = INT32_C (1);
   cfg->tcp_port = INT32_C (-1);
   cfg->tcp_read_timeout = INT64_C (2000000000);
   cfg->tcp_write_timeout = INT64_C (2000000000);
-#ifdef DDS_HAS_TCP_TLS
+#ifdef DDS_HAS_SSL
   cfg->ssl_verify = INT32_C (1);
   cfg->ssl_verify_client = INT32_C (1);
   cfg->ssl_keystore = "keystore";
@@ -101,16 +97,20 @@ void ddsi_config_init_default (struct ddsi_config *cfg)
   cfg->ssl_rand_file = "";
   cfg->ssl_min_version.major = 1;
   cfg->ssl_min_version.minor = 3;
-#endif /* DDS_HAS_TCP_TLS */
+#endif /* DDS_HAS_SSL */
+#ifdef DDS_HAS_SHM
+  cfg->shm_locator = "";
+  cfg->iceoryx_service = "DDS_CYCLONE";
+  cfg->shm_log_lvl = INT32_C (4);
+#endif /* DDS_HAS_SHM */
 }
-/* generated from ddsi_config.h[d7db98ce697e409412ec7fb0b900e10261a66c44] */
-/* generated from ddsi_config.c[184d7299baad5acc9b96884de77770aac009a11a] */
-/* generated from ddsi__cfgelems.h[741151ccf40cab43638e8c32cac3a4b9c3e73566] */
-/* generated from cfgunits.h[05f093223fce107d24dd157ebaafa351dc9df752] */
-/* generated from _confgen.h[fd29634526c05c3237dbc3f785030fe022eb7875] */
-/* generated from _confgen.c[0d833a6f2c98902f1249e63aed03a6164f0791d6] */
-/* generated from generate_rnc.c[b50e4b7ab1d04b2bc1d361a0811247c337b74934] */
-/* generated from generate_md.c[789b92e422631684352909cfb8bf43f6ceb16a01] */
-/* generated from generate_rst.c[3c4b523fbb57c8e4a7e247379d06a8021ccc21c4] */
-/* generated from generate_xsd.c[9bb91084fff7495aee9c025db3108549a0141957] */
-/* generated from generate_defconfig.c[ba599ccf70b6f1929c08a597a6c555ff2375e458] */
+/* generated from ddsi_config.h[87da706bc9c463a87326e87b311d8291d5761d43] */
+/* generated from ddsi_cfgunits.h[fc550f1620aa20dcd9244ef4e24299d5001efbb4] */
+/* generated from ddsi_cfgelems.h[c54fbee60d780fadc6ebc3c738c5d2c5051e689a] */
+/* generated from ddsi_config.c[98486715ac072b7b3cc3a449d55676be1218c98c] */
+/* generated from _confgen.h[01ffa8a2e53b2309451756861466551cfe28c8ce] */
+/* generated from _confgen.c[13cd40932d695abae1470202a42c18dc4d09ea84] */
+/* generated from generate_rnc.c[a2ec6e48d33ac14a320c8ec3f320028a737920e0] */
+/* generated from generate_md.c[a61b6a9649d18afeca4c73b5784f36989d7994e0] */
+/* generated from generate_xsd.c[45064e8869b3c00573057d7c8f02d20f04b40e16] */
+/* generated from generate_defconfig.c[eec9ab7b2d053e68500799b693d089e84153a37b] */

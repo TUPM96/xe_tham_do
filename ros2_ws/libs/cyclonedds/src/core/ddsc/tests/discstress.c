@@ -165,7 +165,7 @@ static uint32_t wrinfo_hash (const void *va)
                       (a->wrid + UINT64_C (10242350189706880077))) >> 32);
 }
 
-static bool wrinfo_eq (const void *va, const void *vb)
+static int wrinfo_eq (const void *va, const void *vb)
 {
   const struct wrinfo *a = va;
   const struct wrinfo *b = vb;
@@ -175,76 +175,16 @@ static bool wrinfo_eq (const void *va, const void *vb)
 #define LOGDEPTH 30
 #define LOGLINE 200
 
-struct logbuf {
-  char line[LOGDEPTH][LOGLINE];
-  int logidx;
-};
-
-static void dumplog (struct logbuf *logbuf)
+static void dumplog (char logbuf[LOGDEPTH][LOGLINE], int *logidx)
 {
-  if (logbuf->line[logbuf->logidx][0])
-    for (int i = logbuf->logidx; i < LOGDEPTH; i++)
-      fputs (logbuf->line[i], stdout);
-  for (int i = 0; i < logbuf->logidx; i++)
-    fputs (logbuf->line[i], stdout);
+  if (logbuf[*logidx][0])
+    for (int i = *logidx; i < LOGDEPTH; i++)
+      fputs (logbuf[i], stdout);
+  for (int i = 0; i < *logidx; i++)
+    fputs (logbuf[i], stdout);
   for (int i = 0; i < LOGDEPTH; i++)
-    logbuf->line[i][0] = 0;
-  logbuf->logidx = 0;
-  fflush (stdout);
-}
-
-static bool checksample (struct ddsrt_hh *wrinfo, const dds_sample_info_t *si, const DiscStress_CreateWriter_Msg *s, struct logbuf *logbuf, uint32_t rdid)
-{
-  /* Cyclone always sets the key value, other fields are 0 for invalid data */
-  struct wrinfo *wri;
-  bool result = true;
-
-  CU_ASSERT_FATAL (s->wridx < N_WRITERS);
-  CU_ASSERT_FATAL (s->histidx < DEPTH);
-
-  if ((wri = ddsrt_hh_lookup (wrinfo, &(struct wrinfo){ .wrid = s->wrseq, .rdid = rdid })) == NULL)
-  {
-    wri = malloc (sizeof (*wri));
-    assert (wri);
-    memset (wri, 0, sizeof (*wri));
-    wri->wrid = s->wrseq;
-    wri->rdid = rdid;
-    const int ok = ddsrt_hh_add (wrinfo, wri);
-    CU_ASSERT_FATAL (ok);
-  }
-
-  snprintf (logbuf->line[logbuf->logidx], sizeof (logbuf->line[logbuf->logidx]),
-            "%"PRIu32": %"PRId32".%"PRIu32" %"PRIu32".%"PRIu32" iid %"PRIx64" new %"PRIx64" st %c%c seq %"PRIu32" seen %"PRIu32"\n",
-            rdid, s->round, s->wrseq, s->wridx, s->histidx, wri->wr_iid, si->publication_handle,
-            (si->instance_state == DDS_ALIVE_INSTANCE_STATE) ? 'A' : (si->instance_state == DDS_NOT_ALIVE_DISPOSED_INSTANCE_STATE) ? 'D' : 'U',
-            si->valid_data ? 'v' : 'i', s->seq, wri->seen);
-  if (++logbuf->logidx == LOGDEPTH)
-    logbuf->logidx = 0;
-
-  if (wri->wr_iid != 0 && wri->wr_iid != si->publication_handle) {
-    printf ("Mismatch between wrid %"PRIx64" and publication handle %"PRIx64"\n", wri->wr_iid, si->publication_handle);
-    result = false;
-  }
-  if (wri->seen & (1u << s->histidx)) {
-    printf ("Duplicate sample (wri->seen %"PRIx32" s->histidx %"PRIu32")\n", wri->seen, s->histidx);
-    result = false;
-  }
-  //if (s->histidx > 0)
-  //  XASSERT ((wri->seen & (1u << (s->histidx - 1))) != 0, "Out of order sample (1)\n");
-
-  if (s->histidx > 0 && !(wri->seen & (1u << (s->histidx - 1)))) {
-    printf ("Out of order sample (1) (wri->seen %"PRIx32" s->histidx %"PRIu32")\n", wri->seen, s->histidx);
-    result = false;
-  }
-  if (!(wri->seen < (1u << s->histidx))) {
-    printf ("Out of order sample (2) (wri->seen %"PRIx32" s->histidx %"PRIu32")\n", wri->seen, s->histidx);
-    result = false;
-  }
-  wri->wr_iid = si->publication_handle;
-  wri->seen |= 1u << s->histidx;
-  if (!result)
-    dumplog (logbuf);
-  return result;
+    logbuf[i][0] = 0;
+  *logidx = 0;
 }
 
 /*
@@ -322,8 +262,8 @@ static uint32_t createwriter_subscriber (void *varg)
   struct ddsrt_hh *wrinfo = ddsrt_hh_new (1, wrinfo_hash, wrinfo_eq);
   dds_entity_t xreader = 0;
   bool matched = true;
-  struct logbuf logbuf[N_READERS];
-  memset (logbuf, 0, sizeof (logbuf));
+  char logbuf[N_READERS][LOGDEPTH][LOGLINE] = {{ "" }};
+  int logidx[N_READERS] = { 0 };
   while (matched)
   {
     dds_attach_t xs[N_READERS];
@@ -378,8 +318,51 @@ static uint32_t createwriter_subscriber (void *varg)
           DiscStress_CreateWriter_Msg const * const s = raw[j];
           if (si[j].valid_data && s->round >= 0)
           {
-            if (!checksample (wrinfo, &si[j], s, &logbuf[xs[i]], (uint32_t)xs[i]))
-              error = true;
+            /* Cyclone always sets the key value, other fields are 0 for invalid data */
+            struct wrinfo wri_key = { .wrid = s->wrseq, .rdid = (uint32_t) xs[i] };
+            struct wrinfo *wri;
+
+            CU_ASSERT_FATAL (s->wridx < N_WRITERS);
+
+#define XASSERT(cond, ...) do { if (!(cond)) { \
+  printf ("%s: %s", #cond, __VA_ARGS__); \
+  fflush (stdout); \
+  dumplog (logbuf[xs[i]], &logidx[xs[i]]); \
+  error = true; \
+  CU_ASSERT (0); \
+} } while (0)
+#define XASSERT_FATAL(cond, ...) do { if (!(cond)) { \
+  printf ("%s: %s", #cond, __VA_ARGS__); \
+  fflush (stdout); \
+  dumplog (logbuf[xs[i]], &logidx[xs[i]]); \
+  CU_ASSERT_FATAL (0); \
+} } while (0)
+
+            if ((wri = ddsrt_hh_lookup (wrinfo, &wri_key)) == NULL)
+            {
+              wri = malloc (sizeof (*wri));
+              *wri = wri_key;
+              rc = ddsrt_hh_add (wrinfo, wri);
+              CU_ASSERT_FATAL (rc != 0);
+            }
+
+            snprintf (logbuf[xs[i]][logidx[xs[i]]], sizeof (logbuf[xs[i]][logidx[xs[i]]]),
+                      "%"PRIu32": %"PRId32".%"PRIu32" %"PRIu32".%"PRIu32" iid %"PRIx64" new %"PRIx64" st %c%c seq %"PRIu32" seen %"PRIu32"\n",
+                      (uint32_t) xs[i], s->round, s->wrseq, s->wridx, s->histidx, wri->wr_iid, si[j].publication_handle,
+                      (si[j].instance_state == DDS_IST_ALIVE) ? 'A' : (si[j].instance_state == DDS_IST_NOT_ALIVE_DISPOSED) ? 'D' : 'U',
+                      si[j].valid_data ? 'v' : 'i', s->seq, wri->seen);
+            if (++logidx[xs[i]] == LOGDEPTH)
+              logidx[xs[i]] = 0;
+
+            XASSERT (wri->wr_iid == 0 || wri->wr_iid == si[j].publication_handle, "Mismatch between wrid and publication handle");
+
+            XASSERT_FATAL (s->histidx < DEPTH, "depth_idx out of range");
+            XASSERT ((wri->seen & (1u << s->histidx)) == 0, "Duplicate sample\n");
+            if (s->histidx > 0)
+              XASSERT ((wri->seen & (1u << (s->histidx - 1))) != 0, "Out of order sample (1)\n");
+            XASSERT (wri->seen < (1u << s->histidx), "Out of order sample (2)\n");
+            wri->wr_iid = si[j].publication_handle;
+            wri->seen |= 1u << s->histidx;
           }
         }
         if (error)
@@ -440,7 +423,11 @@ CU_Test(ddsc_discstress, create_writer, .timeout = 20)
   /* Domains for pub and sub use a different domain id, but the portgain setting
    * in configuration is 0, so that both domains will map to the same port number.
    * This allows to create two domains in a single test process. */
+#ifdef DDS_HAS_SHM
+  const char* config = "${CYCLONEDDS_URI}${CYCLONEDDS_URI:+,}<Discovery><ExternalDomainId>0</ExternalDomainId></Discovery><Domain id=\"any\"><SharedMemory><Enable>false</Enable></SharedMemory></Domain>";
+#else
   const char* config = "${CYCLONEDDS_URI}${CYCLONEDDS_URI:+,}<Discovery><ExternalDomainId>0</ExternalDomainId></Discovery>";
+#endif
   char *pub_conf = ddsrt_expand_envvars (config, 0);
   char *sub_conf = ddsrt_expand_envvars (config, 1);
   const dds_entity_t pub_dom = dds_create_domain (0, pub_conf);

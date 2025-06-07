@@ -1,27 +1,26 @@
-// Copyright(c) 2022 ZettaScale Technology and others
-//
-// This program and the accompanying materials are made available under the
-// terms of the Eclipse Public License v. 2.0 which is available at
-// http://www.eclipse.org/legal/epl-2.0, or the Eclipse Distribution License
-// v. 1.0 which is available at
-// http://www.eclipse.org/org/documents/edl-v10.php.
-//
-// SPDX-License-Identifier: EPL-2.0 OR BSD-3-Clause
-
+/*
+ * Copyright(c) 2022 ZettaScale Technology and others
+ *
+ * This program and the accompanying materials are made available under the
+ * terms of the Eclipse Public License v. 2.0 which is available at
+ * http://www.eclipse.org/legal/epl-2.0, or the Eclipse Distribution License
+ * v. 1.0 which is available at
+ * http://www.eclipse.org/org/documents/edl-v10.php.
+ *
+ * SPDX-License-Identifier: EPL-2.0 OR BSD-3-Clause
+ */
 #include <assert.h>
 #include <limits.h>
 
-#include "dds/ddsi/ddsi_serdata.h"
-#include "dds/ddsi/ddsi_sertype.h"
 #include "dds/dds.h"
 #include "dds/ddsc/dds_rhc.h"
-#include "dds__qos.h"
-#include "dds__listener.h"
-
 #include "test_common.h"
 
+// internals, to allow creating all objects we need on the stack
+#include "dds__qos.h"
+#include "dds__listener.h"
 #ifdef DDS_HAS_TYPE_DISCOVERY
-#include "ddsi__xt_impl.h"
+#include "dds/ddsi/ddsi_xt_impl.h"
 #endif
 
 /* Calling API functions on an uninitialized library should fail with
@@ -70,10 +69,12 @@ CU_Test (ddsc_uninitialized, various)
   check (dds_get_parent (1));
   check (dds_get_participant (1));
   check (dds_set_status_mask (1, 1));
+  check (dds_set_enabled_status (1, 1));
   uint32_t mask;
   check (dds_get_mask (1, &mask));
   check (dds_get_status_changes (1, &mask));
   check (dds_get_status_mask (1, &mask));
+  check (dds_get_enabled_status (1, &mask));
   check (dds_read_status (1, &mask, 1));
   check (dds_take_status (1, &mask, 1));
   dds_instance_handle_t ih;
@@ -106,6 +107,8 @@ CU_Test (ddsc_uninitialized, various)
   check (dds_get_name (1, buf, sizeof (buf)));
   check (dds_get_type_name (1, buf, sizeof (buf)));
 
+  dds_set_topic_filter (1, filter_fn);
+  dds_topic_set_filter (1, filter_fn);
   struct dds_topic_filter filter = {
     .mode = DDS_TOPIC_FILTER_SAMPLE,
     .f = { .sample = filter_fn },
@@ -114,6 +117,8 @@ CU_Test (ddsc_uninitialized, various)
   check (dds_set_topic_filter_and_arg (1, filter_arg_fn, NULL));
   check (dds_set_topic_filter_extended (1, &filter));
 
+  check_0 (dds_get_topic_filter (1));
+  check_0 (dds_topic_get_filter (1));
   check (dds_get_topic_filter_and_arg (1, NULL, NULL));
   check (dds_get_topic_filter_extended (1, &filter));
 
@@ -193,6 +198,7 @@ CU_Test (ddsc_uninitialized, various)
 
   check (dds_return_loan (1, &raw, 1));
   check_ih (dds_lookup_instance (1, &data));
+  check_ih (dds_instance_lookup (1, &data));
   check (dds_instance_get_key (1, 1, &data));
 
   check (dds_begin_coherent (1));

@@ -1,13 +1,14 @@
-// Copyright(c) 2021 to 2022 ZettaScale Technology and others
-//
-// This program and the accompanying materials are made available under the
-// terms of the Eclipse Public License v. 2.0 which is available at
-// http://www.eclipse.org/legal/epl-2.0, or the Eclipse Distribution License
-// v. 1.0 which is available at
-// http://www.eclipse.org/org/documents/edl-v10.php.
-//
-// SPDX-License-Identifier: EPL-2.0 OR BSD-3-Clause
-
+/*
+ * Copyright(c) 2021 to 2022 ZettaScale Technology and others
+ *
+ * This program and the accompanying materials are made available under the
+ * terms of the Eclipse Public License v. 2.0 which is available at
+ * http://www.eclipse.org/legal/epl-2.0, or the Eclipse Distribution License
+ * v. 1.0 which is available at
+ * http://www.eclipse.org/org/documents/edl-v10.php.
+ *
+ * SPDX-License-Identifier: EPL-2.0 OR BSD-3-Clause
+ */
 #ifndef IDL_TREE_H
 #define IDL_TREE_H
 
@@ -72,7 +73,8 @@
 
 /* bits 20 - 21 are reserved for operators (not exposed in tree) */
 
-typedef enum idl_type {
+typedef enum idl_type idl_type_t;
+enum idl_type {
   IDL_NULL = 0u,
   IDL_TYPEDEF = (1llu<<19),
   /* constructed types */
@@ -118,7 +120,7 @@ typedef enum idl_type {
   IDL_FLOAT = (IDL_BASE_TYPE | IDL_FLOATING_PT_TYPE | 1u),
   IDL_DOUBLE = (IDL_BASE_TYPE | IDL_FLOATING_PT_TYPE | 2u),
   IDL_LDOUBLE = (IDL_BASE_TYPE | IDL_FLOATING_PT_TYPE | 3u)
-} idl_type_t;
+};
 
 #define IDL_TYPE_MASK ((IDL_TYPEDEF << 1) - 1)
 
@@ -126,7 +128,6 @@ typedef struct idl_name idl_name_t;
 struct idl_name {
   idl_symbol_t symbol;
   char *identifier;
-  bool is_annotation;
 };
 
 typedef struct idl_scoped_name idl_scoped_name_t;
@@ -179,22 +180,25 @@ struct idl_path {
   const idl_node_t **nodes;
 };
 
-typedef enum idl_autoid {
+typedef enum idl_autoid idl_autoid_t;
+enum idl_autoid {
   IDL_SEQUENTIAL,
   IDL_HASH
-} idl_autoid_t;
+};
 
-typedef enum idl_extensibility {
+typedef enum idl_extensibility idl_extensibility_t;
+enum idl_extensibility {
   IDL_FINAL,
   IDL_APPENDABLE,
   IDL_MUTABLE
-} idl_extensibility_t;
+};
 
-typedef enum idl_try_construct {
+typedef enum idl_try_construct idl_try_construct_t;
+enum idl_try_construct {
   IDL_DISCARD,
   IDL_USE_DEFAULT,
   IDL_TRIM
-} idl_try_construct_t;
+};
 
 typedef uint32_t allowable_data_representations_t;
 #define IDL_ALLOWABLE_DATAREPRESENTATION_DEFAULT (0xffffffff)
@@ -278,12 +282,6 @@ struct idl_sequence {
 
 typedef struct idl_string idl_string_t;
 struct idl_string {
-  idl_node_t node;
-  uint32_t maximum;
-};
-
-typedef struct idl_wstring idl_wstring_t;
-struct idl_wstring {
   idl_node_t node;
   uint32_t maximum;
 };
@@ -534,12 +532,6 @@ IDL_EXPORT bool idl_is_sequence(const void *node);
 IDL_EXPORT bool idl_is_string(const void *node);
 IDL_EXPORT bool idl_is_unbounded_string(const void *node);
 IDL_EXPORT bool idl_is_bounded_string(const void *node);
-IDL_EXPORT bool idl_is_wstring(const void *node);
-IDL_EXPORT bool idl_is_unbounded_wstring(const void *node);
-IDL_EXPORT bool idl_is_bounded_wstring(const void *node);
-IDL_EXPORT bool idl_is_xstring(const void *node); // string || wstring
-IDL_EXPORT bool idl_is_unbounded_xstring(const void *node);
-IDL_EXPORT bool idl_is_bounded_xstring(const void *node);
 IDL_EXPORT bool idl_is_constr_type(const void *node);
 IDL_EXPORT bool idl_is_struct(const void *node);
 IDL_EXPORT bool idl_is_empty(const void *node);
@@ -551,8 +543,6 @@ IDL_EXPORT bool idl_is_case(const void *node);
 IDL_EXPORT bool idl_is_default_case(const void *node);
 IDL_EXPORT bool idl_is_implicit_default_case(const void *ptr);
 IDL_EXPORT bool idl_is_case_label(const void *node);
-IDL_EXPORT bool idl_is_default_case_label(const void *node);
-IDL_EXPORT bool idl_is_implicit_default_case_label(const void *node);
 IDL_EXPORT bool idl_is_enum(const void *node);
 IDL_EXPORT bool idl_is_enumerator(const void *node);
 IDL_EXPORT bool idl_is_bitmask(const void *node);

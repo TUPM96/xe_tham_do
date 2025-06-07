@@ -1,13 +1,14 @@
-// Copyright(c) 2006 to 2021 ZettaScale Technology and others
-//
-// This program and the accompanying materials are made available under the
-// terms of the Eclipse Public License v. 2.0 which is available at
-// http://www.eclipse.org/legal/epl-2.0, or the Eclipse Distribution License
-// v. 1.0 which is available at
-// http://www.eclipse.org/org/documents/edl-v10.php.
-//
-// SPDX-License-Identifier: EPL-2.0 OR BSD-3-Clause
-
+/*
+ * Copyright(c) 2006 to 2021 ZettaScale Technology and others
+ *
+ * This program and the accompanying materials are made available under the
+ * terms of the Eclipse Public License v. 2.0 which is available at
+ * http://www.eclipse.org/legal/epl-2.0, or the Eclipse Distribution License
+ * v. 1.0 which is available at
+ * http://www.eclipse.org/org/documents/edl-v10.php.
+ *
+ * SPDX-License-Identifier: EPL-2.0 OR BSD-3-Clause
+ */
 #include <assert.h>
 
 #include "dds/dds.h"
@@ -18,7 +19,7 @@
 #include "dds/ddsi/ddsi_domaingv.h"
 #include "dds/ddsi/ddsi_typelib.h"
 #include "dds/ddsi/ddsi_typebuilder.h"
-#include "ddsi__xt_impl.h"
+#include "dds/ddsi/ddsi_xt_impl.h"
 #include "dds__types.h"
 #include "dds__topic.h"
 #include "TypeBuilderTypes.h"
@@ -46,8 +47,6 @@ static void topic_type_ref (dds_entity_t topic, struct ddsi_type **type)
   struct ddsi_sertype *sertype = t->m_stype;
   ret = ddsi_type_ref_local (&t->m_entity.m_domain->gv, type, sertype, DDSI_TYPEID_KIND_COMPLETE);
   CU_ASSERT_EQUAL_FATAL (ret, DDS_RETCODE_OK);
-  CU_ASSERT_FATAL (type != NULL);
-  CU_ASSERT_FATAL (*type != NULL);
   dds_topic_unpin (t);
 }
 
@@ -86,18 +85,18 @@ static bool ti_to_pairs_equal (dds_sequence_DDS_XTypes_TypeIdentifierTypeObjectP
     if (!to_b)
       return false;
 
-    dds_ostreamLE_t to_a_ser = { .x = { NULL, 0, 0, DDSI_RTPS_CDR_ENC_VERSION_2 } };
+    dds_ostream_t to_a_ser = { NULL, 0, 0, CDR_ENC_VERSION_2 };
     xcdr2_ser (&a->_buffer[n].type_object, &DDS_XTypes_TypeObject_desc, &to_a_ser);
-    dds_ostreamLE_t to_b_ser = { .x = { NULL, 0, 0, DDSI_RTPS_CDR_ENC_VERSION_2 } };
+    dds_ostream_t to_b_ser = { NULL, 0, 0, CDR_ENC_VERSION_2 };
     xcdr2_ser (to_b, &DDS_XTypes_TypeObject_desc, &to_b_ser);
 
-    if (to_a_ser.x.m_index != to_b_ser.x.m_index)
+    if (to_a_ser.m_index != to_b_ser.m_index)
       return false;
-    if (memcmp (to_a_ser.x.m_buffer, to_b_ser.x.m_buffer, to_a_ser.x.m_index))
+    if (memcmp (to_a_ser.m_buffer, to_b_ser.m_buffer, to_a_ser.m_index))
       return false;
 
-    dds_ostreamLE_fini (&to_a_ser, &dds_cdrstream_default_allocator);
-    dds_ostreamLE_fini (&to_b_ser, &dds_cdrstream_default_allocator);
+    dds_ostream_fini (&to_a_ser);
+    dds_ostream_fini (&to_b_ser);
   }
   return true;
 }
@@ -135,11 +134,7 @@ static bool tmap_equal (ddsi_typemap_t *a, ddsi_typemap_t *b)
 CU_TheoryDataPoints (ddsc_typebuilder, topic_desc) = {
   CU_DataPoints (const dds_topic_descriptor_t *, &D(t1), &D(t2), &D(t3), &D(t4), &D(t5), &D(t6), &D(t7), &D(t8),
                                                  &D(t9), &D(t10), &D(t11), &D(t12), &D(t13), &D(t14), &D(t15), &D(t16),
-                                                 &D(t17), &D(t18), &D(t19), &D(t20), &D(t21), &D(t22), &D(t23), &D(t24),
-                                                 &D(t25), &D(t26), &D(t27), &D(t28), &D(t29), &D(t30), &D(t31), &D(t32),
-                                                 &D(t33), &D(t34), &D(t35), &D(t36), &D(t37), &D(t38), /* TODO &D(t39), */
-                                                 &D(t40), &D(t41), &D(t42), &D(t43), &D(t44), &D(t45), &D(t46), &D(t47),
-                                                 &D(t48)),
+                                                 &D(t17), &D(t18), &D(t19), &D(t20), &D(t21), &D(t22), &D(t23), &D(t24) ),
 };
 #undef D
 
@@ -200,8 +195,10 @@ CU_Theory((const dds_topic_descriptor_t *desc), ddsc_typebuilder, topic_desc, .i
   }
 
   printf ("typeinfo: %u (%u)\n", generated_desc->type_information.sz, desc->type_information.sz);
-  ddsi_typeinfo_t *tinfo = ddsi_typeinfo_deser (desc->type_information.data, desc->type_information.sz);
-  ddsi_typeinfo_t *gen_tinfo = ddsi_typeinfo_deser (generated_desc->type_information.data, generated_desc->type_information.sz);
+  const struct ddsi_sertype_cdr_data tinfo_ser = { .sz = desc->type_information.sz, .data = desc->type_information.data };
+  ddsi_typeinfo_t *tinfo = ddsi_typeinfo_deser (&tinfo_ser);
+  const struct ddsi_sertype_cdr_data gen_tinfo_ser = { .sz = generated_desc->type_information.sz, .data = generated_desc->type_information.data };
+  ddsi_typeinfo_t *gen_tinfo = ddsi_typeinfo_deser (&gen_tinfo_ser);
   CU_ASSERT_FATAL (ddsi_typeinfo_equal (tinfo, gen_tinfo, DDSI_TYPE_INCLUDE_DEPS));
   ddsi_typeinfo_fini (tinfo);
   ddsrt_free (tinfo);
@@ -209,8 +206,10 @@ CU_Theory((const dds_topic_descriptor_t *desc), ddsc_typebuilder, topic_desc, .i
   ddsrt_free (gen_tinfo);
 
   printf ("typemap: %u (%u)\n", generated_desc->type_mapping.sz, desc->type_mapping.sz);
-  ddsi_typemap_t *tmap = ddsi_typemap_deser (desc->type_mapping.data, desc->type_mapping.sz);
-  ddsi_typemap_t *gen_tmap = ddsi_typemap_deser (generated_desc->type_mapping.data, generated_desc->type_mapping.sz);
+  const struct ddsi_sertype_cdr_data tmap_ser = { .sz = desc->type_mapping.sz, .data = desc->type_mapping.data };
+  ddsi_typemap_t *tmap = ddsi_typemap_deser (&tmap_ser);
+  const struct ddsi_sertype_cdr_data gen_tmap_ser = { .sz = generated_desc->type_mapping.sz, .data = generated_desc->type_mapping.data };
+  ddsi_typemap_t *gen_tmap = ddsi_typemap_deser (&gen_tmap_ser);
   CU_ASSERT_FATAL (tmap_equal (tmap, gen_tmap));
   ddsi_typemap_fini (tmap);
   ddsrt_free (tmap);
@@ -241,7 +240,6 @@ CU_Test(ddsc_typebuilder, invalid_toplevel, .init = typebuilder_init, .fini = ty
   // generate a topic descriptor
   topic_type_ref (topic, &type);
   generated_desc = dds_alloc (sizeof (*generated_desc));
-  assert (generated_desc);
   for (uint32_t n = 0; n < type->xt._u.structure.members.length; n++)
   {
     ret = ddsi_topic_descriptor_from_type (gv_from_topic (topic), generated_desc, type->xt._u.structure.members.seq[n].type);
@@ -253,51 +251,3 @@ CU_Test(ddsc_typebuilder, invalid_toplevel, .init = typebuilder_init, .fini = ty
   topic_type_unref (topic, type);
 }
 
-CU_Test(ddsc_typebuilder, alias_toplevel, .init = typebuilder_init, .fini = typebuilder_fini)
-{
-  char topic_name[100];
-  dds_return_t ret;
-  dds_entity_t topic;
-  struct ddsi_type *type;
-  dds_topic_descriptor_t *generated_desc;
-
-  create_unique_topic_name ("ddsc_typebuilder", topic_name, sizeof (topic_name));
-  topic = dds_create_topic (g_participant, &TypeBuilderTypes_t48_desc, topic_name, NULL, NULL);
-  CU_ASSERT_FATAL (topic > 0);
-
-  // generate a topic descriptor
-  topic_type_ref (topic, &type);
-  generated_desc = dds_alloc (sizeof (*generated_desc));
-  assert (generated_desc);
-  assert (type->xt._u.structure.members.length == 1);
-  assert (type->xt._u.structure.members.seq[0].type->xt._d == DDS_XTypes_TK_ALIAS);
-  ret = ddsi_topic_descriptor_from_type (gv_from_topic (topic), generated_desc, type->xt._u.structure.members.seq[0].type);
-  CU_ASSERT_EQUAL_FATAL (ret, DDS_RETCODE_OK);
-
-  // should be able to create a topic
-  char topic_name2[100];
-  create_unique_topic_name ("ddsc_typebuilder", topic_name2, sizeof (topic_name2));
-  const dds_entity_t topic2 = dds_create_topic (g_participant, generated_desc, topic_name2, NULL, NULL);
-  CU_ASSERT_FATAL (topic2 > 0);
-
-  // verify its type really is the alias
-  struct ddsi_type *type2;
-  topic_type_ref (topic2, &type2);
-  CU_ASSERT_EQUAL (type2->xt._d, DDS_XTypes_TK_ALIAS);
-  topic_type_unref (topic2, type2);
-
-#if 0
-  const dds_entity_t wr = dds_create_writer (g_participant, topic2, NULL, NULL);
-  CU_ASSERT_FATAL (wr > 0);
-  while (true)
-  {
-    dds_write (wr, &(TypeBuilderTypes_t48){ .t1 = { .n1 = 33 } });
-    dds_sleepfor (DDS_SECS (1));
-  }
-#endif
-
-  // cleanup
-  ddsi_topic_descriptor_fini (generated_desc);
-  ddsrt_free (generated_desc);
-  topic_type_unref (topic, type);
-}
