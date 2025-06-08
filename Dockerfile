@@ -15,6 +15,7 @@ RUN apt-get update && apt-get install -y \
     python3-pip \
     build-essential \
     libqt5gui5 \
+    libcap-dev \
     libqt5widgets5 \
     libxkbcommon-x11-0 \
     libgl1-mesa-glx \
