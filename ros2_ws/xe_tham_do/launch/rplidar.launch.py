@@ -6,7 +6,7 @@ from launch_ros.actions import Node
 
 
 def generate_launch_description():
-    # Declare an argument for the serial port with a default value
+
     serial_port_arg = DeclareLaunchArgument('serial_port', default_value='/dev/ttyUSB0',
         description='Serial port to which the RPLIDAR is connected')
 
