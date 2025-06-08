@@ -16,7 +16,7 @@ docker-compose up -d
 # rm -rf logs install build    
 
 # Chỉ chạy khi muốn build lại từ đầu         
-# rm -rf /root/ros2_ws/build/ackermann_msgs/ament_cmake_python/ackermann_msgs/ackermann_msgs 
+# rm -rf /build/ackermann_msgs/ament_cmake_python/ackermann_msgs/ackermann_msgs 
 
 docker exec -it ros2_humble_container bash
 
