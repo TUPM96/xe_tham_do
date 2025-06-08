@@ -1,3 +1,9 @@
+# . Kết nối tới jetson nano
+```bash
+ssh ubuntu@192.168.137.192
+```
+
+
 # A. Build source
 ## 1. Chạy docker
 ``` bash
