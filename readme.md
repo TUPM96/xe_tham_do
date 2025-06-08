@@ -60,18 +60,6 @@ ros2 run teleop_twist_keyboard teleop_twist_keyboard --ros-args -r /cmd_vel:=dif
 
 # 2. Chạy robot thật
 
-### Lấy port COM theo path
-
-``` bash
-docker exec -it ros2_humble_container bash
-
-source /opt/ros/humble/install/setup.bash
-
-source install/setup.bash
-
-ls -l /dev/serial/by-path/
-```
-
 * ###  Chạy robot tổng
 ``` bash
 docker exec -it ros2_humble_container bash
@@ -92,17 +80,6 @@ source /opt/ros/humble/install/setup.bash
 source install/setup.bash
 
 ros2 run teleop_twist_keyboard teleop_twist_keyboard
-```
-
-* ### Test lidar xem ở port nào
-``` bash
-docker exec -it ros2_humble_container bash
-
-source /opt/ros/humble/install/setup.bash
-
-source install/setup.bash
-
-ros2 run rplidar_ros rplidar_composition --ros-args -p serial_port:=/dev/ttyUSB0 -p serial_baudrate:=115200
 ```
 
 * ### Chạy lidar A1M8
