@@ -2,7 +2,6 @@
 cmake_minimum_required(VERSION 3.8)
 project(span LANGUAGES CXX)
 
-enable_testing()
 
 add_library(span INTERFACE)
 target_sources(span INTERFACE ${CMAKE_CURRENT_SOURCE_DIR}/include/tcb/span.hpp)
