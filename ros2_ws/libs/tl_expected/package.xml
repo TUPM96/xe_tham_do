@@ -1,0 +1,12 @@
+<?xml version="1.0"?>
+<package format="2">
+    <name>tl_expected</name>
+    <version>1.0.1</version>
+    <description>Header-only C++ std::expected implementation by TartanLlama, wrapped for ROS2.</description>
+    <maintainer email="your@email.com">Your Name</maintainer>
+    <license>CC0-1.0</license>
+    <buildtool_depend>ament_cmake</buildtool_depend>
+    <export>
+        <build_type>ament_cmake</build_type>
+    </export>
+</package>
