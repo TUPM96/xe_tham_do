@@ -8,6 +8,9 @@ services:
     container_name: ros2_humble_container
     volumes:
       - ./ros2_ws:/root/ros2_ws/src
+      - ./logs:/root/ros2_ws/logs
+      - ./install:/root/ros2_ws/install
+      - ./build:/root/ros2_ws/build
       - $HOME/.Xauthority:/root/.Xauthority:ro
       - /tmp/.X11-unix:/tmp/.X11-unix
     environment:

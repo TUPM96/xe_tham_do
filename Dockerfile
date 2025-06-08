@@ -23,6 +23,7 @@ RUN apt-get update && apt-get install -y \
     x11-apps \
     git \
     cmake \
+    libserial-dev \
     python3-jinja2 \
     python3-typeguard \
     && pip3 install pyserial \

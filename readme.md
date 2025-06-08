@@ -14,9 +14,13 @@ docker exec -it ros2_humble_container bash
 
 * ### Chạy diffdrive_arduino
 ``` bash
-docker exec -it ros2_humble_container bash
 rm -rf logs install build
+rm -rf /root/ros2_ws/build/ackermann_msgs/ament_cmake_python/ackermann_msgs/ackermann_msgs
 colcon build --symlink-install
+
+
+docker exec -it ros2_humble_container bash
+source /opt/ros/humble/install/setup.bash
 source ~/ros2_ws/install/setup.bash
 ros2 launch diffdrive_arduino diffbot.launch.py
 ```
@@ -24,6 +28,8 @@ ros2 launch diffdrive_arduino diffbot.launch.py
 * ### Chạy robot với điều khiển từ bàn phím
 ``` bash
 docker exec -it ros2_humble_container bash
+source /opt/ros/humble/install/setup.bash
+source /opt/ros/humble/install/setup.bash
 ros2 run teleop_twist_keyboard teleop_twist_keyboard --ros-args -r /cmd_vel:=diffbot_base_controller/cmd_vel_unstamped
 ```
 
