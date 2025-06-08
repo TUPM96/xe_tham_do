@@ -42,7 +42,7 @@ docker exec -it ros2_humble_container bash
 
 source /opt/ros/humble/install/setup.bash
 
-source /install/setup.bash
+source install/setup.bash
 
 ros2 launch diffdrive_arduino diffbot.launch.py
 ```
@@ -53,7 +53,7 @@ docker exec -it ros2_humble_container bash
 
 source /opt/ros/humble/install/setup.bash
 
-source /install/setup.bash
+source install/setup.bash
 
 ros2 run teleop_twist_keyboard teleop_twist_keyboard --ros-args -r /cmd_vel:=diffbot_base_controller/cmd_vel_unstamped
 ```
@@ -67,7 +67,7 @@ docker exec -it ros2_humble_container bash
 
 source /opt/ros/humble/install/setup.bash
 
-source /install/setup.bash
+source install/setup.bash
 
 ls -l /dev/serial/by-path/
 ```
@@ -78,7 +78,7 @@ docker exec -it ros2_humble_container bash
 
 source /opt/ros/humble/install/setup.bash
 
-source /install/setup.bash
+source install/setup.bash
 
 ros2 launch xe_tham_do launch_robot.launch.py
 ```
@@ -89,7 +89,7 @@ docker exec -it ros2_humble_container bash
 
 source /opt/ros/humble/install/setup.bash
 
-source /install/setup.bash
+source install/setup.bash
 
 ros2 run teleop_twist_keyboard teleop_twist_keyboard
 ```
@@ -100,7 +100,7 @@ docker exec -it ros2_humble_container bash
 
 source /opt/ros/humble/install/setup.bash
 
-source /install/setup.bash
+source install/setup.bash
 
 ros2 run rplidar_ros rplidar_composition --ros-args -p serial_port:=/dev/ttyUSB0 -p serial_baudrate:=115200
 ```
@@ -111,7 +111,7 @@ docker exec -it ros2_humble_container bash
 
 source /opt/ros/humble/install/setup.bash
 
-source /install/setup.bash
+source install/setup.bash
 
 ros2 launch xe_tham_do rplidar.launch.py serial_port:=/dev/ttyUSB0
 ```
@@ -122,7 +122,7 @@ docker exec -it ros2_humble_container bash
 
 source /opt/ros/humble/install/setup.bash
 
-source /install/setup.bash
+source install/setup.bash
 
 ros2 launch xe_tham_do online_async_launch.py
 ```
