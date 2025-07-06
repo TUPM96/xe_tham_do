@@ -32,7 +32,24 @@ docker exec -it ros2_humble_container bash
 ```
 **Sau đó có thể chạy lệnh bên dưới**
 
-# B. Chạy các phần tử
+# B. Chạy robot test hoạt động
+* ###  Chạy diffdrive_arduino
+``` bash
+docker exec -it ros2_humble_container bash
+
+source /opt/ros/humble/install/setup.bash
+
+source install/setup.bash
+
+ros2 launch diffdrive_arduino diffbot.launch.py
+```
+
+* ###  Chạy điều khiển xe từ bàn phím
+``` bash
+ros2 run teleop_twist_keyboard teleop_twist_keyboard --ros-args -r /cmd_vel:=diffbot_base_controller/cmd_vel_unstamped
+```
+
+# C. Chạy các phần tử
 # 1. Chạy robot thật
 
 * ###  Chạy robot tổng
