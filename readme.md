@@ -1,8 +1,24 @@
 # . Kết nối tới jetson nano
+
+# 1. Kết nối dây LAN từ máy tính tới jetson nano
+# 2. SSH tới jetson nano
+```bash
+ssh ubuntu@ubuntu-desktop
+```
+# 3. Kết nối tới wifi mới
+```bash
+sudo nmcli device wifi connect "admin23" password "123456789"
+```
+# 4. Lấy địa chỉ IP của jetson nano
+```bash
+ip a
+```
+
+# 5. Kết nối tới jetson nano từ IP mới
 ```bash
 ssh ubuntu@192.168.137.192
 ```
-
+Sau đó làm việc với jetson nano như bình thường.
 
 # A. Build source
 ## 1. Chạy docker
@@ -51,6 +67,18 @@ docker exec -it ros2_humble_container bash
 source /opt/ros/humble/install/setup.bash
 
 ros2 run teleop_twist_keyboard teleop_twist_keyboard --ros-args -r /cmd_vel:=diffbot_base_controller/cmd_vel_unstamped
+```
+
+* ###  Chạy lidar A1M8
+``` bash
+
+docker exec -it ros2_humble_container bash
+
+source /opt/ros/humble/install/setup.bash
+
+source install/setup.bash
+
+ros2 run rplidar_ros rplidar_composition --ros-args -p serial_port:=/dev/ttyUSB0 -p serial_baudrate:=115200
 ```
 
 # C. Chạy các phần tử
