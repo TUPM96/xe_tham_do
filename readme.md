@@ -5,16 +5,21 @@
 ```bash
 ssh ubuntu@ubuntu-desktop
 ```
-# 3. Kết nối tới wifi mới
+# 3. Lấy danh sách wifi gần đây
 ```bash
-sudo nmcli device wifi connect "admin23" password "123456789"
+sudo nmcli device wifi list
 ```
-# 4. Lấy địa chỉ IP của jetson nano
+
+# 4. Kết nối tới wifi mới
+```bash
+sudo nmcli device wifi connect "admin23" password "12345678"
+```
+# 5. Lấy địa chỉ IP của jetson nano
 ```bash
 ip a
 ```
 
-# 5. Kết nối tới jetson nano từ IP mới
+# 6. Kết nối tới jetson nano từ IP mới
 ```bash
 ssh ubuntu@192.168.137.192
 ```
