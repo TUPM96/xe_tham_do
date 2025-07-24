@@ -1,4 +1,4 @@
-# . Kết nối tới jetson nano
+# @. Kết nối tới jetson nano
 
 # 1. Kết nối dây LAN từ máy tính tới jetson nano
 # 2. SSH tới jetson nano
