@@ -10,6 +10,7 @@ services:
       - ./ros2_ws:/root/ros2_ws
       - $HOME/.Xauthority:/root/.Xauthority:ro
       - /tmp/.X11-unix:/tmp/.X11-unix
+      - /dev/serial/by-path:/dev/serial/by-path
     environment:
       - DISPLAY=${DISPLAY}
       - ROS_DOMAIN_ID=0
