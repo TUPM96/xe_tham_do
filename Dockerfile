@@ -20,6 +20,9 @@ RUN apt-get update && apt-get install -y \
     libxkbcommon-x11-0 \
     libgl1-mesa-glx \
     libgl1-mesa-dri \
+    libgraphicsmagick++-dev \
+    libsuitesparse-dev \
+    libceres-dev \
     x11-apps \
     git \
     cmake \
@@ -28,6 +31,7 @@ RUN apt-get update && apt-get install -y \
     python3-typeguard \
     && pip3 install pyserial \
     && rm -rf /var/lib/apt/lists/*
+
 
 # Gỡ bất kỳ libbenchmark cũ nào (nếu có, tránh LTO mismatch)
 RUN apt-get purge -y libbenchmark-dev libbenchmark1 || true
