@@ -144,6 +144,18 @@ cd ~/ros2_ws
 rviz2 -d src/xe_tham_do/config/map.rviz
 ```
 
+* ### Chạy navigation
+```bash
+docker exec -it ros2_humble_container bash
+
+source /opt/ros/humble/install/setup.bash
+
+source install/setup.bash
+
+ros2 launch xe_tham_do navigation_launch.py
+
+```
+
 
 
 
