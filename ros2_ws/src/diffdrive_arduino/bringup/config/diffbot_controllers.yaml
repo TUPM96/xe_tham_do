@@ -14,7 +14,7 @@ diffbot_base_controller:
     right_wheel_names: ["right_wheel_joint"]
 
     wheel_separation: 0.25       # Đã chỉnh lại = 25cm
-    wheel_radius: 0.065          # Đã chỉnh lại = 6.5cm
+    wheel_radius: 0.03          # Đã chỉnh lại = 6.5cm
 
     wheel_separation_multiplier: 1.0
     left_wheel_radius_multiplier: 1.0
