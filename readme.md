@@ -89,6 +89,18 @@ source install/setup.bash
 ros2 launch xe_tham_do rplidar.launch.py serial_port:=/dev/serial/by-path/platform-70090000.xusb-usb-0:2.2:1.0-port0
 ```
 
+* ### Chạy camera
+``` bash
+sudo chmod 777 /dev/video*
+
+source /opt/ros/humble/install/setup.bash
+
+source install/setup.bash
+
+ros2 launch articubot_one camera.launch.py video_device:=/dev/video0
+```
+
+
 * ###  Chạy slam toolbox để tạo map
 ``` bash
 docker exec -it ros2_humble_container bash
