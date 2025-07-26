@@ -124,7 +124,7 @@ source /opt/ros/humble/install/setup.bash
 
 cd ~/ros2_ws
 
-rviz2 -d src/xe_tham_do/config/map.rviz
+rviz2 -d src/articubot_one/config/main.rviz
 ```
 
 * ### Chạy navigation
