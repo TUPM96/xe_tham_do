@@ -93,6 +93,10 @@ ros2 launch xe_tham_do rplidar.launch.py serial_port:=/dev/serial/by-path/platfo
 ``` bash
 sudo chmod 777 /dev/video*
 
+docker exec -it ros2_humble_container bash
+
+sudo chmod 777 /dev/video*
+
 source /opt/ros/humble/install/setup.bash
 
 source install/setup.bash
