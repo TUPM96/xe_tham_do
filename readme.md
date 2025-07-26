@@ -21,7 +21,7 @@ ip a
 
 # 6. Kết nối tới jetson nano từ IP mới
 ```bash
-ssh ubuntu@192.168.137.192
+ssh ubuntu@192.168.137.128
 ```
 Sau đó làm việc với jetson nano như bình thường.
 
@@ -96,6 +96,10 @@ docker exec -it ros2_humble_container bash
 source /opt/ros/humble/install/setup.bash
 
 source install/setup.bash
+
+sudo apt update
+
+sudo apt install libceres-dev
 
 ros2 launch xe_tham_do online_async_launch.py
 ```
