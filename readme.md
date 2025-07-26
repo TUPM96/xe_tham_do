@@ -97,7 +97,7 @@ source /opt/ros/humble/install/setup.bash
 
 source install/setup.bash
 
-ros2 launch articubot_one camera.launch.py video_device:=/dev/video0
+ros2 launch xe_tham_do camera.launch.py video_device:=/dev/video0
 ```
 
 
@@ -124,7 +124,7 @@ source /opt/ros/humble/install/setup.bash
 
 cd ~/ros2_ws
 
-rviz2 -d src/articubot_one/config/main.rviz
+rviz2 -d src/xe_tham_do/config/main.rviz
 ```
 
 * ### Chạy navigation
