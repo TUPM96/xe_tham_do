@@ -10,6 +10,33 @@ import sys
 HOST = '0.0.0.0'
 PORT = 3000
 
+def gui_lenh_dieu_khien(cmd_line):
+    # Ở đây bạn thay bằng publish ROS/MQTT hoặc hàm gửi tới xe thực sự
+    # Ví dụ: Gửi lên robot, hoặc in ra để debug
+    print(f"[Publish tới robot]: {cmd_line}")
+
+def xu_ly_lenh_socket(command):
+    command = command.strip()
+    # Kiểm tra cú pháp: "0 speed1 speed2"
+    if command.startswith("0"):
+        try:
+            parts = command.split()
+            if len(parts) == 3:
+                speed1 = int(parts[1])
+                speed2 = int(parts[2])
+                # Tạo lệnh điều khiển phù hợp hệ thống thực tế của bạn
+                cmd_line = f"robot/control/set_speed {speed1} {speed2}"
+                gui_lenh_dieu_khien(cmd_line)
+                print(f"Đã gửi lệnh: {cmd_line}")
+            else:
+                print("Sai cú pháp lệnh 0 speed1 speed2")
+        except Exception as e:
+            print("Lỗi khi xử lý tốc độ:", e)
+    else:
+        print("Nhận lệnh khác:", command)
+        # Nếu là lệnh khác, bạn có thể xử lý hoặc gửi đi tùy mục đích
+        # Ví dụ: gui_lenh_dieu_khien(command)
+
 def handle_client(conn, addr):
     print(f"[KET NOI MOI] {addr} da ket noi.")
     try:
@@ -21,8 +48,10 @@ def handle_client(conn, addr):
                     break
                 command = data.decode('utf-8').strip()
                 print(f"[NHAN] {addr}: {command}")
+                # Xử lý lệnh nhận được:
+                xu_ly_lenh_socket(command)
                 try:
-                    # Ở đây demo chỉ echo lại lệnh nhận được
+                    # Demo: echo lại lệnh nhận được
                     result = subprocess.run(['echo', command], capture_output=True, text=True)
                     output = result.stdout.strip()
                 except Exception as e:

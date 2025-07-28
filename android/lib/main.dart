@@ -2,6 +2,7 @@ import 'dart:io';
 import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:flutter_joystick/flutter_joystick.dart';
+import 'package:flutter_mjpeg/flutter_mjpeg.dart';
 
 void main() {
   runApp(MyApp());
@@ -37,15 +38,15 @@ class _XeThamDoScreenState extends State<XeThamDoScreen> {
 
   Socket? socket;
   StreamSubscription? socketSubscription;
+  String? currentIp; // Lưu IP đang kết nối để render video
 
   void onJoystickChange(StickDragDetails details) {
     if (isConnected && socket != null) {
-      // Điều khiển động cơ trái/phải từ joystick
       int leftMotor = (details.y * 100 - details.x * 50).toInt();
       int rightMotor = (details.y * 100 + details.x * 50).toInt();
       leftMotor = leftMotor.clamp(-100, 100);
       rightMotor = rightMotor.clamp(-100, 100);
-      String cmd = "MOTOR $leftMotor $rightMotor";
+      String cmd = "o $leftMotor $rightMotor";
       socket!.write(cmd + "\n");
       setState(() {
         status = "Đã gửi: $cmd";
@@ -75,37 +76,50 @@ class _XeThamDoScreenState extends State<XeThamDoScreen> {
 
   void ketNoiServer() async {
     try {
-      final s = await Socket.connect(ipController.text, 8888, timeout: Duration(seconds: 5));
+      final ip = ipController.text.trim();
+      final s = await Socket.connect(ip, 3000, timeout: Duration(seconds: 5));
       socket = s;
       socketSubscription = s.listen((data) {
         final resp = String.fromCharCodes(data);
-        setState(() {
-          status = "Phản hồi: $resp";
-        });
+        // Có thể cập nhật trạng thái/phản hồi ở đây nếu muốn
       }, onDone: () {
         setState(() {
           isConnected = false;
           status = "Mất kết nối tới server";
+          currentIp = null;
         });
         socket = null;
       }, onError: (e) {
         setState(() {
           isConnected = false;
           status = "Lỗi socket: $e";
+          currentIp = null;
         });
         socket = null;
       });
 
       setState(() {
         isConnected = true;
-        status = "Đã kết nối tới ${ipController.text}";
+        currentIp = ip;
+        status = "Đã kết nối tới $ip";
       });
     } catch (e) {
       setState(() {
         status = "Kết nối thất bại: $e";
         isConnected = false;
+        currentIp = null;
       });
     }
+  }
+
+  void ngatKetNoi() async {
+    await socketSubscription?.cancel();
+    await socket?.close();
+    setState(() {
+      isConnected = false;
+      currentIp = null;
+      status = "Đã ngắt kết nối";
+    });
   }
 
   @override
@@ -121,7 +135,7 @@ class _XeThamDoScreenState extends State<XeThamDoScreen> {
       appBar: AppBar(title: Text('Xe Tham Do')),
       body: Column(
         children: [
-          // Phần nhập ip và kết nối
+          // Phần nhập ip và kết nối/ngắt
           Padding(
             padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
             child: Row(
@@ -137,9 +151,15 @@ class _XeThamDoScreenState extends State<XeThamDoScreen> {
                   ),
                 ),
                 SizedBox(width: 8),
-                ElevatedButton(
-                  onPressed: isConnected ? null : ketNoiServer,
-                  child: Text(isConnected ? "Đã kết nối" : "Kết nối"),
+                isConnected
+                    ? ElevatedButton(
+                  onPressed: ngatKetNoi,
+                  style: ElevatedButton.styleFrom(backgroundColor: Colors.red),
+                  child: Text("Ngắt kết nối"),
+                )
+                    : ElevatedButton(
+                  onPressed: ketNoiServer,
+                  child: Text("Kết nối"),
                 ),
               ],
             ),
@@ -149,14 +169,16 @@ class _XeThamDoScreenState extends State<XeThamDoScreen> {
             children: [
               Expanded(
                 child: CameraBox(
-                  title: "Webcam",
-                  imageUrl: "https://placekitten.com/400/300",
+                  title: "Camera 1",
+                  videoIp: currentIp,
+                  isVideo: true,
                 ),
               ),
               Expanded(
                 child: CameraBox(
-                  title: "Camera Nhiệt",
+                  title: "Camera 2",
                   imageUrl: "https://i.imgur.com/u3zRr1l.png",
+                  isVideo: false,
                 ),
               ),
             ],
@@ -164,7 +186,7 @@ class _XeThamDoScreenState extends State<XeThamDoScreen> {
           // Map nhỏ lại
           Container(
             margin: EdgeInsets.symmetric(vertical: 8),
-            height: 110, // map nhỏ lại
+            height: 110,
             child: MapBox(),
           ),
           // Nút lựa chọn chế độ ở trên joystick
@@ -339,14 +361,26 @@ class _XeThamDoScreenState extends State<XeThamDoScreen> {
   }
 }
 
+// CameraBox: nếu isVideo == true và có videoIp, show stream webcam, ngược lại show ảnh thường
 class CameraBox extends StatelessWidget {
   final String title;
-  final String imageUrl;
+  final String? videoIp;
+  final String? imageUrl;
+  final bool isVideo;
 
-  const CameraBox({required this.title, required this.imageUrl});
+  const CameraBox({
+    required this.title,
+    this.videoIp,
+    this.imageUrl,
+    this.isVideo = false,
+  });
 
   @override
   Widget build(BuildContext context) {
+    String? streamUrl;
+    if (isVideo && videoIp != null) {
+      streamUrl = "http://$videoIp:5000/video";
+    }
     return Container(
       height: 180,
       margin: EdgeInsets.all(8),
@@ -360,8 +394,16 @@ class CameraBox extends StatelessWidget {
           Expanded(
             child: ClipRRect(
               borderRadius: BorderRadius.circular(8),
-              child: Image.network(
-                imageUrl,
+              child: (isVideo && streamUrl != null)
+                  ? Mjpeg(
+                stream: streamUrl,
+                isLive: true,
+                error: (context, error, stack) {
+                  return Center(child: Icon(Icons.videocam_off, color: Colors.red, size: 48));
+                },
+              )
+                  : Image.network(
+                imageUrl ?? "",
                 fit: BoxFit.cover,
                 width: double.infinity,
                 errorBuilder: (_, __, ___) =>
