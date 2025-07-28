@@ -5,15 +5,39 @@ import cv2
 from flask import Flask, Response
 import sys
 
+# ROS import
+import rospy
+from geometry_msgs.msg import Twist
+
 # ---------- PHẦN 1: SOCKET ĐIỀU KHIỂN XE ----------
 
 HOST = '0.0.0.0'
 PORT = 3000
 
-def gui_lenh_dieu_khien(cmd_line):
-    # Ở đây bạn thay bằng publish ROS/MQTT hoặc hàm gửi tới xe thực sự
-    # Ví dụ: Gửi lên robot, hoặc in ra để debug
-    print(f"[Publish tới robot]: {cmd_line}")
+# ROS Node và publisher khởi tạo toàn cục
+rospy.init_node('socket_cmd_vel_bridge', anonymous=True)
+cmd_vel_pub = rospy.Publisher('/cmd_vel', Twist, queue_size=1)
+
+# Các hệ số quy đổi, điều chỉnh tùy xe của bạn!
+MAX_MOTOR = 100.0  # motor nhận giá trị từ -100 đến 100
+MAX_LINEAR = 0.5   # m/s (tốc độ tối đa thực tế của xe bạn)
+WHEEL_BASE = 0.3   # mét (khoảng cách giữa 2 bánh, chỉnh theo xe)
+
+def speed_to_twist(speed_left, speed_right):
+    # Quy đổi sang vận tốc thực
+    v_l = speed_left / MAX_MOTOR * MAX_LINEAR
+    v_r = speed_right / MAX_MOTOR * MAX_LINEAR
+    v = (v_r + v_l) / 2.0
+    omega = (v_r - v_l) / WHEEL_BASE
+    twist = Twist()
+    twist.linear.x = v
+    twist.angular.z = omega
+    return twist
+
+def gui_lenh_dieu_khien_cmd_vel(speed1, speed2):
+    twist = speed_to_twist(speed1, speed2)
+    cmd_vel_pub.publish(twist)
+    print(f"[Publish /cmd_vel] linear.x={twist.linear.x:.2f} angular.z={twist.angular.z:.2f}")
 
 def xu_ly_lenh_socket(command):
     command = command.strip()
@@ -24,18 +48,14 @@ def xu_ly_lenh_socket(command):
             if len(parts) == 3:
                 speed1 = int(parts[1])
                 speed2 = int(parts[2])
-                # Tạo lệnh điều khiển phù hợp hệ thống thực tế của bạn
-                cmd_line = f"robot/control/set_speed {speed1} {speed2}"
-                gui_lenh_dieu_khien(cmd_line)
-                print(f"Đã gửi lệnh: {cmd_line}")
+                gui_lenh_dieu_khien_cmd_vel(speed1, speed2)
             else:
                 print("Sai cú pháp lệnh 0 speed1 speed2")
         except Exception as e:
             print("Lỗi khi xử lý tốc độ:", e)
     else:
         print("Nhận lệnh khác:", command)
-        # Nếu là lệnh khác, bạn có thể xử lý hoặc gửi đi tùy mục đích
-        # Ví dụ: gui_lenh_dieu_khien(command)
+        # Nếu là lệnh khác, bạn có thể xử lý riêng ở đây
 
 def handle_client(conn, addr):
     print(f"[KET NOI MOI] {addr} da ket noi.")
@@ -48,10 +68,8 @@ def handle_client(conn, addr):
                     break
                 command = data.decode('utf-8').strip()
                 print(f"[NHAN] {addr}: {command}")
-                # Xử lý lệnh nhận được:
                 xu_ly_lenh_socket(command)
                 try:
-                    # Demo: echo lại lệnh nhận được
                     result = subprocess.run(['echo', command], capture_output=True, text=True)
                     output = result.stdout.strip()
                 except Exception as e:
@@ -116,6 +134,5 @@ if __name__ == '__main__':
     t2 = threading.Thread(target=start_flask_server, daemon=True)
     t1.start()
     t2.start()
-    # Giữ main thread sống
     t1.join()
     t2.join()
