@@ -132,7 +132,6 @@ def start_flask_server():
 # ---------- MAIN: CHẠY SONG SONG 2 SERVER + ROS2 ----------
 if __name__ == '__main__':
     rclpy.init()
-    global cmd_vel_node
     cmd_vel_node = CmdVelPublisher()
     t1 = threading.Thread(target=start_socket_server, daemon=True)
     t2 = threading.Thread(target=start_flask_server, daemon=True)
