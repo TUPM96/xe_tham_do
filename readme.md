@@ -131,6 +131,24 @@ cd ~/ros2_ws
 rviz2 -d src/xe_tham_do/config/main.rviz
 ```
 
+* ### Chạy điều khiển từ xa bằng app điện thoại
+```bash
+docker exec -it ros2_humble_container bash
+
+cd ~/python
+
+pip3 install --ignore-installed blinker
+
+pip3 install flask
+
+python xe_tham_do.py
+
+source /opt/ros/humble/install/setup.bash
+
+ros2 topic echo /cmd_vel
+```
+
+
 * ### Chạy navigation
 ```bash
 docker exec -it ros2_humble_container bash
@@ -143,12 +161,6 @@ ros2 launch xe_tham_do navigation_launch.py
 
 ```
 
-pip3 install --ignore-installed blinker
-pip3 install flask
-
-source /opt/ros/humble/install/setup.bash
-
-ros2 topic echo /cmd_vel
 
 
 

@@ -42,8 +42,10 @@ class _XeThamDoScreenState extends State<XeThamDoScreen> {
 
   void onJoystickChange(StickDragDetails details) {
     if (isConnected && socket != null) {
-      int leftMotor = (details.y * 100 - details.x * 50).toInt();
-      int rightMotor = (details.y * 100 + details.x * 50).toInt();
+      double y = -details.y;          // Đảo chiều Y nếu cần (tiến/lùi)
+      double x = -details.x;          // ĐẢO CHIỀU X để đảo trái/phải
+      int leftMotor = (y * 100 - x * 50).toInt();
+      int rightMotor = (y * 100 + x * 50).toInt();
       leftMotor = leftMotor.clamp(-100, 100);
       rightMotor = rightMotor.clamp(-100, 100);
       String cmd = "o $leftMotor $rightMotor";
