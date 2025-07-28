@@ -33,8 +33,8 @@ class CmdVelPublisher(Node):
 
     def gui_lenh_dieu_khien_cmd_vel(self, speed1, speed2):
         twist = self.speed_to_twist(speed1, speed2)
-        self.publisher.publish(twist)
         print(f"[Publish /cmd_vel] linear.x={twist.linear.x:.2f} angular.z={twist.angular.z:.2f}")
+        self.publisher.publish(twist)
 
 # ---------- PHẦN 1: SOCKET ĐIỀU KHIỂN XE ----------
 
