@@ -148,6 +148,9 @@ pip3 install flask
 
 source /opt/ros/humble/install/setup.bash
 
+ros2 topic echo /cmd_vel
+
+
 
 
 * ### Chạy xử lý ảnh

@@ -44,6 +44,7 @@ PORT = 3000
 cmd_vel_node = None
 
 def xu_ly_lenh_socket(command):
+    global cmd_vel_node
     command = command.strip()
     if command.startswith("0"):
         try:
