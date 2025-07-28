@@ -141,9 +141,10 @@ pip3 install --ignore-installed blinker
 
 pip3 install flask
 
+source /opt/ros/humble/install/setup.bash
+
 python xe_tham_do.py
 
-source /opt/ros/humble/install/setup.bash
 
 ros2 topic echo /cmd_vel
 ```

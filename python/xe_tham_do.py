@@ -122,6 +122,29 @@ def gen_frames():
 def video_feed():
     return Response(gen_frames(), mimetype='multipart/x-mixed-replace; boundary=frame')
 
+def gen_thermal_frames():
+    cap = cv2.VideoCapture(1)
+    if not cap.isOpened():
+        print("Khong mo duoc camera nhiet!", file=sys.stderr)
+        return
+    try:
+        while True:
+            success, frame = cap.read()
+            if not success:
+                break
+            ret, buffer = cv2.imencode('.jpg', frame)
+            if not ret:
+                continue
+            frame = buffer.tobytes()
+            yield (b'--frame\r\n'
+                   b'Content-Type: image/jpeg\r\n\r\n' + frame + b'\r\n')
+    finally:
+        cap.release()
+
+@app.route('/video1')
+def video1_feed():
+    return Response(gen_thermal_frames(), mimetype='multipart/x-mixed-replace; boundary=frame')
+
 @app.route('/')
 def index():
     return "<h1>Webcam stream. Xem tại <a href='/video'>/video</a></h1>"
