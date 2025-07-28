@@ -143,6 +143,12 @@ ros2 launch xe_tham_do navigation_launch.py
 
 ```
 
+pip3 install --ignore-installed blinker
+pip3 install flask
+
+source /opt/ros/humble/install/setup.bash
+
+
 
 * ### Chạy xử lý ảnh
 ```bash
