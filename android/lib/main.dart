@@ -187,11 +187,13 @@ class _XeThamDoScreenState extends State<XeThamDoScreen> {
               ),
             ],
           ),
-          // Map nhỏ lại
+          // Map: hiển thị stream /video3 thay vì MapBox tĩnh
           Container(
             margin: EdgeInsets.symmetric(vertical: 8),
-            height: 110,
-            child: MapBox(),
+            height: 220,
+            child: MapStreamBox(
+              videoIp: currentIp,
+            ),
           ),
           // Nút lựa chọn chế độ ở trên joystick
           Padding(
@@ -423,17 +425,39 @@ class CameraBox extends StatelessWidget {
   }
 }
 
-class MapBox extends StatelessWidget {
+// MapStreamBox: hiển thị video MJPEG từ /video3 (bản đồ occupancy grid thực sự)
+class MapStreamBox extends StatelessWidget {
+  final String? videoIp;
+  const MapStreamBox({this.videoIp});
+
   @override
   Widget build(BuildContext context) {
+    String? streamUrl = (videoIp != null) ? "http://$videoIp:5000/video3" : null;
     return Container(
       decoration: BoxDecoration(
         border: Border.all(color: Colors.green),
         borderRadius: BorderRadius.circular(12),
       ),
       alignment: Alignment.center,
-      child: Text(
-        "BẢN ĐỒ (Tích hợp google_maps_flutter hoặc flutter_map tại đây)",
+      child: streamUrl != null
+          ? Mjpeg(
+        stream: streamUrl,
+        isLive: true,
+        error: (context, error, stack) {
+          return Center(
+            child: Column(
+              mainAxisAlignment: MainAxisAlignment.center,
+              children: [
+                Icon(Icons.map, color: Colors.grey, size: 48),
+                Text("Không hiển thị được bản đồ",
+                    style: TextStyle(color: Colors.red)),
+              ],
+            ),
+          );
+        },
+      )
+          : Text(
+        "Nhập địa chỉ IP và kết nối để xem bản đồ",
         textAlign: TextAlign.center,
         style: TextStyle(fontSize: 16, color: Colors.green),
       ),
