@@ -1,3 +1,5 @@
+import 'dart:io';
+import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:flutter_joystick/flutter_joystick.dart';
 
@@ -25,7 +27,7 @@ class XeThamDoScreen extends StatefulWidget {
 }
 
 class _XeThamDoScreenState extends State<XeThamDoScreen> {
-  String status = "Dang cho dieu khien...";
+  String status = "Đang chờ điều khiển...";
   DieuKhienMode mode = DieuKhienMode.thuCong;
   List<String> khoList = [];
   int? kho1Index;
@@ -33,8 +35,22 @@ class _XeThamDoScreenState extends State<XeThamDoScreen> {
   TextEditingController ipController = TextEditingController(text: "192.168.31.10");
   bool isConnected = false;
 
+  Socket? socket;
+  StreamSubscription? socketSubscription;
+
   void onJoystickChange(StickDragDetails details) {
-    // Xu ly dieu khien o day
+    if (isConnected && socket != null) {
+      // Điều khiển động cơ trái/phải từ joystick
+      int leftMotor = (details.y * 100 - details.x * 50).toInt();
+      int rightMotor = (details.y * 100 + details.x * 50).toInt();
+      leftMotor = leftMotor.clamp(-100, 100);
+      rightMotor = rightMotor.clamp(-100, 100);
+      String cmd = "MOTOR $leftMotor $rightMotor";
+      socket!.write(cmd + "\n");
+      setState(() {
+        status = "Đã gửi: $cmd";
+      });
+    }
   }
 
   void themKho(int soKho) {
@@ -50,16 +66,53 @@ class _XeThamDoScreenState extends State<XeThamDoScreen> {
 
   void diChuyenDenKho(int soKho) {
     setState(() {
-      status = "Dang di chuyen den kho $soKho...";
-      // Gui lenh di chuyen den kho tu dong
+      status = "Đang di chuyển đến kho $soKho...";
     });
+    if (isConnected && socket != null) {
+      socket!.write("GOTO_KHO $soKho\n");
+    }
   }
 
-  void ketNoiServer() {
-    setState(() {
-      isConnected = true; // Ban co the thay bang logic ket noi thuc te
-      status = "Da ket noi toi ${ipController.text}";
-    });
+  void ketNoiServer() async {
+    try {
+      final s = await Socket.connect(ipController.text, 8888, timeout: Duration(seconds: 5));
+      socket = s;
+      socketSubscription = s.listen((data) {
+        final resp = String.fromCharCodes(data);
+        setState(() {
+          status = "Phản hồi: $resp";
+        });
+      }, onDone: () {
+        setState(() {
+          isConnected = false;
+          status = "Mất kết nối tới server";
+        });
+        socket = null;
+      }, onError: (e) {
+        setState(() {
+          isConnected = false;
+          status = "Lỗi socket: $e";
+        });
+        socket = null;
+      });
+
+      setState(() {
+        isConnected = true;
+        status = "Đã kết nối tới ${ipController.text}";
+      });
+    } catch (e) {
+      setState(() {
+        status = "Kết nối thất bại: $e";
+        isConnected = false;
+      });
+    }
+  }
+
+  @override
+  void dispose() {
+    socket?.close();
+    socketSubscription?.cancel();
+    super.dispose();
   }
 
   @override
@@ -68,7 +121,7 @@ class _XeThamDoScreenState extends State<XeThamDoScreen> {
       appBar: AppBar(title: Text('Xe Tham Do')),
       body: Column(
         children: [
-          // Phan nhap ip va ket noi
+          // Phần nhập ip và kết nối
           Padding(
             padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
             child: Row(
@@ -77,7 +130,7 @@ class _XeThamDoScreenState extends State<XeThamDoScreen> {
                   child: TextField(
                     controller: ipController,
                     decoration: InputDecoration(
-                      labelText: "Nhap dia chi IP",
+                      labelText: "Nhập địa chỉ IP",
                       border: OutlineInputBorder(),
                       isDense: true,
                     ),
@@ -86,12 +139,12 @@ class _XeThamDoScreenState extends State<XeThamDoScreen> {
                 SizedBox(width: 8),
                 ElevatedButton(
                   onPressed: isConnected ? null : ketNoiServer,
-                  child: Text(isConnected ? "Da ket noi" : "Ket noi"),
+                  child: Text(isConnected ? "Đã kết nối" : "Kết nối"),
                 ),
               ],
             ),
           ),
-          // 2 khung camera ben tren
+          // 2 khung camera bên trên
           Row(
             children: [
               Expanded(
@@ -102,19 +155,19 @@ class _XeThamDoScreenState extends State<XeThamDoScreen> {
               ),
               Expanded(
                 child: CameraBox(
-                  title: "Camera Nhiet",
+                  title: "Camera Nhiệt",
                   imageUrl: "https://i.imgur.com/u3zRr1l.png",
                 ),
               ),
             ],
           ),
-          // Map nho lai
+          // Map nhỏ lại
           Container(
             margin: EdgeInsets.symmetric(vertical: 8),
-            height: 110, // map nho lai
+            height: 110, // map nhỏ lại
             child: MapBox(),
           ),
-          // Nut lua chon che do o tren joystick
+          // Nút lựa chọn chế độ ở trên joystick
           Padding(
             padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 4),
             child: Row(
@@ -134,7 +187,7 @@ class _XeThamDoScreenState extends State<XeThamDoScreen> {
                       mode = DieuKhienMode.thuCong;
                     });
                   },
-                  child: Text('Thu Cong'),
+                  child: Text('Thủ Công'),
                 ),
                 SizedBox(width: 16),
                 ElevatedButton(
@@ -151,12 +204,12 @@ class _XeThamDoScreenState extends State<XeThamDoScreen> {
                       mode = DieuKhienMode.tuDong;
                     });
                   },
-                  child: Text('Tu Dong'),
+                  child: Text('Tự Động'),
                 ),
               ],
             ),
           ),
-          // Vung dieu khien
+          // Vùng điều khiển
           if (mode == DieuKhienMode.thuCong)
             Padding(
               padding: EdgeInsets.only(bottom: 18),
@@ -195,7 +248,7 @@ class _XeThamDoScreenState extends State<XeThamDoScreen> {
                 child: Row(
                   mainAxisAlignment: MainAxisAlignment.center,
                   children: [
-                    // Nua trai la joystick
+                    // Nửa trái là joystick
                     Expanded(
                       flex: 1,
                       child: Column(
@@ -226,7 +279,7 @@ class _XeThamDoScreenState extends State<XeThamDoScreen> {
                         ],
                       ),
                     ),
-                    // Nua phai la cac nut
+                    // Nửa phải là các nút
                     Expanded(
                       flex: 1,
                       child: Column(
@@ -237,12 +290,12 @@ class _XeThamDoScreenState extends State<XeThamDoScreen> {
                             children: [
                               ElevatedButton(
                                 onPressed: () => themKho(1),
-                                child: Text('Them Kho 1'),
+                                child: Text('Thêm Kho 1'),
                               ),
                               SizedBox(width: 8),
                               ElevatedButton(
                                 onPressed: () => themKho(2),
-                                child: Text('Them Kho 2'),
+                                child: Text('Thêm Kho 2'),
                               ),
                             ],
                           ),
@@ -254,14 +307,14 @@ class _XeThamDoScreenState extends State<XeThamDoScreen> {
                                 onPressed: kho1Index != null
                                     ? () => diChuyenDenKho(1)
                                     : null,
-                                child: Text('Di chuyen den kho 1'),
+                                child: Text('Đi chuyển đến kho 1'),
                               ),
                               SizedBox(width: 8),
                               ElevatedButton(
                                 onPressed: kho2Index != null
                                     ? () => diChuyenDenKho(2)
                                     : null,
-                                child: Text('Di chuyen den kho 2'),
+                                child: Text('Đi chuyển đến kho 2'),
                               ),
                             ],
                           ),
@@ -269,7 +322,7 @@ class _XeThamDoScreenState extends State<XeThamDoScreen> {
                             Padding(
                               padding: EdgeInsets.only(top: 10),
                               child: Text(
-                                "Danh sach kho: ${khoList.join(', ')}",
+                                "Danh sách kho: ${khoList.join(', ')}",
                                 style: TextStyle(fontSize: 14, color: Colors.green),
                               ),
                             ),
@@ -332,7 +385,7 @@ class MapBox extends StatelessWidget {
       ),
       alignment: Alignment.center,
       child: Text(
-        "BAN DO (Tich hop google_maps_flutter hoac flutter_map tai day)",
+        "BẢN ĐỒ (Tích hợp google_maps_flutter hoặc flutter_map tại đây)",
         textAlign: TextAlign.center,
         style: TextStyle(fontSize: 16, color: Colors.green),
       ),

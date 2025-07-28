@@ -1,10 +1,14 @@
 import socket
 import threading
 import subprocess
+import cv2
+from flask import Flask, Response
+import sys
 
-# Cau hinh server
-HOST = '0.0.0.0'  # Lang nghe moi dia chi
-PORT = 8888       # Cong tuy chon
+# ---------- PHẦN 1: SOCKET ĐIỀU KHIỂN XE ----------
+
+HOST = '0.0.0.0'
+PORT = 80
 
 def handle_client(conn, addr):
     print(f"[KET NOI MOI] {addr} da ket noi.")
@@ -15,23 +19,19 @@ def handle_client(conn, addr):
                 if not data:
                     print(f"[MAT KET NOI] {addr}")
                     break
-                # Gia su Flutter gui chuoi ky tu dieu khien (vi du: "FORWARD", "LEFT", "STOP", ...)
                 command = data.decode('utf-8').strip()
                 print(f"[NHAN] {addr}: {command}")
-                # Thuc thi command nay vao cmd_line (command line)
-                # Can than bao mat! O day chi chay demo echo lai lenh
                 try:
-                    # Vi du: thuc thi lenh gia lap, thay the bang lenh that cua ban
+                    # Ở đây demo chỉ echo lại lệnh nhận được
                     result = subprocess.run(['echo', command], capture_output=True, text=True)
                     output = result.stdout.strip()
                 except Exception as e:
                     output = f"LOI: {e}"
-                # Gui lai ket qua cho client (tuy chon)
                 conn.sendall(output.encode('utf-8'))
     except Exception as e:
         print(f"[LOI] {addr}: {e}")
 
-def start_server():
+def start_socket_server():
     print("[KHOI DONG] Server socket dang chay...")
     with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as s:
         s.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
@@ -43,5 +43,50 @@ def start_server():
             thread = threading.Thread(target=handle_client, args=(conn, addr), daemon=True)
             thread.start()
 
-if __name__ == "__main__":
-    start_server()
+# ---------- PHẦN 2: FLASK STREAM WEBCAM ----------
+
+app = Flask(__name__)
+
+def gen_frames():
+    cap = cv2.VideoCapture(0)
+    if not cap.isOpened():
+        print("Khong mo duoc webcam!", file=sys.stderr)
+        return
+    try:
+        while True:
+            success, frame = cap.read()
+            if not success:
+                break
+            # Chuyển ảnh sang JPEG
+            ret, buffer = cv2.imencode('.jpg', frame)
+            if not ret:
+                continue
+            frame = buffer.tobytes()
+            # Stream MJPEG
+            yield (b'--frame\r\n'
+                   b'Content-Type: image/jpeg\r\n\r\n' + frame + b'\r\n')
+    finally:
+        cap.release()
+
+@app.route('/video')
+def video_feed():
+    return Response(gen_frames(), mimetype='multipart/x-mixed-replace; boundary=frame')
+
+@app.route('/')
+def index():
+    return "<h1>Webcam stream. Xem tại <a href='/video'>/video</a></h1>"
+
+def start_flask_server():
+    print("[KHOI DONG] Flask webcam stream tren http://0.0.0.0:5000/video")
+    app.run(host='0.0.0.0', port=5000, threaded=True)
+
+# ---------- MAIN: CHẠY SONG SONG 2 SERVER ----------
+
+if __name__ == '__main__':
+    t1 = threading.Thread(target=start_socket_server, daemon=True)
+    t2 = threading.Thread(target=start_flask_server, daemon=True)
+    t1.start()
+    t2.start()
+    # Giữ main thread sống
+    t1.join()
+    t2.join()
