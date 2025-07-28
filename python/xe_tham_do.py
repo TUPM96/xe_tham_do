@@ -10,7 +10,7 @@ import numpy as np
 import rclpy
 from rclpy.node import Node
 from geometry_msgs.msg import Twist
-from nav_msgs.msg import Odometry
+from nav_msgs.msg import Odometry, OccupancyGrid
 
 # ---------- ROS2 PUBLISHER NODE ----------
 
@@ -38,12 +38,9 @@ class CmdVelPublisher(Node):
         print(f"[Publish /cmd_vel] linear.x={twist.linear.x:.2f} angular.z={twist.angular.z:.2f}")
         self.publisher.publish(twist)
 
-# ---------- PHẦN ROS2 MAP/Odometry SUBSCRIBER ----------
-# Lưu vị trí xe toàn cục
-latest_pose = {
-    "x": 0.0,
-    "y": 0.0
-}
+# ---------- ROS2 SUBSCRIBER: ODOM & MAP ----------
+latest_pose = {"x": 0.0, "y": 0.0}
+latest_map = None
 
 class OdomSubscriber(Node):
     def __init__(self):
@@ -53,12 +50,26 @@ class OdomSubscriber(Node):
             '/odom',
             self.listener_callback,
             10)
-        self.subscription  # prevent unused variable warning
+        self.subscription
 
     def listener_callback(self, msg):
         global latest_pose
         latest_pose["x"] = msg.pose.pose.position.x
         latest_pose["y"] = msg.pose.pose.position.y
+
+class MapSubscriber(Node):
+    def __init__(self):
+        super().__init__('map_subscriber')
+        self.subscription = self.create_subscription(
+            OccupancyGrid,
+            '/map',
+            self.listener_callback,
+            10)
+        self.subscription
+
+    def listener_callback(self, msg):
+        global latest_map
+        latest_map = msg
 
 # ---------- PHẦN 1: SOCKET ĐIỀU KHIỂN XE ----------
 
@@ -169,32 +180,41 @@ def gen_thermal_frames():
 def video1_feed():
     return Response(gen_thermal_frames(), mimetype='multipart/x-mixed-replace; boundary=frame')
 
-# ----------- MAP STREAM /video3 từ topic odom ------------
+# ----------- MAP STREAM /video3 từ topic /map + /odom ------------
 
-# Map config
-MAP_WIDTH = 400  # px
-MAP_HEIGHT = 400  # px
-MAP_M_PER_PX = 0.05  # mỗi pixel ứng với 5cm. (tùy bản đồ thực tế)
+def occupancy_grid_to_image(occ_grid: OccupancyGrid):
+    width = occ_grid.info.width
+    height = occ_grid.info.height
+    data = np.array(occ_grid.data).reshape((height, width))
+    # Chuyển -1 (unknown) thành màu xám 127, 0 (free) thành trắng 255, 100 (occupied) thành đen 0
+    img = np.zeros((height, width), dtype=np.uint8)
+    img[data == 0] = 255
+    img[data == 100] = 0
+    img[data == -1] = 127
+    return img
 
 def gen_map_frames():
-    global latest_pose
-    # Vẽ một map trắng, xe là chấm đỏ
+    global latest_pose, latest_map
     while True:
-        # Tạo nền trắng
-        map_img = np.ones((MAP_HEIGHT, MAP_WIDTH, 3), dtype=np.uint8) * 255
-
-        # Lấy vị trí xe, quy đổi ra pixel
-        x = latest_pose["x"]
-        y = latest_pose["y"]
-        # Chuyển điểm (x, y) thực thành pixel (center ở giữa)
-        px = int(MAP_WIDTH // 2 + x / MAP_M_PER_PX)
-        py = int(MAP_HEIGHT // 2 - y / MAP_M_PER_PX)  # y trục lên trên
-
-        # Vẽ xe (chấm đỏ)
-        cv2.circle(map_img, (px, py), 7, (0, 0, 255), -1)
-        # Optionally vẽ mốc (trục XY)
-        cv2.line(map_img, (MAP_WIDTH//2, 0), (MAP_WIDTH//2, MAP_HEIGHT), (200,200,200), 1)
-        cv2.line(map_img, (0, MAP_HEIGHT//2), (MAP_WIDTH, MAP_HEIGHT//2), (200,200,200), 1)
+        if latest_map is None:
+            # Chưa nhận map, tạm hiển thị trắng
+            map_img = np.ones((400, 400, 3), dtype=np.uint8) * 200
+        else:
+            img = occupancy_grid_to_image(latest_map)
+            # resize cho dễ nhìn
+            scale = 2
+            map_img = cv2.cvtColor(img, cv2.COLOR_GRAY2BGR)
+            map_img = cv2.resize(map_img, (img.shape[1]*scale, img.shape[0]*scale), interpolation=cv2.INTER_NEAREST)
+            # Tính vị trí xe trên bản đồ
+            x = latest_pose["x"]  # mét
+            y = latest_pose["y"]
+            origin = latest_map.info.origin.position
+            res = latest_map.info.resolution
+            px = int((x - origin.x) / res * scale)
+            py = int((img.shape[0] * scale) - (y - origin.y) / res * scale)
+            # Vẽ xe (chấm đỏ)
+            if 0 <= px < map_img.shape[1] and 0 <= py < map_img.shape[0]:
+                cv2.circle(map_img, (px, py), 7, (0, 0, 255), -1)
 
         # Encode và yield
         ret, buffer = cv2.imencode('.jpg', map_img)
@@ -213,29 +233,34 @@ def index():
     return """
     <h1>Webcam stream <a href='/video'>/video</a></h1>
     <h1>Camera nhiệt stream <a href='/video1'>/video1</a></h1>
-    <h1>Bản đồ vị trí xe <a href='/video3'>/video3</a></h1>
+    <h1>Bản đồ vị trí xe (OccupancyGrid) <a href='/video3'>/video3</a></h1>
     """
 
 def start_flask_server():
     print("[KHOI DONG] Flask webcam stream tren http://0.0.0.0:5000/video")
     app.run(host='0.0.0.0', port=5000, threaded=True)
 
-# ---------- MAIN: CHẠY SONG SONG 2 SERVER + ROS2 ----------
+# ---------- MAIN: CHẠY SONG SONG 3 SERVER + ROS2 ----------
 if __name__ == '__main__':
     rclpy.init()
     cmd_vel_node = CmdVelPublisher()
     odom_node = OdomSubscriber()
+    map_node = MapSubscriber()
     t1 = threading.Thread(target=start_socket_server, daemon=True)
     t2 = threading.Thread(target=start_flask_server, daemon=True)
     t1.start()
     t2.start()
     try:
-        # Chạy cả 2 node ROS2 cùng lúc
-        rclpy.spin(cmd_vel_node)
-        rclpy.spin(odom_node)
+        # Chạy các node ROS2 cùng lúc (spin từng cái song song)
+        executor = rclpy.executors.MultiThreadedExecutor()
+        executor.add_node(cmd_vel_node)
+        executor.add_node(odom_node)
+        executor.add_node(map_node)
+        executor.spin()
     except KeyboardInterrupt:
         pass
     finally:
         cmd_vel_node.destroy_node()
         odom_node.destroy_node()
+        map_node.destroy_node()
         rclpy.shutdown()
