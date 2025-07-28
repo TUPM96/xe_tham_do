@@ -8,7 +8,7 @@ import sys
 # ---------- PHẦN 1: SOCKET ĐIỀU KHIỂN XE ----------
 
 HOST = '0.0.0.0'
-PORT = 80
+PORT = 5000
 
 def handle_client(conn, addr):
     print(f"[KET NOI MOI] {addr} da ket noi.")
