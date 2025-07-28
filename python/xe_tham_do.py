@@ -4,11 +4,13 @@ import subprocess
 import cv2
 from flask import Flask, Response
 import sys
+import numpy as np
 
 # ROS2 import
 import rclpy
 from rclpy.node import Node
 from geometry_msgs.msg import Twist
+from nav_msgs.msg import Odometry
 
 # ---------- ROS2 PUBLISHER NODE ----------
 
@@ -35,6 +37,28 @@ class CmdVelPublisher(Node):
         twist = self.speed_to_twist(speed1, speed2)
         print(f"[Publish /cmd_vel] linear.x={twist.linear.x:.2f} angular.z={twist.angular.z:.2f}")
         self.publisher.publish(twist)
+
+# ---------- PHẦN ROS2 MAP/Odometry SUBSCRIBER ----------
+# Lưu vị trí xe toàn cục
+latest_pose = {
+    "x": 0.0,
+    "y": 0.0
+}
+
+class OdomSubscriber(Node):
+    def __init__(self):
+        super().__init__('odom_subscriber')
+        self.subscription = self.create_subscription(
+            Odometry,
+            '/odom',
+            self.listener_callback,
+            10)
+        self.subscription  # prevent unused variable warning
+
+    def listener_callback(self, msg):
+        global latest_pose
+        latest_pose["x"] = msg.pose.pose.position.x
+        latest_pose["y"] = msg.pose.pose.position.y
 
 # ---------- PHẦN 1: SOCKET ĐIỀU KHIỂN XE ----------
 
@@ -95,7 +119,7 @@ def start_socket_server():
             thread = threading.Thread(target=handle_client, args=(conn, addr), daemon=True)
             thread.start()
 
-# ---------- PHẦN 2: FLASK STREAM WEBCAM ----------
+# ---------- PHẦN 2: FLASK STREAM WEBCAM + THERMAL + MAP ----------
 
 app = Flask(__name__)
 
@@ -145,9 +169,52 @@ def gen_thermal_frames():
 def video1_feed():
     return Response(gen_thermal_frames(), mimetype='multipart/x-mixed-replace; boundary=frame')
 
+# ----------- MAP STREAM /video3 từ topic odom ------------
+
+# Map config
+MAP_WIDTH = 400  # px
+MAP_HEIGHT = 400  # px
+MAP_M_PER_PX = 0.05  # mỗi pixel ứng với 5cm. (tùy bản đồ thực tế)
+
+def gen_map_frames():
+    global latest_pose
+    # Vẽ một map trắng, xe là chấm đỏ
+    while True:
+        # Tạo nền trắng
+        map_img = np.ones((MAP_HEIGHT, MAP_WIDTH, 3), dtype=np.uint8) * 255
+
+        # Lấy vị trí xe, quy đổi ra pixel
+        x = latest_pose["x"]
+        y = latest_pose["y"]
+        # Chuyển điểm (x, y) thực thành pixel (center ở giữa)
+        px = int(MAP_WIDTH // 2 + x / MAP_M_PER_PX)
+        py = int(MAP_HEIGHT // 2 - y / MAP_M_PER_PX)  # y trục lên trên
+
+        # Vẽ xe (chấm đỏ)
+        cv2.circle(map_img, (px, py), 7, (0, 0, 255), -1)
+        # Optionally vẽ mốc (trục XY)
+        cv2.line(map_img, (MAP_WIDTH//2, 0), (MAP_WIDTH//2, MAP_HEIGHT), (200,200,200), 1)
+        cv2.line(map_img, (0, MAP_HEIGHT//2), (MAP_WIDTH, MAP_HEIGHT//2), (200,200,200), 1)
+
+        # Encode và yield
+        ret, buffer = cv2.imencode('.jpg', map_img)
+        if not ret:
+            continue
+        frame = buffer.tobytes()
+        yield (b'--frame\r\n'
+               b'Content-Type: image/jpeg\r\n\r\n' + frame + b'\r\n')
+
+@app.route('/video3')
+def video3_feed():
+    return Response(gen_map_frames(), mimetype='multipart/x-mixed-replace; boundary=frame')
+
 @app.route('/')
 def index():
-    return "<h1>Webcam stream. Xem tại <a href='/video'>/video</a></h1>"
+    return """
+    <h1>Webcam stream <a href='/video'>/video</a></h1>
+    <h1>Camera nhiệt stream <a href='/video1'>/video1</a></h1>
+    <h1>Bản đồ vị trí xe <a href='/video3'>/video3</a></h1>
+    """
 
 def start_flask_server():
     print("[KHOI DONG] Flask webcam stream tren http://0.0.0.0:5000/video")
@@ -157,14 +224,18 @@ def start_flask_server():
 if __name__ == '__main__':
     rclpy.init()
     cmd_vel_node = CmdVelPublisher()
+    odom_node = OdomSubscriber()
     t1 = threading.Thread(target=start_socket_server, daemon=True)
     t2 = threading.Thread(target=start_flask_server, daemon=True)
     t1.start()
     t2.start()
     try:
+        # Chạy cả 2 node ROS2 cùng lúc
         rclpy.spin(cmd_vel_node)
+        rclpy.spin(odom_node)
     except KeyboardInterrupt:
         pass
     finally:
         cmd_vel_node.destroy_node()
+        odom_node.destroy_node()
         rclpy.shutdown()

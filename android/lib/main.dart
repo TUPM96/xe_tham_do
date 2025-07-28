@@ -166,21 +166,23 @@ class _XeThamDoScreenState extends State<XeThamDoScreen> {
               ],
             ),
           ),
-          // 2 khung camera bên trên
+          // 2 khung camera bên trên: webcam & camera nhiệt
           Row(
             children: [
               Expanded(
                 child: CameraBox(
-                  title: "Camera 1",
+                  title: "Webcam",
                   videoIp: currentIp,
+                  streamPath: "/video",
                   isVideo: true,
                 ),
               ),
               Expanded(
                 child: CameraBox(
-                  title: "Camera 2",
-                  imageUrl: "https://i.imgur.com/u3zRr1l.png",
-                  isVideo: false,
+                  title: "Camera Nhiệt",
+                  videoIp: currentIp,
+                  streamPath: "/video1",
+                  isVideo: true,
                 ),
               ),
             ],
@@ -363,17 +365,19 @@ class _XeThamDoScreenState extends State<XeThamDoScreen> {
   }
 }
 
-// CameraBox: nếu isVideo == true và có videoIp, show stream webcam, ngược lại show ảnh thường
+// CameraBox: truyền thêm streamPath để phân biệt webcam/camera nhiệt
 class CameraBox extends StatelessWidget {
   final String title;
   final String? videoIp;
   final String? imageUrl;
+  final String streamPath;
   final bool isVideo;
 
   const CameraBox({
     required this.title,
     this.videoIp,
     this.imageUrl,
+    this.streamPath = "/video",
     this.isVideo = false,
   });
 
@@ -381,7 +385,7 @@ class CameraBox extends StatelessWidget {
   Widget build(BuildContext context) {
     String? streamUrl;
     if (isVideo && videoIp != null) {
-      streamUrl = "http://$videoIp:5000/video";
+      streamUrl = "http://$videoIp:5000$streamPath";
     }
     return Container(
       height: 180,
