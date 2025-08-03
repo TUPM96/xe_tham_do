@@ -1,0 +1,10 @@
+C:/Users/Mai Hieu/Desktop/FREELANCER/xe_tham_do/android/build/windows/x64/CMakeFiles/INSTALL.dir
+C:/Users/Mai Hieu/Desktop/FREELANCER/xe_tham_do/android/build/windows/x64/CMakeFiles/ALL_BUILD.dir
+C:/Users/Mai Hieu/Desktop/FREELANCER/xe_tham_do/android/build/windows/x64/CMakeFiles/ZERO_CHECK.dir
+C:/Users/Mai Hieu/Desktop/FREELANCER/xe_tham_do/android/build/windows/x64/flutter/CMakeFiles/flutter_wrapper_plugin.dir
+C:/Users/Mai Hieu/Desktop/FREELANCER/xe_tham_do/android/build/windows/x64/flutter/CMakeFiles/flutter_wrapper_app.dir
+C:/Users/Mai Hieu/Desktop/FREELANCER/xe_tham_do/android/build/windows/x64/flutter/CMakeFiles/flutter_assemble.dir
+C:/Users/Mai Hieu/Desktop/FREELANCER/xe_tham_do/android/build/windows/x64/flutter/CMakeFiles/INSTALL.dir
+C:/Users/Mai Hieu/Desktop/FREELANCER/xe_tham_do/android/build/windows/x64/runner/CMakeFiles/xe_tham_do.dir
+C:/Users/Mai Hieu/Desktop/FREELANCER/xe_tham_do/android/build/windows/x64/runner/CMakeFiles/INSTALL.dir
+C:/Users/Mai Hieu/Desktop/FREELANCER/xe_tham_do/android/build/windows/x64/runner/CMakeFiles/ALL_BUILD.dir
