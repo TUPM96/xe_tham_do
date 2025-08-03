@@ -5,6 +5,7 @@ import cv2
 from flask import Flask, Response
 import sys
 import numpy as np
+import time
 
 # ROS2 import
 import rclpy
@@ -134,24 +135,44 @@ def start_socket_server():
 
 app = Flask(__name__)
 
-def gen_frames():
-    cap = cv2.VideoCapture("rtsp://admin:L237886E@192.168.137.229:554/cam/realmonitor?channel=1&subtype=1")
+# ----------- FAST RTSP CAMERA THREAD (CHỈ ĐỌC 1 LẦN, MỌI CLIENT LẤY FRAME MỚI NHẤT) -----------
+
+rtsp_url = "rtsp://admin:L237886E@192.168.137.229:554/cam/realmonitor?channel=1&subtype=1"
+latest_frame = None
+frame_lock = threading.Lock()
+
+def rtsp_camera_reader():
+    global latest_frame
+    cap = cv2.VideoCapture(rtsp_url)
     if not cap.isOpened():
         print("Khong mo duoc camera RTSP!", file=sys.stderr)
         return
-    try:
-        while True:
-            success, frame = cap.read()
-            if not success:
-                break
+    while True:
+        success, frame = cap.read()
+        if not success:
+            print("Khong doc duoc frame, dang thu lai sau 1s ...", file=sys.stderr)
+            time.sleep(1)
+            cap.release()
+            cap = cv2.VideoCapture(rtsp_url)
+            continue
+        with frame_lock:
+            latest_frame = frame
+        time.sleep(0.03)  # ~30fps, giảm nếu muốn tiết kiệm CPU
+
+def gen_frames():
+    global latest_frame
+    while True:
+        with frame_lock:
+            frame = latest_frame.copy() if latest_frame is not None else None
+        if frame is not None:
             ret, buffer = cv2.imencode('.jpg', frame)
             if not ret:
                 continue
-            frame = buffer.tobytes()
+            frame_bytes = buffer.tobytes()
             yield (b'--frame\r\n'
-                   b'Content-Type: image/jpeg\r\n\r\n' + frame + b'\r\n')
-    finally:
-        cap.release()
+                   b'Content-Type: image/jpeg\r\n\r\n' + frame_bytes + b'\r\n')
+        else:
+            time.sleep(0.1)
 
 @app.route('/video')
 def video_feed():
@@ -248,8 +269,10 @@ if __name__ == '__main__':
     map_node = MapSubscriber()
     t1 = threading.Thread(target=start_socket_server, daemon=True)
     t2 = threading.Thread(target=start_flask_server, daemon=True)
+    t_rtsp = threading.Thread(target=rtsp_camera_reader, daemon=True)
     t1.start()
     t2.start()
+    t_rtsp.start()
     try:
         # Chạy các node ROS2 cùng lúc (spin từng cái song song)
         executor = rclpy.executors.MultiThreadedExecutor()
