@@ -143,7 +143,7 @@ frame_lock = threading.Lock()
 
 def rtsp_camera_reader():
     global latest_frame
-    cap = cv2.VideoCapture(rtsp_url)
+    cap = cv2.VideoCapture(0)
     if not cap.isOpened():
         print("Khong mo duoc camera RTSP!", file=sys.stderr)
         return
@@ -179,7 +179,7 @@ def video_feed():
     return Response(gen_frames(), mimetype='multipart/x-mixed-replace; boundary=frame')
 
 def gen_thermal_frames():
-    cap = cv2.VideoCapture(0)
+    cap = cv2.VideoCapture(1)
     if not cap.isOpened():
         print("Khong mo duoc camera nhiet!", file=sys.stderr)
         return
