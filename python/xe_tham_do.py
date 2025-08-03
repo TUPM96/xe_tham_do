@@ -135,7 +135,7 @@ def start_socket_server():
 app = Flask(__name__)
 
 def gen_frames():
-    cap = cv2.VideoCapture("rtsp://admin:L237886E@192.168.137.229:554/cam/realmonitor?channel=1&subtype=0")
+    cap = cv2.VideoCapture("rtsp://admin:L237886E@192.168.137.229:554/cam/realmonitor?channel=1&subtype=1")
     if not cap.isOpened():
         print("Khong mo duoc camera RTSP!", file=sys.stderr)
         return
