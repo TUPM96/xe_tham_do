@@ -128,7 +128,7 @@ source /opt/ros/humble/install/setup.bash
 
 cd ~/ros2_ws
 
-rviz2 -d src/xe_tham_do/config/main.rviz
+rviz2 -d src/xe_tham_do/config/map.rviz
 ```
 
 * ### Chạy điều khiển từ xa bằng app điện thoại
