@@ -19,7 +19,7 @@ diffbot_base_controller:
     right_wheel_names: ["right_wheel_joint"]
 
     # Khoảng cách giữa hai bánh xe (m)
-    wheel_separation: 0.28       # Đã chỉnh lại = 25cm
+    wheel_separation: 0.28       # Đã chỉnh lại = 28cm
     # Bán kính bánh xe (m)
     wheel_radius: 0.065          # Đã chỉnh lại = 6.5cm
 
