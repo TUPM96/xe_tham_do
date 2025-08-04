@@ -13,9 +13,8 @@ from ultralytics import YOLO
 # ROS2 import
 import rclpy
 from rclpy.node import Node
-from geometry_msgs.msg import Twist
+from geometry_msgs.msg import Twist, PoseWithCovarianceStamped
 from nav_msgs.msg import Odometry, OccupancyGrid
-from geometry_msgs.msg import PoseWithCovarianceStamped
 
 # ---------- ROS2 PUBLISHER NODE ----------
 
@@ -44,10 +43,9 @@ class CmdVelPublisher(Node):
         self.publisher.publish(twist)
 
 # ---------- ROS2 SUBSCRIBER: POSE & MAP ----------
-latest_pose = {"x": 0.0, "y": 0.0}
+latest_pose = {"x": 0.0, "y": 0.0, "from_amcl": False}
 latest_map = None
 
-# Ưu tiên lấy pose từ /amcl_pose (theo map), fallback về /odom nếu không có localization
 class AmclPoseSubscriber(Node):
     def __init__(self):
         super().__init__('amcl_pose_subscriber')
@@ -62,6 +60,7 @@ class AmclPoseSubscriber(Node):
         global latest_pose
         latest_pose["x"] = msg.pose.pose.position.x
         latest_pose["y"] = msg.pose.pose.position.y
+        latest_pose["from_amcl"] = True
 
 class OdomSubscriber(Node):
     def __init__(self):
@@ -74,10 +73,10 @@ class OdomSubscriber(Node):
         self.subscription
 
     def listener_callback(self, msg):
-        # Nếu đã nhận pose từ amcl thì không update từ odom nữa
+        global latest_pose
+        # Chỉ update nếu không lấy từ amcl
         if latest_pose.get("from_amcl", False):
             return
-        global latest_pose
         latest_pose["x"] = msg.pose.pose.position.x
         latest_pose["y"] = msg.pose.pose.position.y
 
@@ -119,7 +118,6 @@ def xu_ly_lenh_socket(command):
             print("Lỗi khi xử lý tốc độ:", e)
     else:
         print("Nhận lệnh khác:", command)
-        # Xử lý các lệnh khác nếu cần
 
 def handle_client(conn, addr):
     print(f"[KET NOI MOI] {addr} da ket noi.")
@@ -158,7 +156,7 @@ def start_socket_server():
 
 app = Flask(__name__)
 
-# ----------- FAST WEBCAM/RTSP THREAD (YOLOv8) -----------
+# ----------- WEBCAM/RTSP THREAD (YOLOv8) -----------
 webcam_index = 0 # đổi thành URL RTSP nếu cần
 
 latest_frame = None
@@ -190,7 +188,6 @@ def gen_frames():
         with frame_lock:
             frame = latest_frame.copy() if latest_frame is not None else None
         if frame is not None:
-            # YOLOv8 detect
             results = yolo_model(frame, verbose=False)
             boxes = results[0].boxes.xyxy.cpu().numpy()
             confs = results[0].boxes.conf.cpu().numpy()
@@ -218,7 +215,6 @@ def video_feed():
 thermal_index = 1  # đổi thành đúng index hoặc URL của camera nhiệt
 
 def detect_fire(frame, fire_threshold=200):
-    # Giả sử hình thermal là ảnh xám hoặc BGR, chọn ngưỡng "sáng" (nhiệt cao)
     if len(frame.shape) == 3:
         gray = cv2.cvtColor(frame, cv2.COLOR_BGR2GRAY)
     else:
@@ -259,13 +255,12 @@ def gen_thermal_frames():
 def video1_feed():
     return Response(gen_thermal_frames(), mimetype='multipart/x-mixed-replace; boundary=frame')
 
-# ----------- MAP STREAM /video3 từ topic /map + /odom/amcl ------------
+# ----------- MAP STREAM /video3 từ topic /map + pose ------------
 
 def occupancy_grid_to_image(occ_grid: OccupancyGrid):
     width = occ_grid.info.width
     height = occ_grid.info.height
     data = np.array(occ_grid.data).reshape((height, width))
-    # Chuyển -1 (unknown) thành màu xám 127, 0 (free) thành trắng 255, 100 (occupied) thành đen 0
     img = np.zeros((height, width), dtype=np.uint8)
     img[data == 0] = 255
     img[data == 100] = 0
@@ -318,8 +313,8 @@ if __name__ == '__main__':
     rclpy.init()
     cmd_vel_node = CmdVelPublisher()
     map_node = MapSubscriber()
-    amcl_pose_node = AmclPoseSubscriber()  # ưu tiên lấy từ amcl_pose nếu có
-    odom_node = OdomSubscriber()           # fallback về odom nếu không có amcl_pose
+    amcl_pose_node = AmclPoseSubscriber()
+    odom_node = OdomSubscriber()
     t1 = threading.Thread(target=start_socket_server, daemon=True)
     t2 = threading.Thread(target=start_flask_server, daemon=True)
     t_cam = threading.Thread(target=webcam_reader, daemon=True)
