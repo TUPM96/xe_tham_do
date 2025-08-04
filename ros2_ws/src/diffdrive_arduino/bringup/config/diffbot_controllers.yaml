@@ -1,53 +1,82 @@
 controller_manager:
   ros__parameters:
+    # Tần số cập nhật controller_manager (Hz)
     update_rate: 10  # Hz
 
+    # Broadcaster để xuất trạng thái các joint (bắt buộc cho ROS2 Control)
     joint_state_broadcaster:
       type: joint_state_broadcaster/JointStateBroadcaster
 
+    # Controller điều khiển di chuyển cơ sở (diff drive)
     diffbot_base_controller:
       type: diff_drive_controller/DiffDriveController
 
 diffbot_base_controller:
   ros__parameters:
+    # Tên các joint bánh trái
     left_wheel_names: ["left_wheel_joint"]
+    # Tên các joint bánh phải
     right_wheel_names: ["right_wheel_joint"]
 
+    # Khoảng cách giữa hai bánh xe (m)
     wheel_separation: 0.28       # Đã chỉnh lại = 25cm
+    # Bán kính bánh xe (m)
     wheel_radius: 0.065          # Đã chỉnh lại = 6.5cm
 
+    # Hệ số nhân cho khoảng cách hai bánh xe
     wheel_separation_multiplier: 1.0
+    # Hệ số nhân cho bán kính bánh trái
     left_wheel_radius_multiplier: 1.0
+    # Hệ số nhân cho bán kính bánh phải
     right_wheel_radius_multiplier: 1.0
 
+    # Tần số xuất bản odometry (Hz)
     publish_rate: 30.0
+    # Tên frame odometry đầu ra
     odom_frame_id: odom
+    # Tên frame gốc robot
     base_frame_id: base_link
+    # Ma trận hiệp phương sai cho pose (6 giá trị)
     pose_covariance_diagonal : [0.001, 0.001, 0.001, 0.001, 0.001, 0.01]
+    # Ma trận hiệp phương sai cho vận tốc (6 giá trị)
     twist_covariance_diagonal: [0.001, 0.001, 0.001, 0.001, 0.001, 0.01]
 
+    # Nếu true: không sử dụng encoder để tính toán odometry (khuyến nghị False)
     open_loop: false
+    # Xuất thông tin tf giữa odom và base_link
     enable_odom_tf: true
 
+    # Thời gian timeout khi không nhận được lệnh vận tốc (s)
     cmd_vel_timeout: 0.5
+    # Nếu true: sử dụng twist có dấu thời gian
     use_stamped_vel: false
 
-    # Velocity and acceleration limits
+    # Giới hạn vận tốc và gia tốc tuyến tính
     linear.x.has_velocity_limits: true
     linear.x.has_acceleration_limits: true
     linear.x.has_jerk_limits: false
+    # Vận tốc tối đa (m/s)
     linear.x.max_velocity: 10.0
+    # Vận tốc tối thiểu (m/s)
     linear.x.min_velocity: -10.0
+    # Gia tốc tối đa (m/s^2)
     linear.x.max_acceleration: 1.0
+    # Giới hạn jerk (thay đổi gia tốc, m/s^3)
     linear.x.max_jerk: 0.0
     linear.x.min_jerk: 0.0
 
+    # Giới hạn vận tốc và gia tốc góc quay
     angular.z.has_velocity_limits: true
     angular.z.has_acceleration_limits: true
     angular.z.has_jerk_limits: false
+    # Vận tốc góc tối đa (rad/s)
     angular.z.max_velocity: 10.0
+    # Vận tốc góc tối thiểu (rad/s)
     angular.z.min_velocity: -10.0
+    # Gia tốc góc tối đa (rad/s^2)
     angular.z.max_acceleration: 1.0
+    # Gia tốc góc tối thiểu (rad/s^2)
     angular.z.min_acceleration: -1.0
+    # Giới hạn jerk cho góc (rad/s^3)
     angular.z.max_jerk: 0.0
     angular.z.min_jerk: 0.0

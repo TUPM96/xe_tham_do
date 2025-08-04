@@ -1,6 +1,25 @@
 <?xml version="1.0"?>
 <robot xmlns:xacro="http://www.ros.org/wiki/xacro" >
 
+    <!--
+        File này định nghĩa cảm biến camera trong mô hình robot sử dụng URDF/xacro.
+        - <joint> "camera_joint" liên kết cố định giữa thân xe (chassis) và khung camera (camera_link).
+        - <link> "camera_link" mô tả hình học của camera:
+            + Bao gồm một hình hộp (box) để mô phỏng thân camera.
+            + Một hình trụ nhỏ (cylinder) để mô phỏng ống kính hoặc giá đỡ.
+        - <joint> "camera_optical_joint" liên kết cố định từ "camera_link" tới "camera_link_optical", dùng để thiết lập hệ trục quang học đúng chuẩn của camera.
+        - <link> "camera_link_optical" là frame gắn với dữ liệu hình ảnh xuất ra.
+        - <gazebo> cấu hình cảm biến camera trong mô phỏng Gazebo:
+            + Gắn vật liệu màu đen cho camera.
+            + Khai báo cảm biến loại "camera" với các tham số:
+                * Góc nhìn ngang (horizontal_fov): 1.089 rad.
+                * Kích thước ảnh: 640x480, định dạng màu R8G8B8.
+                * Cận clip: 0.05m, xa clip: 8m.
+                * Tần số cập nhật: 10Hz.
+            + Plugin "camera_controller" xuất dữ liệu hình ảnh với frame_name là "camera_link_optical".
+        File này giúp tích hợp camera cho robot cả trên mô phỏng (Gazebo) lẫn thực tế (ROS).
+    -->
+
     <joint name="camera_joint" type="fixed">
         <parent link="chassis"/>
         <child link="camera_link"/>
@@ -23,7 +42,6 @@
         </visual>
     </link>
 
-
     <joint name="camera_optical_joint" type="fixed">
         <parent link="camera_link"/>
         <child link="camera_link_optical"/>
@@ -31,8 +49,6 @@
     </joint>
 
     <link name="camera_link_optical"></link>
-
-
 
     <gazebo reference="camera_link">
         <material>Gazebo/Black</material>
