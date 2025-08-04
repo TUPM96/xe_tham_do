@@ -28,7 +28,7 @@ def generate_launch_description():
     )
 
     # Đường dẫn tới file xacro/urdf của bạn!
-    urdf_path = os.path.join(get_package_share_directory(package_name), 'urdf', 'robot.urdf.xacro')
+    urdf_path = os.path.join(get_package_share_directory(package_name), 'description', 'robot.urdf.xacro')
     robot_description = ParameterValue(
         Command(['xacro', urdf_path]),
         value_type=str
