@@ -7,11 +7,15 @@ import sys
 import numpy as np
 import time
 
+# YOLOv8
+from ultralytics import YOLO
+
 # ROS2 import
 import rclpy
 from rclpy.node import Node
 from geometry_msgs.msg import Twist
 from nav_msgs.msg import Odometry, OccupancyGrid
+from geometry_msgs.msg import PoseWithCovarianceStamped
 
 # ---------- ROS2 PUBLISHER NODE ----------
 
@@ -39,9 +43,25 @@ class CmdVelPublisher(Node):
         print(f"[Publish /cmd_vel] linear.x={twist.linear.x:.2f} angular.z={twist.angular.z:.2f}")
         self.publisher.publish(twist)
 
-# ---------- ROS2 SUBSCRIBER: ODOM & MAP ----------
+# ---------- ROS2 SUBSCRIBER: POSE & MAP ----------
 latest_pose = {"x": 0.0, "y": 0.0}
 latest_map = None
+
+# Ưu tiên lấy pose từ /amcl_pose (theo map), fallback về /odom nếu không có localization
+class AmclPoseSubscriber(Node):
+    def __init__(self):
+        super().__init__('amcl_pose_subscriber')
+        self.subscription = self.create_subscription(
+            PoseWithCovarianceStamped,
+            '/amcl_pose',
+            self.listener_callback,
+            10)
+        self.subscription
+
+    def listener_callback(self, msg):
+        global latest_pose
+        latest_pose["x"] = msg.pose.pose.position.x
+        latest_pose["y"] = msg.pose.pose.position.y
 
 class OdomSubscriber(Node):
     def __init__(self):
@@ -54,6 +74,9 @@ class OdomSubscriber(Node):
         self.subscription
 
     def listener_callback(self, msg):
+        # Nếu đã nhận pose từ amcl thì không update từ odom nữa
+        if latest_pose.get("from_amcl", False):
+            return
         global latest_pose
         latest_pose["x"] = msg.pose.pose.position.x
         latest_pose["y"] = msg.pose.pose.position.y
@@ -135,17 +158,17 @@ def start_socket_server():
 
 app = Flask(__name__)
 
-# ----------- FAST RTSP CAMERA THREAD (CHỈ ĐỌC 1 LẦN, MỌI CLIENT LẤY FRAME MỚI NHẤT) -----------
+# ----------- FAST WEBCAM/RTSP THREAD (YOLOv8) -----------
+webcam_index = 0 # đổi thành URL RTSP nếu cần
 
-rtsp_url = "rtsp://admin:L237886E@192.168.137.229:554/cam/realmonitor?channel=1&subtype=1"
 latest_frame = None
 frame_lock = threading.Lock()
 
-def rtsp_camera_reader():
+def webcam_reader():
     global latest_frame
-    cap = cv2.VideoCapture(0)
+    cap = cv2.VideoCapture(webcam_index)
     if not cap.isOpened():
-        print("Khong mo duoc camera RTSP!", file=sys.stderr)
+        print("Khong mo duoc camera!", file=sys.stderr)
         return
     while True:
         success, frame = cap.read()
@@ -153,11 +176,13 @@ def rtsp_camera_reader():
             print("Khong doc duoc frame, dang thu lai sau 1s ...", file=sys.stderr)
             time.sleep(1)
             cap.release()
-            cap = cv2.VideoCapture(rtsp_url)
+            cap = cv2.VideoCapture(webcam_index)
             continue
         with frame_lock:
             latest_frame = frame
-        time.sleep(0.03)  # ~30fps, giảm nếu muốn tiết kiệm CPU
+        time.sleep(0.03)  # ~30fps
+
+yolo_model = YOLO("yolov8n.pt")
 
 def gen_frames():
     global latest_frame
@@ -165,6 +190,16 @@ def gen_frames():
         with frame_lock:
             frame = latest_frame.copy() if latest_frame is not None else None
         if frame is not None:
+            # YOLOv8 detect
+            results = yolo_model(frame, verbose=False)
+            boxes = results[0].boxes.xyxy.cpu().numpy()
+            confs = results[0].boxes.conf.cpu().numpy()
+            clss = results[0].boxes.cls.cpu().numpy().astype(int)
+            for (x1, y1, x2, y2), conf, cls in zip(boxes, confs, clss):
+                label = f"{results[0].names[cls]} {conf:.2f}"
+                color = (0,255,0)
+                cv2.rectangle(frame, (int(x1),int(y1)), (int(x2),int(y2)), color, 2)
+                cv2.putText(frame, label, (int(x1),int(y1)-5), cv2.FONT_HERSHEY_SIMPLEX, 0.5, color, 2)
             ret, buffer = cv2.imencode('.jpg', frame)
             if not ret:
                 continue
@@ -178,8 +213,30 @@ def gen_frames():
 def video_feed():
     return Response(gen_frames(), mimetype='multipart/x-mixed-replace; boundary=frame')
 
+# ----------- FLAME DETECTION TRÊN CAMERA NHIỆT (thermal) -----------
+
+thermal_index = 1  # đổi thành đúng index hoặc URL của camera nhiệt
+
+def detect_fire(frame, fire_threshold=200):
+    # Giả sử hình thermal là ảnh xám hoặc BGR, chọn ngưỡng "sáng" (nhiệt cao)
+    if len(frame.shape) == 3:
+        gray = cv2.cvtColor(frame, cv2.COLOR_BGR2GRAY)
+    else:
+        gray = frame
+    thresh = cv2.threshold(gray, fire_threshold, 255, cv2.THRESH_BINARY)[1]
+    contours, _ = cv2.findContours(thresh, cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_SIMPLE)
+    has_fire = False
+    for cnt in contours:
+        area = cv2.contourArea(cnt)
+        if area > 100:
+            has_fire = True
+            x, y, w, h = cv2.boundingRect(cnt)
+            cv2.rectangle(frame, (x, y), (x+w, y+h), (0,0,255), 2)
+            cv2.putText(frame, "FIRE", (x, y-5), cv2.FONT_HERSHEY_SIMPLEX, 0.6, (0,0,255), 2)
+    return frame, has_fire
+
 def gen_thermal_frames():
-    cap = cv2.VideoCapture(1)
+    cap = cv2.VideoCapture(thermal_index)
     if not cap.isOpened():
         print("Khong mo duoc camera nhiet!", file=sys.stderr)
         return
@@ -188,6 +245,7 @@ def gen_thermal_frames():
             success, frame = cap.read()
             if not success:
                 break
+            frame, has_fire = detect_fire(frame, fire_threshold=200)
             ret, buffer = cv2.imencode('.jpg', frame)
             if not ret:
                 continue
@@ -201,7 +259,7 @@ def gen_thermal_frames():
 def video1_feed():
     return Response(gen_thermal_frames(), mimetype='multipart/x-mixed-replace; boundary=frame')
 
-# ----------- MAP STREAM /video3 từ topic /map + /odom ------------
+# ----------- MAP STREAM /video3 từ topic /map + /odom/amcl ------------
 
 def occupancy_grid_to_image(occ_grid: OccupancyGrid):
     width = occ_grid.info.width
@@ -218,26 +276,20 @@ def gen_map_frames():
     global latest_pose, latest_map
     while True:
         if latest_map is None:
-            # Chưa nhận map, tạm hiển thị trắng
             map_img = np.ones((400, 400, 3), dtype=np.uint8) * 200
         else:
             img = occupancy_grid_to_image(latest_map)
-            # resize cho dễ nhìn
             scale = 2
             map_img = cv2.cvtColor(img, cv2.COLOR_GRAY2BGR)
             map_img = cv2.resize(map_img, (img.shape[1]*scale, img.shape[0]*scale), interpolation=cv2.INTER_NEAREST)
-            # Tính vị trí xe trên bản đồ
-            x = latest_pose["x"]  # mét
+            x = latest_pose["x"]
             y = latest_pose["y"]
             origin = latest_map.info.origin.position
             res = latest_map.info.resolution
             px = int((x - origin.x) / res * scale)
             py = int((img.shape[0] * scale) - (y - origin.y) / res * scale)
-            # Vẽ xe (chấm đỏ)
             if 0 <= px < map_img.shape[1] and 0 <= py < map_img.shape[0]:
                 cv2.circle(map_img, (px, py), 7, (0, 0, 255), -1)
-
-        # Encode và yield
         ret, buffer = cv2.imencode('.jpg', map_img)
         if not ret:
             continue
@@ -252,8 +304,8 @@ def video3_feed():
 @app.route('/')
 def index():
     return """
-    <h1>Webcam stream <a href='/video'>/video</a></h1>
-    <h1>Camera nhiệt stream <a href='/video1'>/video1</a></h1>
+    <h1>Webcam YOLOv8 nhận diện <a href='/video'>/video</a></h1>
+    <h1>Camera nhiệt nhận diện đám cháy <a href='/video1'>/video1</a></h1>
     <h1>Bản đồ vị trí xe (OccupancyGrid) <a href='/video3'>/video3</a></h1>
     """
 
@@ -265,25 +317,27 @@ def start_flask_server():
 if __name__ == '__main__':
     rclpy.init()
     cmd_vel_node = CmdVelPublisher()
-    odom_node = OdomSubscriber()
     map_node = MapSubscriber()
+    amcl_pose_node = AmclPoseSubscriber()  # ưu tiên lấy từ amcl_pose nếu có
+    odom_node = OdomSubscriber()           # fallback về odom nếu không có amcl_pose
     t1 = threading.Thread(target=start_socket_server, daemon=True)
     t2 = threading.Thread(target=start_flask_server, daemon=True)
-    t_rtsp = threading.Thread(target=rtsp_camera_reader, daemon=True)
+    t_cam = threading.Thread(target=webcam_reader, daemon=True)
     t1.start()
     t2.start()
-    t_rtsp.start()
+    t_cam.start()
     try:
-        # Chạy các node ROS2 cùng lúc (spin từng cái song song)
         executor = rclpy.executors.MultiThreadedExecutor()
         executor.add_node(cmd_vel_node)
-        executor.add_node(odom_node)
         executor.add_node(map_node)
+        executor.add_node(amcl_pose_node)
+        executor.add_node(odom_node)
         executor.spin()
     except KeyboardInterrupt:
         pass
     finally:
         cmd_vel_node.destroy_node()
-        odom_node.destroy_node()
         map_node.destroy_node()
+        amcl_pose_node.destroy_node()
+        odom_node.destroy_node()
         rclpy.shutdown()

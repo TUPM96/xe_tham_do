@@ -143,6 +143,8 @@ pip3 install flask
 
 source /opt/ros/humble/install/setup.bash
 
+pip3 install ultralytics
+
 python xe_tham_do.py
 
 
@@ -159,17 +161,6 @@ source /opt/ros/humble/install/setup.bash
 source install/setup.bash
 
 ros2 launch xe_tham_do navigation_launch.py
-
-```
-
-
-* ### Chạy xử lý ảnh
-```bash
-cd ~/Desktop/xe_tham_do/xu_ly_anh
-
-pip install -r requirements.txt
-
-python nhan_dien_dam_chay.py
 
 ```
 
