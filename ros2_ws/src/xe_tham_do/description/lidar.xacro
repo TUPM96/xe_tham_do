@@ -1,22 +1,6 @@
 <?xml version="1.0"?>
 <robot xmlns:xacro="http://www.ros.org/wiki/xacro" >
 
-    <!--
-        File này định nghĩa cảm biến laser (LIDAR) trong mô hình robot dưới dạng URDF/xacro.
-        - Khối <joint> "laser_joint" liên kết cố định giữa thân xe (chassis) và khung cảm biến laser (laser_frame).
-        - Khối <link> "laser_frame" mô tả hình học, va chạm và khối lượng của cảm biến laser:
-            + Gồm 2 hình trụ để mô phỏng hình dáng vật lý.
-            + Sử dụng macro xacro:inertial_cylinder để khai báo khối lượng và quán tính.
-        - Khối <gazebo> cấu hình cảm biến laser trong mô phỏng Gazebo:
-            + Đặt vật liệu màu đen.
-            + Khai báo cảm biến kiểu "ray" với các tham số:
-                * Góc quét: -3.14 đến 3.14 (360 mẫu).
-                * Khoảng cách đo: 0.3m đến 12m.
-                * Tần số cập nhật: 10Hz.
-            + Plugin "laser_controller" xuất dữ liệu về ROS topic "scan" dưới dạng sensor_msgs/LaserScan, gắn với frame "laser_frame".
-        Có thể sử dụng file này để tích hợp cảm biến laser cho robot trong mô phỏng (Gazebo) và thực tế (ROS).
-    -->
-
     <joint name="laser_joint" type="fixed">
         <parent link="chassis"/>
         <child link="laser_frame"/>

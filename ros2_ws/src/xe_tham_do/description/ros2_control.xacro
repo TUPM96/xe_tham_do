@@ -1,20 +1,6 @@
 <?xml version="1.0"?>
 <robot xmlns:xacro="http://www.ros.org/wiki/xacro">
 
-    <!--
-        File này định nghĩa cấu hình ros2_control cho robot, cho phép chuyển đổi linh hoạt giữa chế độ thực tế (RealRobot) và mô phỏng (Gazebo).
-        - Nếu không ở chế độ mô phỏng (sim_mode = false), sử dụng phần cứng thực DiffDriveArduino:
-            + Plugin: diffdrive_arduino/DiffDriveArduinoHardware
-            + Kết nối qua cổng serial, tốc độ baud và các thông số encoder.
-            + Các joint (left_wheel_joint, right_wheel_joint) khai báo interface điều khiển vận tốc và trạng thái.
-            + Tham số "enc_counts_per_rev": số xung encoder trên mỗi vòng của bánh xe.
-        - Nếu ở chế độ mô phỏng (sim_mode = true), sử dụng plugin mặc định của Gazebo:
-            + Plugin: gazebo_ros2_control/GazeboSystem
-            + Cấu hình interface cho các joint giống như thực tế.
-        - Phần <gazebo> cuối file khai báo plugin gazebo_ros2_control, chỉ định các file cấu hình controller cho ROS2 và Gazebo.
-        File này giúp dễ dàng chuyển đổi giữa điều khiển thực tế và mô phỏng chỉ với một biến sim_mode.
-    -->
-
     <xacro:unless value="$(arg sim_mode)">
         <ros2_control name="RealRobot" type="system">
             <hardware>

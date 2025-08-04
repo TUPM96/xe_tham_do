@@ -1,0 +1,8 @@
+File này chứa các macro xacro để tính toán quán tính cho các hình học cơ bản trong robot (hình cầu, hộp, trụ).
+        Các macro này giúp bạn dễ dàng khai báo khối lượng và ma trận quán tính cho các liên kết trong mô hình URDF.
+        - inertial_sphere: Tính quán tính cho hình cầu.
+        - inertial_box: Tính quán tính cho hình hộp chữ nhật.
+        - inertial_cylinder: Tính quán tính cho hình trụ.
+        Công thức tham khảo từ: https://en.wikipedia.org/wiki/List_of_moments_of_inertia
+        Bạn có thể sử dụng các macro này để khai báo thuộc tính <inertial> cho từng link trong robot.
+        Tham số *origin cho phép bạn truyền vào thuộc tính origin nếu cần.

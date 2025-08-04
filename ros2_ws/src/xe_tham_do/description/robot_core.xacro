@@ -1,22 +1,6 @@
 <?xml version="1.0"?>
 <robot xmlns:xacro="http://www.ros.org/wiki/xacro" >
 
-    <!--
-        File này định nghĩa mô hình cơ bản của robot di động sử dụng xacro/URDF.
-        - Bao gồm các thuộc tính hình học và vật lý cho chassis (thân xe), hai bánh xe chủ động (trái, phải) và một bánh tự do (caster wheel).
-        - Sử dụng các macro inertial từ file inertial_macros.xacro để tính toán quán tính cho các link.
-        - Các tham số (property) như kích thước, khối lượng của chassis, bánh xe... được khai báo rõ ràng đầu file, giúp dễ chỉnh sửa/tái sử dụng.
-        - Mỗi link đều có phần visual (hình dáng hiển thị), collision (hình học va chạm) và inertial (khối lượng/quán tính).
-        - Các khối <gazebo> giúp cấu hình vật liệu và thông số vật lý dùng khi mô phỏng trong Gazebo.
-        - Hệ thống joint gồm:
-            + base_footprint_joint: nối base_link với base_footprint.
-            + chassis_joint: nối base_link với chassis (thân xe).
-            + left_wheel_joint, right_wheel_joint: nối base_link với hai bánh xe, kiểu continuous để quay được.
-            + caster_wheel_joint: nối chassis với bánh tự do phía trước.
-        - Các màu sắc (material) được định nghĩa sẵn để tuỳ biến giao diện robot.
-        File này là nền tảng để tiếp tục mở rộng, lắp ráp thêm các cảm biến hoặc module khác cho robot di động.
-    -->
-
     <xacro:include filename="inertial_macros.xacro"/>
 
     <xacro:property name="chassis_length" value="0.45"/>

@@ -1,0 +1,11 @@
+ File này là file xacro chính để xây dựng mô hình robot, cho phép cấu hình linh hoạt các thành phần phần cứng cũng như chế độ điều khiển/mô phỏng.
+        - Tham số use_ros2_control: Nếu true sẽ sử dụng ROS2 Control, nếu false sẽ dùng Gazebo Control.
+        - Tham số sim_mode: Chế độ mô phỏng (chưa sử dụng trong file này, có thể dùng cho các mục đích mở rộng).
+        - Bao gồm các file con:
+            + robot_core.xacro: Phần lõi, khung sườn và các link chính của robot.
+            + ros2_control.xacro: Cấu hình cho ROS2 Control (chỉ dùng khi use_ros2_control=true).
+            + gazebo_control.xacro: Cấu hình cho điều khiển trong Gazebo (chỉ dùng khi use_ros2_control=false).
+            + lidar.xacro: Định nghĩa cảm biến LIDAR cho robot.
+            + camera.xacro: Định nghĩa cảm biến camera chính.
+            + face.xacro: Định nghĩa phần mặt robot
+        File này giúp quản lý và cấu trúc các thành phần của robot một cách linh hoạt, dễ dàng chuyển đổi giữa mô phỏng và thực tế hoặc thêm bớt cảm biến.
