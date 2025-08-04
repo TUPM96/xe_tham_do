@@ -21,7 +21,7 @@ diffbot_base_controller:
     # Khoảng cách giữa hai bánh xe (m)
     wheel_separation: 0.28       # Đã chỉnh lại = 28cm
     # Bán kính bánh xe (m)
-    wheel_radius: 0.065          # Đã chỉnh lại = 6.5cm
+    wheel_radius: 0.0325          # Đã chỉnh lại = 6.5cm
 
     # Hệ số nhân cho khoảng cách hai bánh xe
     wheel_separation_multiplier: 1.0
