@@ -86,7 +86,7 @@ source /opt/ros/humble/install/setup.bash
 
 source install/setup.bash
 
-ros2 launch xe_tham_do safety_teleop.py
+ros2 launch xe_tham_do safety_teleop_launch.py
 ```
 
 
