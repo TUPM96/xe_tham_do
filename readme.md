@@ -78,6 +78,18 @@ source install/setup.bash
 ros2 run teleop_twist_keyboard teleop_twist_keyboard --ros-args -r /cmd_vel:=/cmd_vel_raw
 ```
 
+* ### Chạy né vật cản khi điều khiển bằng tay
+``` bash
+docker exec -it ros2_humble_container bash
+
+source /opt/ros/humble/install/setup.bash
+
+source install/setup.bash
+
+ros2 launch xe_tham_do safety_teleop.py
+```
+
+
 * ### Chạy lidar A1M8
 ``` bash
 docker exec -it ros2_humble_container bash
