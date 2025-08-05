@@ -3,6 +3,7 @@ from rclpy.node import Node
 from sensor_msgs.msg import LaserScan
 from geometry_msgs.msg import Twist
 
+# ========== NODE CODE ==========
 class SafetyTeleop(Node):
     def __init__(self):
         super().__init__('safety_teleop')
@@ -106,12 +107,42 @@ class SafetyTeleop(Node):
 
         self.cmd_pub.publish(output)
 
+# ========== LAUNCH CODE ==========
 def main(args=None):
-    rclpy.init(args=args)
-    node = SafetyTeleop()
-    rclpy.spin(node)
-    node.destroy_node()
-    rclpy.shutdown()
+    import sys
+    if len(sys.argv) > 1 and sys.argv[1] == '--launch':
+        # Chạy như một launch file
+        from launch import LaunchDescription
+        from launch_ros.actions import Node as LaunchNode
+
+        def generate_launch_description():
+            return LaunchDescription([
+                LaunchNode(
+                    package='xe_tham_do',
+                    executable='safety_teleop_with_launch.py',
+                    name='safety_teleop',
+                    output='screen',
+                    parameters=[
+                        {'min_distance_front': 0.5},
+                        {'min_distance_back': 0.3},
+                        {'min_distance_left': 0.3},
+                        {'min_distance_right': 0.3},
+                        {'sector_angle_front': 60.0},
+                        {'sector_angle_back': 60.0},
+                        {'sector_angle_left': 60.0},
+                        {'sector_angle_right': 60.0},
+                    ]
+                ),
+            ])
+        # Để ROS2 launch nhận diện
+        globals()['generate_launch_description'] = generate_launch_description
+    else:
+        # Chạy như node thông thường
+        rclpy.init(args=args)
+        node = SafetyTeleop()
+        rclpy.spin(node)
+        node.destroy_node()
+        rclpy.shutdown()
 
 if __name__ == '__main__':
     main()
