@@ -152,18 +152,19 @@ docker exec -it ros2_humble_container bash
 
 cd ~/python
 
-pip3 install --ignore-installed blinker
+pip install --ignore-installed blinker
 
-pip3 install flask
+pip install flask
 
 source /opt/ros/humble/install/setup.bash
 
-pip3 install ultralytics
+pip install --ignore-installed sympy
+
+pip install ultralytics
+
+pip install "numpy<2"
 
 python xe_tham_do.py
-
-
-ros2 topic echo /cmd_vel
 ```
 
 
