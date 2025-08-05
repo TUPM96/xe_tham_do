@@ -44,7 +44,7 @@ class SafetyTeleop(Node):
         print("Ket thuc __init__")
 
     def scan_callback(self, msg):
-        print("scan_callback: Nhan duoc LaserScan")
+#         print("scan_callback: Nhan duoc LaserScan")
         self.last_scan = msg
 
     def get_sector_min(self, scan, center_deg, width_deg):
