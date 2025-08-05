@@ -75,7 +75,7 @@ source /opt/ros/humble/install/setup.bash
 
 source install/setup.bash
 
-ros2 run teleop_twist_keyboard teleop_twist_keyboard
+ros2 run teleop_twist_keyboard teleop_twist_keyboard --ros-args -r /cmd_vel:=/cmd_vel_raw
 ```
 
 * ### Chạy lidar A1M8
