@@ -88,14 +88,14 @@ class SafetyTeleop(Node):
             blocked = True
             self.get_logger().warn(f"Obstacle behind ({min_back:.2f}m)! Cannot move backward.")
 
-        # Chặn rẽ trái nếu bên trái có vật cản gần và đang rẽ mạnh (tùy chọn)
+        # Chặn rẽ trái nếu bên trái có vật cản gần và đang rẽ mạnh
         elif msg.angular.z > 0.2 and min_left < self.min_distance_left:
             output.linear.x = msg.linear.x
             output.angular.z = 0.0
             blocked = True
             self.get_logger().warn(f"Obstacle left ({min_left:.2f}m)! Cannot turn left.")
 
-        # Chặn rẽ phải nếu bên phải có vật cản gần và đang rẽ mạnh (tùy chọn)
+        # Chặn rẽ phải nếu bên phải có vật cản gần và đang rẽ mạnh
         elif msg.angular.z < -0.2 and min_right < self.min_distance_right:
             output.linear.x = msg.linear.x
             output.angular.z = 0.0
