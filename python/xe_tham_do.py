@@ -214,7 +214,12 @@ def video_feed():
 
 thermal_index = 1  # đổi thành đúng index hoặc URL của camera nhiệt
 
-def detect_fire(frame, fire_threshold=200):
+# Ngưỡng nhiệt độ để phát hiện lửa (có thể chỉnh từ web)
+FIRE_TEMP_THRESHOLD = 200  # mặc định, bạn có thể đổi thành 180, 220... tùy camera
+
+def detect_fire(frame, fire_threshold=None):
+    if fire_threshold is None:
+        fire_threshold = FIRE_TEMP_THRESHOLD
     if len(frame.shape) == 3:
         gray = cv2.cvtColor(frame, cv2.COLOR_BGR2GRAY)
     else:
@@ -228,10 +233,11 @@ def detect_fire(frame, fire_threshold=200):
             has_fire = True
             x, y, w, h = cv2.boundingRect(cnt)
             cv2.rectangle(frame, (x, y), (x+w, y+h), (0,0,255), 2)
-            cv2.putText(frame, "FIRE", (x, y-5), cv2.FONT_HERSHEY_SIMPLEX, 0.6, (0,0,255), 2)
+            cv2.putText(frame, f"FIRE {fire_threshold}", (x, y-5), cv2.FONT_HERSHEY_SIMPLEX, 0.6, (0,0,255), 2)
     return frame, has_fire
 
 def gen_thermal_frames():
+    global FIRE_TEMP_THRESHOLD
     cap = cv2.VideoCapture(thermal_index)
     if not cap.isOpened():
         print("Khong mo duoc camera nhiet!", file=sys.stderr)
@@ -241,7 +247,7 @@ def gen_thermal_frames():
             success, frame = cap.read()
             if not success:
                 break
-            frame, has_fire = detect_fire(frame, fire_threshold=200)
+            frame, has_fire = detect_fire(frame, fire_threshold=FIRE_TEMP_THRESHOLD)
             ret, buffer = cv2.imencode('.jpg', frame)
             if not ret:
                 continue
@@ -255,53 +261,42 @@ def gen_thermal_frames():
 def video1_feed():
     return Response(gen_thermal_frames(), mimetype='multipart/x-mixed-replace; boundary=frame')
 
-# ----------- MAP STREAM /video3 từ topic /map + pose ------------
+# --- Thêm API chỉnh nhiệt độ phát hiện đám cháy ---
+from flask import request, redirect
 
-def occupancy_grid_to_image(occ_grid: OccupancyGrid):
-    width = occ_grid.info.width
-    height = occ_grid.info.height
-    data = np.array(occ_grid.data).reshape((height, width))
-    img = np.zeros((height, width), dtype=np.uint8)
-    img[data == 0] = 255
-    img[data == 100] = 0
-    img[data == -1] = 127
-    return img
+@app.route('/set_temp', methods=['GET', 'POST'])
+def set_temp():
+    global FIRE_TEMP_THRESHOLD
+    if request.method == 'POST':
+        try:
+            val = int(request.form.get('fire_temp', FIRE_TEMP_THRESHOLD))
+            FIRE_TEMP_THRESHOLD = val
+        except Exception:
+            pass
+        return redirect('/')
+    else:
+        # Hiển thị form HTML để nhập nhiệt độ
+        return f'''
+        <form method="POST">
+            <label>Ngưỡng nhiệt độ phát hiện FIRE (0-255): </label>
+            <input name="fire_temp" type="number" min="0" max="255" value="{FIRE_TEMP_THRESHOLD}">
+            <input type="submit" value="Cập nhật">
+        </form>
+        <p>Giá trị hiện tại: <b>{FIRE_TEMP_THRESHOLD}</b></p>
+        <a href="/">Quay lại trang chủ</a>
+        '''
 
-def gen_map_frames():
-    global latest_pose, latest_map
-    while True:
-        if latest_map is None:
-            map_img = np.ones((400, 400, 3), dtype=np.uint8) * 200
-        else:
-            img = occupancy_grid_to_image(latest_map)
-            scale = 2
-            map_img = cv2.cvtColor(img, cv2.COLOR_GRAY2BGR)
-            map_img = cv2.resize(map_img, (img.shape[1]*scale, img.shape[0]*scale), interpolation=cv2.INTER_NEAREST)
-            x = latest_pose["x"]
-            y = latest_pose["y"]
-            origin = latest_map.info.origin.position
-            res = latest_map.info.resolution
-            px = int((x - origin.x) / res * scale)
-            py = int((img.shape[0] * scale) - (y - origin.y) / res * scale)
-            if 0 <= px < map_img.shape[1] and 0 <= py < map_img.shape[0]:
-                cv2.circle(map_img, (px, py), 7, (0, 0, 255), -1)
-        ret, buffer = cv2.imencode('.jpg', map_img)
-        if not ret:
-            continue
-        frame = buffer.tobytes()
-        yield (b'--frame\r\n'
-               b'Content-Type: image/jpeg\r\n\r\n' + frame + b'\r\n')
-
-@app.route('/video3')
-def video3_feed():
-    return Response(gen_map_frames(), mimetype='multipart/x-mixed-replace; boundary=frame')
-
+# --- Sửa trang index để có link chỉnh nhiệt độ ---
 @app.route('/')
 def index():
-    return """
+    return f"""
     <h1>Webcam YOLOv8 nhận diện <a href='/video'>/video</a></h1>
     <h1>Camera nhiệt nhận diện đám cháy <a href='/video1'>/video1</a></h1>
     <h1>Bản đồ vị trí xe (OccupancyGrid) <a href='/video3'>/video3</a></h1>
+    <hr>
+    <a href='/set_temp'>Chỉnh ngưỡng nhiệt độ phát hiện đám cháy (FIRE)</a>
+    <br>
+    <b>Ngưỡng hiện tại: {FIRE_TEMP_THRESHOLD}</b>
     """
 
 def start_flask_server():

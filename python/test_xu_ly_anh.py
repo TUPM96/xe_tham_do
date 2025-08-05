@@ -1,5 +1,5 @@
 import threading
-from flask import Flask, render_template_string, Response
+from flask import Flask, render_template_string, Response, request, redirect, url_for
 import cv2
 import numpy as np
 import time
@@ -12,6 +12,9 @@ thermal_index = 1 # camera nhiệt
 latest_frame = None
 frame_lock = threading.Lock()
 yolo_model = YOLO("yolov8n.pt")
+
+# Ngưỡng nhiệt độ để phát hiện lửa (có thể chỉnh qua web)
+FIRE_TEMP_THRESHOLD = 200
 
 def webcam_reader():
     global latest_frame
@@ -55,7 +58,9 @@ def gen_frames():
         else:
             time.sleep(0.1)
 
-def detect_fire(frame, fire_threshold=200):
+def detect_fire(frame, fire_threshold=None):
+    if fire_threshold is None:
+        fire_threshold = FIRE_TEMP_THRESHOLD
     if len(frame.shape) == 3:
         gray = cv2.cvtColor(frame, cv2.COLOR_BGR2GRAY)
     else:
@@ -67,7 +72,7 @@ def detect_fire(frame, fire_threshold=200):
         if area > 100:
             x, y, w, h = cv2.boundingRect(cnt)
             cv2.rectangle(frame, (x, y), (x+w, y+h), (0,0,255), 2)
-            cv2.putText(frame, "FIRE", (x, y-5), cv2.FONT_HERSHEY_SIMPLEX, 0.6, (0,0,255), 2)
+            cv2.putText(frame, f"FIRE {fire_threshold}", (x, y-5), cv2.FONT_HERSHEY_SIMPLEX, 0.6, (0,0,255), 2)
     return frame
 
 def gen_thermal_frames():
@@ -80,7 +85,7 @@ def gen_thermal_frames():
             success, frame = cap.read()
             if not success:
                 break
-            frame = detect_fire(frame, fire_threshold=200)
+            frame = detect_fire(frame, fire_threshold=FIRE_TEMP_THRESHOLD)
             ret, buffer = cv2.imencode('.jpg', frame)
             if not ret:
                 continue
@@ -106,6 +111,8 @@ HTML = """
         .video-box { flex: 1; margin: 0 10px; }
         .video-box h3 { text-align: center; }
         img { width: 100%; border-radius: 8px; }
+        .edit-box { background: #333; padding: 16px; border-radius: 10px; margin: 24px 0; text-align: center; }
+        input[type=number] { width: 80px; }
     </style>
 </head>
 <body>
@@ -121,14 +128,32 @@ HTML = """
             <img src="{{ url_for('video1_feed') }}" />
         </div>
     </div>
+    <div class="edit-box">
+        <form method="POST" action="{{ url_for('set_temp') }}">
+            <label>Ngưỡng nhiệt độ phát hiện cháy (0-255): </label>
+            <input name="fire_temp" type="number" min="0" max="255" value="{{ fire_temp }}">
+            <input type="submit" value="Cập nhật">
+        </form>
+        <p>Giá trị hiện tại: <b>{{ fire_temp }}</b></p>
+    </div>
 </div>
 </body>
 </html>
 """
 
-@app.route('/')
+@app.route('/', methods=['GET'])
 def index():
-    return render_template_string(HTML)
+    global FIRE_TEMP_THRESHOLD
+    return render_template_string(HTML, fire_temp=FIRE_TEMP_THRESHOLD)
+
+@app.route('/set_temp', methods=['POST'])
+def set_temp():
+    global FIRE_TEMP_THRESHOLD
+    try:
+        FIRE_TEMP_THRESHOLD = int(request.form.get('fire_temp', FIRE_TEMP_THRESHOLD))
+    except Exception:
+        pass
+    return redirect(url_for('index'))
 
 @app.route('/video')
 def video_feed():
