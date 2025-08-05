@@ -141,4 +141,4 @@ def video1_feed():
 if __name__ == "__main__":
     t_cam = threading.Thread(target=webcam_reader, daemon=True)
     t_cam.start()
-    app.run(host='0.0.0.0', port=5000, threaded=True)
+    app.run(host='0.0.0.0', port=5555, threaded=True)
