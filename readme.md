@@ -100,7 +100,8 @@ source /opt/ros/humble/install/setup.bash
 
 source install/setup.bash
 
-ros2 launch xe_tham_do rplidar.launch.py serial_port:=/dev/serial/by-path/platform-70090000.xusb-usb-0:2.4:1.0-port0 scan_mode:=Sensitivity
+ros2 launch xe_tham_do rplidar.launch.py serial_port:=/dev/serial/by-path/platform-70090000.xusb-usb-0:2.2:1.0-port0 scan_mode:=Sensitivity
+
 ```
 
 * ###  Chạy slam toolbox để tạo map
