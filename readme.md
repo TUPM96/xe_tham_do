@@ -157,6 +157,20 @@ cd ~/ros2_ws
 rviz2 -d src/xe_tham_do/config/map.rviz
 ```
 
+* #### Lưu map
+``` bash
+docker exec -it ros2_humble_container bash
+
+source /opt/ros/humble/install/setup.bash
+
+source install/setup.bash
+
+mkdir -p ~/maps
+
+ros2 run nav2_map_server map_saver_cli -f ~/maps/my_map
+```
+
+
 * ### Chạy điều khiển từ xa bằng app điện thoại
 ```bash
 docker exec -it ros2_humble_container bash
