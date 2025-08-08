@@ -1,2 +1,12 @@
 .idea
 /android/build
+python/yolov8n.pt
+ros2_ws/build/
+ros2_ws/install/
+ros2_ws/libs/
+ros2_ws/log/
+ros2_ws/src/libs/build/
+ros2_ws/src/libs/generate_parameter_library/example_python/generate_parameter_module_example/__init__.py
+ros2_ws/src/libs/generate_parameter_library/example_python/generate_parameter_module_example/admittance_parameters.py
+ros2_ws/src/libs/install/
+ros2_ws/src/libs/log/
