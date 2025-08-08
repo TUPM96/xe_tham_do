@@ -119,6 +119,17 @@ source install/setup.bash
 ros2 launch xe_tham_do camera.launch.py video_device:=/dev/video0
 ```
 
+* ###  Chạy location
+``` bash
+docker exec -it ros2_humble_container bash
+
+source /opt/ros/humble/install/setup.bash
+
+source install/setup.bash
+
+ros2 launch xe_tham_do localization_launch.py
+```
+
 
 * ###  Chạy slam toolbox để tạo map
 ``` bash
