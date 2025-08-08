@@ -65,16 +65,3 @@ Bạn có thể chỉnh sửa các thông số trong file cấu hình như:
 ## Sử dụng
 
 Sau khi node hoạt động, bạn có thể gửi lệnh vận tốc đến topic `/cmd_vel` để điều khiển robot, hoặc đọc dữ liệu odometry từ `/odom`.
-
-## Đóng góp
-
-Nếu bạn có ý tưởng hoặc muốn đóng góp, hãy tạo pull request hoặc mở issue mới trên GitHub.
-
-## License
-
-MIT License. Xem chi tiết trong file `LICENSE`.
-
----
-
-**Liên hệ:**
-- Github: [TUPM96](https://github.com/TUPM96)
