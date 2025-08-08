@@ -103,34 +103,6 @@ source install/setup.bash
 ros2 launch xe_tham_do rplidar.launch.py serial_port:=/dev/serial/by-path/platform-70090000.xusb-usb-0:2.4:1.0-port0 scan_mode:=Sensitivity
 ```
 
-
-* ### Chạy camera
-``` bash
-sudo chmod 777 /dev/video*
-
-docker exec -it ros2_humble_container bash
-
-sudo chmod 777 /dev/video*
-
-source /opt/ros/humble/install/setup.bash
-
-source install/setup.bash
-
-ros2 launch xe_tham_do camera.launch.py video_device:=/dev/video0
-```
-
-* ###  Chạy location
-``` bash
-docker exec -it ros2_humble_container bash
-
-source /opt/ros/humble/install/setup.bash
-
-source install/setup.bash
-
-ros2 launch xe_tham_do localization_launch.py
-```
-
-
 * ###  Chạy slam toolbox để tạo map
 ``` bash
 docker exec -it ros2_humble_container bash
@@ -192,6 +164,23 @@ pip install ultralytics
 pip install "numpy<2"
 
 python xe_tham_do.py
+```
+
+Tắt rviz2 và slam_toolbox khi đã lưu map
+
+* ###  Chạy location
+``` bash
+docker exec -it ros2_humble_container bash
+
+source /opt/ros/humble/install/setup.bash
+
+source install/setup.bash
+
+sudo apt update
+
+sudo apt install libgraphicsmagick++-dev
+
+ros2 launch xe_tham_do localization_launch.py map:=~/maps/my_map
 ```
 
 
