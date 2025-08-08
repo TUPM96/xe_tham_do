@@ -38,7 +38,7 @@ slam_toolbox:
     # Bật/tắt ghi log debug
     debug_logging: false
     # Giới hạn số lượng scan đưa vào xử lý (1: không giới hạn, >1: lấy mỗi n scan)
-    throttle_scans: 1
+    throttle_scans: 3
     # Chu kỳ xuất bản transform (s): nếu = 0 sẽ không xuất odometry
     transform_publish_period: 0.02
     # Thời gian cập nhật bản đồ (s)
@@ -64,11 +64,11 @@ slam_toolbox:
     # Sử dụng barycenter của scan để cải thiện matching
     use_scan_barycenter: true
     # Khoảng cách robot phải di chuyển tối thiểu (m) mới update
-    minimum_travel_distance: 0.5
+    minimum_travel_distance: 0.4
     # Góc quay tối thiểu (rad) mới update
-    minimum_travel_heading: 0.5
+    minimum_travel_heading: 0.4
     # Số lượng scan lưu trong buffer
-    scan_buffer_size: 5
+    scan_buffer_size: 3
     # Khoảng cách tối đa của scan lưu trong buffer (m)
     scan_buffer_maximum_scan_distance: 10.0
     # Ngưỡng phản hồi nhỏ nhất khi matching fine
