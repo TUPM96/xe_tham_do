@@ -167,6 +167,8 @@ source install/setup.bash
 
 mkdir -p ~/maps
 
+apt install libgraphicsmagick++-dev
+
 ros2 run nav2_map_server map_saver_cli -f ~/maps/my_map
 ```
 
