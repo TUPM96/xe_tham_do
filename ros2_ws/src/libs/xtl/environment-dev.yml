@@ -5,4 +5,3 @@ dependencies:
   - cmake
   - nlohmann_json
   - doctest
-  - ninja

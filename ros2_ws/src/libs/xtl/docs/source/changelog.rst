@@ -7,25 +7,6 @@
 Changelog
 =========
 
-0.8.0
------
-
-- Migrated to C++17 and replaced backported features with standard ones
-
-0.7.7
------
-
-- Use GetModuleFileNameW for wchar_t array
-
-0.7.6
------
-
-- Add missing #include <exception>
-- Fix promote_type with two complex floats and one double
-- test/CMakeLists.txt: remove extra find_package(Threads)
-- Fixed half errhandling throw except
-- Resolve issue promoting multiple std::complex
-
 0.7.5
 -----
 
