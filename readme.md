@@ -184,6 +184,18 @@ sudo apt install libgraphicsmagick++-dev
 ros2 launch xe_tham_do localization_launch.py map:=~/maps/my_map
 ```
 
+* ### Init location
+```bash
+docker exec -it ros2_humble_container bash
+
+source /opt/ros/humble/install/setup.bash
+
+source install/setup.bash
+
+ros2 lifecycle set /map_server configure
+
+```
+
 
 * ### Chạy navigation
 ```bash
