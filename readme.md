@@ -181,7 +181,8 @@ sudo apt update
 
 sudo apt install libgraphicsmagick++-dev
 
-ros2 launch xe_tham_do localization_launch.py map:=~/maps/my_map
+ros2 launch xe_tham_do localization_launch.py map:=/root/maps/my_map.yaml params_file:=/root/ros2_ws/src/xe_tham_do/config/nav2_params.yaml
+
 ```
 
 * ### Init location
