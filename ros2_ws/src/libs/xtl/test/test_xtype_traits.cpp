@@ -20,40 +20,40 @@ namespace xtl
     TEST(xtype_traits, conjunction)
     {
         bool res;
-        res = std::conjunction<>::value;
+        res = conjunction<>::value;
         EXPECT_EQ(res, true);
-        res = std::conjunction<false_type, false_type>::value;
+        res = conjunction<false_type, false_type>::value;
         EXPECT_EQ(res, false);
-        res = std::conjunction<false_type, true_type>::value;
+        res = conjunction<false_type, true_type>::value;
         EXPECT_EQ(res, false);
-        res = std::conjunction<true_type, false_type>::value;
+        res = conjunction<true_type, false_type>::value;
         EXPECT_EQ(res, false);
-        res = std::conjunction<true_type, true_type>::value;
+        res = conjunction<true_type, true_type>::value;
         EXPECT_EQ(res, true);
-        res = std::conjunction<true_type, true_type, true_type>::value;
+        res = conjunction<true_type, true_type, true_type>::value;
         EXPECT_EQ(res, true);
-        res = std::conjunction<true_type, true_type, false_type>::value;
+        res = conjunction<true_type, true_type, false_type>::value;
         EXPECT_EQ(res, false);
     }
 
     TEST(xtype_traits, disjunction)
     {
         bool res;
-        res = std::disjunction<>::value;
+        res = disjunction<>::value;
         EXPECT_EQ(res, false);
-        res = std::disjunction<false_type, false_type>::value;
+        res = disjunction<false_type, false_type>::value;
         EXPECT_EQ(res, false);
-        res = std::disjunction<false_type, true_type>::value;
+        res = disjunction<false_type, true_type>::value;
         EXPECT_EQ(res, true);
-        res = std::disjunction<true_type, false_type>::value;
+        res = disjunction<true_type, false_type>::value;
         EXPECT_EQ(res, true);
-        res = std::disjunction<true_type, true_type>::value;
+        res = disjunction<true_type, true_type>::value;
         EXPECT_EQ(res, true);
-        res = std::disjunction<true_type, true_type, true_type>::value;
+        res = disjunction<true_type, true_type, true_type>::value;
         EXPECT_EQ(res, true);
-        res = std::disjunction<true_type, true_type, false_type>::value;
+        res = disjunction<true_type, true_type, false_type>::value;
         EXPECT_EQ(res, true);
-        res = std::disjunction<false_type, false_type, false_type>::value;
+        res = disjunction<false_type, false_type, false_type>::value;
         EXPECT_EQ(res, false);
     }
 
@@ -66,7 +66,7 @@ namespace xtl
         return 0;
     }
 
-    template <class T, XTL_REQUIRES(xtl::is_integral<T>, std::negation<xtl::is_signed<T>>)>
+    template <class T, XTL_REQUIRES(xtl::is_integral<T>, xtl::negation<xtl::is_signed<T>>)>
     int test_requires(T)
     {
         return 1;
@@ -138,6 +138,6 @@ namespace xtl
         EXPECT_TRUE((std::is_same<int, promote_type_t<unsigned char, unsigned char>>::value));
         EXPECT_TRUE((std::is_same<std::complex<double>, promote_type_t<unsigned char, std::complex<double>>>::value));
         EXPECT_TRUE((std::is_same<std::complex<double>, promote_type_t<std::complex<float>, std::complex<double>>>::value));
-        EXPECT_TRUE((std::is_same<std::complex<double>, promote_type_t<std::complex<float>, std::complex<float>, double>>::value));
     }
 }
+
