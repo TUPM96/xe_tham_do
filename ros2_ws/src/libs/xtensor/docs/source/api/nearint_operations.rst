@@ -9,16 +9,29 @@ Nearest integer floating point operations
 
 **xtensor** provides the following rounding operations for xexpressions:
 
-Defined in ``xtensor/core/xmath.hpp``
+Defined in ``xtensor/xmath.hpp``
 
+.. _ceil-function-reference:
 .. doxygenfunction:: ceil(E&&)
+   :project: xtensor
 
+.. _floor-func-ref:
 .. doxygenfunction:: floor(E&&)
+   :project: xtensor
 
+.. _trunc-func-ref:
 .. doxygenfunction:: trunc(E&&)
+   :project: xtensor
 
+.. _round-func-ref:
 .. doxygenfunction:: round(E&&)
+   :project: xtensor
 
+.. _nearbyint-func-ref:
 .. doxygenfunction:: nearbyint(E&&)
+   :project: xtensor
 
+.. _rint-function-reference:
 .. doxygenfunction:: rint(E&&)
+   :project: xtensor
+

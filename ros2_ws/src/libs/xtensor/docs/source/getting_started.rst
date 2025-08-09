@@ -7,7 +7,7 @@
 Getting started
 ===============
 
-This short guide explains how to get started with *xtensor* once you have installed it with one of
+This short guide explains how to get started with `xtensor` once you have installed it with one of
 the methods described in the installation section.
 
 First example
@@ -16,9 +16,9 @@ First example
 .. code::
 
     #include <iostream>
-    #include <xtensor/containers/xarray.hpp>
-    #include <xtensor/io/xio.hpp>
-    #include <xtensor/views/xview.hpp>
+    #include <xtensor/xarray.hpp>
+    #include <xtensor/xio.hpp>
+    #include <xtensor/xview.hpp>
 
     int main(int argc, char* argv[])
     {
@@ -43,8 +43,8 @@ array.
 Compiling the first example
 ---------------------------
 
-*xtensor* is a header-only library, so there is no library to link with. The only constraint
-is that the compiler must be able to find the headers of *xtensor* (and *xtl*), this is usually done
+`xtensor` is a header-only library, so there is no library to link with. The only constraint
+is that the compiler must be able to find the headers of `xtensor` (and `xtl`), this is usually done
 by having the directory containing the headers in the include path. With G++, use the ``-I`` option
 to achieve this. Assuming the first example code is located in ``example.cpp``, the compilation command
 is:
@@ -53,7 +53,7 @@ is:
 
     g++ -I /path/to/xtensor/ -I /path/to/xtl/ example.cpp -o example
 
-Note that if you installed *xtensor* and *xtl* with *Cmake*, their headers will be located in the same
+Note that if you installed `xtensor` and `xtl` with `cmake`, their headers will be located in the same
 directory, so you will need to provide only one path with the ``-I`` option.
 
 When you run the program, it produces the following output:
@@ -65,7 +65,7 @@ When you run the program, it produces the following output:
 Building with cmake
 -------------------
 
-A better alternative for building programs using *xtensor* is to use *Cmake*, especially if you are
+A better alternative for building programs using `xtensor` is to use `cmake`, especially if you are
 developing for several platforms. Assuming the following folder structure:
 
 .. code:: bash
@@ -142,8 +142,8 @@ This second example initializes a 1-dimensional array and reshapes it in-place:
 .. code::
 
     #include <iostream>
-    #include <xtensor/containers/xarray.hpp>
-    #include <xtensor/io/xio.hpp>
+    #include <xtensor/xarray.hpp>
+    #include <xtensor/xio.hpp>
 
     int main(int argc, char* argv[])
     {
@@ -177,7 +177,7 @@ When compiled and run, this produces the following output:
 
   .. code-block:: cpp
 
-      std::cout << xt::adapt(arr.shape()); // with: #include <xtensor/containers/xadapt.hpp>
+      std::cout << xt::adapt(arr.shape()); // with: #include <xtensor/xadapt.hpp>
 
 Third example: index access
 ---------------------------
@@ -185,8 +185,8 @@ Third example: index access
 .. code::
 
     #include <iostream>
-    #include <xtensor/containers/xarray.hpp>
-    #include <xtensor/io/xio.hpp>
+    #include <xtensor/xarray.hpp>
+    #include <xtensor/xio.hpp>
 
     int main(int argc, char* argv[])
     {
@@ -214,14 +214,14 @@ Outputs:
 Fourth example: broadcasting
 ----------------------------
 
-This last example shows how to broadcast the :cpp:func:`xt::pow` universal function:
+This last example shows how to broadcast the ``xt::pow`` universal function:
 
 .. code::
 
     #include <iostream>
-    #include <xtensor/containers/xarray.hpp>
-    #include <xtensor/core/xmath.hpp>
-    #include <xtensor/io/xio.hpp>
+    #include <xtensor/xarray.hpp>
+    #include <xtensor/xmath.hpp>
+    #include <xtensor/xio.hpp>
 
     int main(int argc, char* argv[])
     {
@@ -247,3 +247,4 @@ Outputs:
      {1, 32, 243},
      {1, 64, 729},
      {1, 128, 2187}}
+

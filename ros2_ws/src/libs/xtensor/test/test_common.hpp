@@ -1,61 +1,21 @@
 /***************************************************************************
- * Copyright (c) Johan Mabille, Sylvain Corlay and Wolf Vollprecht          *
- * Copyright (c) QuantStack                                                 *
- *                                                                          *
- * Distributed under the terms of the BSD 3-Clause License.                 *
- *                                                                          *
- * The full license is in the file LICENSE, distributed with this software. *
- ****************************************************************************/
+* Copyright (c) Johan Mabille, Sylvain Corlay and Wolf Vollprecht          *
+* Copyright (c) QuantStack                                                 *
+*                                                                          *
+* Distributed under the terms of the BSD 3-Clause License.                 *
+*                                                                          *
+* The full license is in the file LICENSE, distributed with this software. *
+****************************************************************************/
 
 #ifndef TEST_COMMON_HPP
 #define TEST_COMMON_HPP
 
-#include <sstream>
-
-#include "xtensor/core/xlayout.hpp"
-#include "xtensor/misc/xmanipulation.hpp"
-#include "xtensor/reducers/xreducer.hpp"  // tuple_idx_of
-
+#include "xtensor/xlayout.hpp"
+#include "xtensor/xmanipulation.hpp"
 #include "test_common_macros.hpp"
-
-// the tests used to be implemented with gtest
-// testing::Types<...> and testing::Test
-// where introduced to keep compatible
-// with the gtest test where we can
-namespace testing
-{
-    template <class... ARGS>
-    using Types = std::tuple<ARGS...>;
-
-    struct Test
-    {
-    };
-}
 
 namespace xt
 {
-    template <class C>
-    std::string stringify(const C& container)
-    {
-        std::size_t i = 0;
-        std::stringstream ss;
-        ss << "[";
-        for (auto&& c : container)
-        {
-            if (i + 1 == container.size())
-            {
-                ss << c;
-            }
-            else
-            {
-                ss << c << ",";
-            }
-            ++i;
-        }
-        ss << "]";
-        return ss.str();
-    }
-
     template <class T, class A, class AV>
     bool operator==(const uvector<T, A>& lhs, const std::vector<T, AV>& rhs)
     {
@@ -102,35 +62,12 @@ namespace xt
         layout_type m_layout;
         assigner_type m_assigner;
 
-        inline size_type size() const
-        {
-            return m_data.size();
-        }
-
-        inline const shape_type& shape() const
-        {
-            return m_shape;
-        }
-
-        inline const strides_type& strides() const
-        {
-            return m_strides;
-        }
-
-        inline const strides_type& backstrides() const
-        {
-            return m_backstrides;
-        }
-
-        inline layout_type layout() const
-        {
-            return m_layout;
-        }
-
-        inline const vector_type& storage() const
-        {
-            return m_data;
-        }
+        inline size_type size() const { return m_data.size(); }
+        inline const shape_type& shape() const { return m_shape; }
+        inline const strides_type& strides() const { return m_strides; }
+        inline const strides_type& backstrides() const { return m_backstrides; }
+        inline layout_type layout() const { return m_layout; }
+        inline const vector_type& storage() const { return m_data; }
     };
 
     template <class C = dynamic_shape<std::size_t>>
@@ -140,8 +77,9 @@ namespace xt
         {
             this->m_strides = {8, 4, 1};
             this->m_backstrides = {16, 4, 3};
-            this->m_data = {-1, 1,  2,  3,  4,  5,  6,  7,  8,  9,  10, 11,
-                            12, 13, 14, 15, 16, 17, 18, 19, 20, 21, 22, 23};
+            this->m_data = {-1, 1, 2, 3, 4, 5, 6, 7, 8, 9,
+                            10, 11, 12, 13, 14, 15, 16, 17, 18, 19,
+                            20, 21, 22, 23};
             this->m_layout = layout_type::row_major;
         }
     };
@@ -153,8 +91,10 @@ namespace xt
         {
             this->m_strides = {1, 3, 6};
             this->m_backstrides = {2, 3, 18};
-            this->m_data = {-1, 8,  16, 4, 12, 20, 1, 9,  17, 5, 13, 21,
-                            2,  10, 18, 6, 14, 22, 3, 11, 19, 7, 15, 23};
+            this->m_data = {-1, 8, 16, 4, 12, 20,
+                             1, 9, 17, 5, 13, 21,
+                             2, 10, 18, 6, 14, 22,
+                             3, 11, 19, 7, 15, 23};
             this->m_layout = layout_type::column_major;
         }
     };
@@ -166,8 +106,9 @@ namespace xt
         {
             this->m_strides = {8, 1, 2};
             this->m_backstrides = {16, 1, 6};
-            this->m_data = {-1, 4,  1,  5,  2,  6,  3,  7,  8,  12, 9,  13,
-                            10, 14, 11, 15, 16, 20, 17, 21, 18, 22, 19, 23};
+            this->m_data = {-1, 4, 1, 5, 2, 6, 3, 7,
+                            8, 12, 9, 13, 10, 14, 11, 15,
+                            16, 20, 17, 21, 18, 22, 19, 23};
             this->m_layout = layout_type::dynamic;
         }
     };
@@ -207,35 +148,12 @@ namespace xt
         layout_type m_layout;
         assigner_type m_assigner;
 
-        inline size_type size() const
-        {
-            return m_data.size();
-        }
-
-        inline const shape_type& shape() const
-        {
-            return m_shape;
-        }
-
-        inline const strides_type& strides() const
-        {
-            return m_strides;
-        }
-
-        inline const strides_type& backstrides() const
-        {
-            return m_backstrides;
-        }
-
-        inline layout_type layout() const
-        {
-            return m_layout;
-        }
-
-        inline const vector_type& storage() const
-        {
-            return m_data;
-        }
+        inline size_type size() const { return m_data.size(); }
+        inline const shape_type& shape() const { return m_shape; }
+        inline const strides_type& strides() const { return m_strides; }
+        inline const strides_type& backstrides() const { return m_backstrides; }
+        inline layout_type layout() const { return m_layout; }
+        inline const vector_type& storage() const { return m_data; }
     };
 
     template <class V, class R>
@@ -243,9 +161,7 @@ namespace xt
     {
         EXPECT_TRUE(std::equal(vec.shape().cbegin(), vec.shape().cend(), result.shape().cbegin()));
         EXPECT_TRUE(std::equal(vec.strides().cbegin(), vec.strides().cend(), result.strides().cbegin()));
-        EXPECT_TRUE(
-            std::equal(vec.backstrides().cbegin(), vec.backstrides().cend(), result.backstrides().cbegin())
-        );
+        EXPECT_TRUE(std::equal(vec.backstrides().cbegin(), vec.backstrides().cend(), result.backstrides().cbegin()));
         EXPECT_EQ(vec.size(), result.size());
         if (compare_layout)
         {
@@ -257,14 +173,14 @@ namespace xt
     void test_resize(V& vec)
     {
         {
-            INFO("row_major resize");
+            SCOPED_TRACE("row_major resize");
             row_major_result<C> rm;
             vec.resize(rm.m_shape, layout_type::row_major);
             compare_shape(vec, rm);
         }
 
         {
-            INFO("different types resize");
+            SCOPED_TRACE("different types resize");
             row_major_result<C> rm;
             auto v_copy_a = vec;
             auto v_copy_b = vec;
@@ -277,21 +193,21 @@ namespace xt
         }
 
         {
-            INFO("column_major resize");
+            SCOPED_TRACE("column_major resize");
             column_major_result<C> cm;
             vec.resize(cm.m_shape, layout_type::column_major);
             compare_shape(vec, cm);
         }
 
         {
-            INFO("central_major resize");
+            SCOPED_TRACE("central_major resize");
             central_major_result<C> cem;
             vec.resize(cem.m_shape, cem.m_strides);
             compare_shape(vec, cem);
         }
 
         {
-            INFO("unit_shape resize");
+            SCOPED_TRACE("unit_shape resize");
             unit_shape_result<C> usr;
             vec.resize(usr.m_shape, layout_type::row_major);
             compare_shape(vec, usr, false);
@@ -303,7 +219,7 @@ namespace xt
     void test_reshape(V& vec)
     {
         {
-            INFO("row_major reshape");
+            SCOPED_TRACE("row_major reshape");
             row_major_result<C> rm;
             auto shape = rm.m_shape;
             std::size_t sz = compute_size(shape);
@@ -320,10 +236,10 @@ namespace xt
             compare_shape(vec, rm);
 
             vec.resize(shape);
-            vec.reshape({3, -1, 4}, layout_type::row_major);
+            vec.reshape({ 3, -1, 4 }, layout_type::row_major);
             compare_shape(vec, rm);
 
-            auto& vec_ref = vec.reshape({3, -1, 4}, layout_type::row_major);
+            auto & vec_ref = vec.reshape({ 3, -1, 4 }, layout_type::row_major);
             compare_shape(vec_ref, rm);
 
             shape = rm.m_shape;
@@ -336,7 +252,7 @@ namespace xt
     void test_throwing_reshape(V& vec)
     {
         {
-            INFO("throwing reshape");
+            SCOPED_TRACE("throwing reshape");
             vec = xt::arange(6);
             XT_EXPECT_THROW(vec.reshape({2}), std::runtime_error);
         }
@@ -347,9 +263,8 @@ namespace xt
     {
         using shape_type = typename V::shape_type;
         using strides_type = typename V::strides_type;
-
         {
-            INFO("transpose");
+            SCOPED_TRACE("transpose");
             shape_type shape_new = vec.shape();
             auto vt = transpose(vec);
             std::reverse(shape_new.begin(), shape_new.end());
@@ -357,7 +272,7 @@ namespace xt
         }
 
         {
-            INFO("transpose with data");
+            SCOPED_TRACE("transpose with data");
             row_major_result<C> rm;
             vec.resize(rm.shape(), layout_type::row_major);
 
@@ -372,10 +287,14 @@ namespace xt
             EXPECT_EQ(vt.shape(), shape_new);
             EXPECT_TRUE(std::equal(vt.storage().cbegin(), vt.storage().cend(), rm.m_data.cbegin()));
 
-            strides_type new_strides = {rm.m_strides[2], rm.m_strides[1], rm.m_strides[0]};
+            strides_type new_strides = {rm.m_strides[2],
+                                        rm.m_strides[1],
+                                        rm.m_strides[0]};
             EXPECT_EQ(vt.strides(), new_strides);
 
-            strides_type new_backstrides = {rm.m_backstrides[2], rm.m_backstrides[1], rm.m_backstrides[0]};
+            strides_type new_backstrides = {rm.m_backstrides[2],
+                                            rm.m_backstrides[1],
+                                            rm.m_backstrides[0]};
             EXPECT_EQ(vt.backstrides(), new_backstrides);
 
             EXPECT_EQ(vec_copy(0, 0, 0), vt(0, 0, 0));
@@ -385,7 +304,7 @@ namespace xt
         }
 
         {
-            INFO("transpose with permutation");
+            SCOPED_TRACE("transpose with permutation");
             row_major_result<C> rm;
             vec.resize(rm.shape(), layout_type::row_major);
 
@@ -400,10 +319,14 @@ namespace xt
             EXPECT_TRUE(std::equal(vt.shape().cbegin(), vt.shape().cend(), shape_new.begin()));
             EXPECT_TRUE(std::equal(vt.storage().cbegin(), vt.storage().cend(), rm.m_data.cbegin()));
 
-            strides_type new_strides = {rm.m_strides[1], rm.m_strides[0], rm.m_strides[2]};
+            strides_type new_strides = {rm.m_strides[1],
+                                        rm.m_strides[0],
+                                        rm.m_strides[2]};
             EXPECT_EQ(vt.strides(), new_strides);
 
-            strides_type new_backstrides = {rm.m_backstrides[1], rm.m_backstrides[0], rm.m_backstrides[2]};
+            strides_type new_backstrides = {rm.m_backstrides[1],
+                                            rm.m_backstrides[0],
+                                            rm.m_backstrides[2]};
             EXPECT_EQ(vt.backstrides(), new_backstrides);
 
             EXPECT_EQ(vec_copy(0, 0, 0), vt(0, 0, 0));
@@ -417,7 +340,7 @@ namespace xt
         }
 
         {
-            INFO("transpose permutation throws");
+            SCOPED_TRACE("transpose permutation throws");
             row_major_result<C> rm;
             vec.reshape(rm.shape(), layout_type::row_major);
 
@@ -457,14 +380,13 @@ namespace xt
             }
         }
     }
-
     template <class V>
     void test_bound_check(V& vec)
     {
 #if XTENSOR_ENABLE_ASSERT
         XT_EXPECT_ANY_THROW(vec(10, 10, 10));
 #else
-        (void) vec;
+        (void)vec;
 #endif
     }
 
@@ -479,7 +401,7 @@ namespace xt
     void test_access(V& vec)
     {
         {
-            INFO("row_major access");
+            SCOPED_TRACE("row_major access");
             row_major_result<C> rm;
             vec.resize(rm.m_shape, layout_type::row_major);
             assign_array(vec, rm.m_assigner);
@@ -490,7 +412,7 @@ namespace xt
         }
 
         {
-            INFO("column_major access");
+            SCOPED_TRACE("column_major access");
             column_major_result<C> cm;
             vec.resize(cm.m_shape, layout_type::column_major);
             assign_array(vec, cm.m_assigner);
@@ -501,7 +423,7 @@ namespace xt
         }
 
         {
-            INFO("central_major access");
+            SCOPED_TRACE("central_major access");
             central_major_result<C> cem;
             vec.resize(cem.m_shape, cem.m_strides);
             assign_array(vec, cem.m_assigner);
@@ -512,7 +434,7 @@ namespace xt
         }
 
         {
-            INFO("unit_shape access");
+            SCOPED_TRACE("unit_shape access");
             unit_shape_result<C> usr;
             vec.resize(usr.m_shape, layout_type::row_major);
             assign_array(vec, usr.m_assigner);
@@ -527,7 +449,7 @@ namespace xt
     void test_unchecked(V& vec)
     {
         {
-            INFO("row_major access");
+            SCOPED_TRACE("row_major access");
             row_major_result<C> rm;
             vec.resize(rm.m_shape, layout_type::row_major);
             assign_array(vec, rm.m_assigner);
@@ -536,7 +458,7 @@ namespace xt
         }
 
         {
-            INFO("column_major access");
+            SCOPED_TRACE("column_major access");
             column_major_result<C> cm;
             vec.resize(cm.m_shape, layout_type::column_major);
             assign_array(vec, cm.m_assigner);
@@ -545,7 +467,7 @@ namespace xt
         }
 
         {
-            INFO("central_major access");
+            SCOPED_TRACE("central_major access");
             central_major_result<C> cem;
             vec.resize(cem.m_shape, cem.m_strides);
             assign_array(vec, cem.m_assigner);
@@ -554,7 +476,7 @@ namespace xt
         }
 
         {
-            INFO("unit_shape access");
+            SCOPED_TRACE("unit_shape access");
             unit_shape_result<C> usr;
             vec.resize(usr.m_shape, layout_type::row_major);
             assign_array(vec, usr.m_assigner);
@@ -567,7 +489,7 @@ namespace xt
     void test_at(V& vec)
     {
         {
-            INFO("row_major access");
+            SCOPED_TRACE("row_major access");
             row_major_result<C> rm;
             vec.resize(rm.m_shape, layout_type::row_major);
             safe_assign_array(vec, rm.m_assigner);
@@ -576,7 +498,7 @@ namespace xt
         }
 
         {
-            INFO("column_major access");
+            SCOPED_TRACE("column_major access");
             column_major_result<C> cm;
             vec.resize(cm.m_shape, layout_type::column_major);
             safe_assign_array(vec, cm.m_assigner);
@@ -585,7 +507,7 @@ namespace xt
         }
 
         {
-            INFO("central_major access");
+            SCOPED_TRACE("central_major access");
             central_major_result<C> cem;
             vec.resize(cem.m_shape, cem.m_strides);
             safe_assign_array(vec, cem.m_assigner);
@@ -594,7 +516,7 @@ namespace xt
         }
 
         {
-            INFO("unit_shape access");
+            SCOPED_TRACE("unit_shape access");
             unit_shape_result<C> usr;
             vec.resize(usr.m_shape, layout_type::row_major);
             safe_assign_array(vec, usr.m_assigner);
@@ -607,7 +529,7 @@ namespace xt
     void test_element(V& vec)
     {
         {
-            INFO("row_major access");
+            SCOPED_TRACE("row_major access");
             row_major_result<C> rm;
             vec.resize(rm.m_shape, layout_type::row_major);
             assign_array(vec, rm.m_assigner);
@@ -622,7 +544,7 @@ namespace xt
         }
 
         {
-            INFO("column_major access");
+            SCOPED_TRACE("column_major access");
             column_major_result<C> cm;
             vec.resize(cm.m_shape, layout_type::column_major);
             assign_array(vec, cm.m_assigner);
@@ -637,7 +559,7 @@ namespace xt
         }
 
         {
-            INFO("central_major access");
+            SCOPED_TRACE("central_major access");
             central_major_result<C> cem;
             vec.resize(cem.m_shape, cem.m_strides);
             assign_array(vec, cem.m_assigner);
@@ -652,7 +574,7 @@ namespace xt
         }
 
         {
-            INFO("unit_shape access");
+            SCOPED_TRACE("unit_shape access");
             unit_shape_result<C> usr;
             vec.resize(usr.m_shape, layout_type::row_major);
             assign_array(vec, usr.m_assigner);
@@ -692,7 +614,7 @@ namespace xt
         xindex index1 = {1, 1};
         xindex index2 = {2, 2, 2, 1, 3};
         {
-            INFO("row_major access");
+            SCOPED_TRACE("row_major access");
             row_major_result<C> rm;
             vec.resize(rm.m_shape, layout_type::row_major);
             indexed_assign_array(vec, rm.m_assigner);
@@ -704,7 +626,7 @@ namespace xt
         }
 
         {
-            INFO("column_major access");
+            SCOPED_TRACE("column_major access");
             column_major_result<C> cm;
             vec.resize(cm.m_shape, layout_type::column_major);
             indexed_assign_array(vec, cm.m_assigner);
@@ -716,7 +638,7 @@ namespace xt
         }
 
         {
-            INFO("central_major access");
+            SCOPED_TRACE("central_major access");
             central_major_result<C> cem;
             vec.resize(cem.m_shape, cem.m_strides);
             indexed_assign_array(vec, cem.m_assigner);
@@ -728,7 +650,7 @@ namespace xt
         }
 
         {
-            INFO("unit_shape access");
+            SCOPED_TRACE("unit_shape access");
             unit_shape_result<C> usr;
             vec.resize(usr.m_shape, layout_type::row_major);
             indexed_assign_array(vec, usr.m_assigner);
@@ -751,7 +673,7 @@ namespace xt
         vec.resize(s);
 
         {
-            INFO("same shape");
+            SCOPED_TRACE("same shape");
             shape_type s1 = s;
             bool res = vec.broadcast_shape(s1);
             EXPECT_EQ(s1, s);
@@ -759,7 +681,7 @@ namespace xt
         }
 
         {
-            INFO("different shape");
+            SCOPED_TRACE("different shape");
             shape_type s2 = {3, 5, 1, 2};
             shape_type s2r = {3, 5, 4, 2};
             bool res = vec.broadcast_shape(s2);
@@ -768,7 +690,7 @@ namespace xt
         }
 
         {
-            INFO("incompatible shapes");
+            SCOPED_TRACE("incompatible shapes");
             shape_type s4 = {2, 1, 3, 2};
             XT_EXPECT_THROW(vec.broadcast_shape(s4), broadcast_error);
         }
@@ -783,7 +705,7 @@ namespace xt
         vec.resize(s);
 
         {
-            INFO("different dimensions");
+            SCOPED_TRACE("different dimensions");
             shape_type s3 = {5, 3, 1, 4, 2};
             shape_type s3r = s3;
             bool res = vec.broadcast_shape(s3);
@@ -796,7 +718,7 @@ namespace xt
     void test_iterator(VRM& vecrm, VCM& veccm)
     {
         {
-            INFO("row_major storage iterator");
+            SCOPED_TRACE("row_major storage iterator");
             row_major_result<C> rm;
             vecrm.resize(rm.m_shape, layout_type::row_major);
             std::copy(rm.storage().cbegin(), rm.storage().cend(), vecrm.template begin<layout_type::row_major>());
@@ -805,14 +727,10 @@ namespace xt
         }
 
         {
-            INFO("column_major storage iterator");
+            SCOPED_TRACE("column_major storage iterator");
             column_major_result<C> cm;
             veccm.resize(cm.m_shape, layout_type::column_major);
-            std::copy(
-                cm.storage().cbegin(),
-                cm.storage().cend(),
-                veccm.template begin<layout_type::column_major>()
-            );
+            std::copy(cm.storage().cbegin(), cm.storage().cend(), veccm.template begin<layout_type::column_major>());
             EXPECT_TRUE(std::equal(cm.storage().cbegin(), cm.storage().cend(), veccm.storage().cbegin()));
             EXPECT_EQ(veccm.template end<layout_type::column_major>(), veccm.storage().end());
         }
@@ -822,7 +740,7 @@ namespace xt
     void test_fill(V& vec)
     {
         using value_type = typename V::value_type;
-        vec.resize({3, 4});
+        vec.resize({ 3, 4 });
         value_type v(4);
         vec.fill(v);
         for (auto it = vec.cbegin(); it != vec.cend(); ++it)
@@ -840,8 +758,8 @@ namespace xt
         size_t nb_iter = vec.size() / 2;
         using shape_type = std::vector<size_t>;
 
+        // broadcast_iterator
         {
-            INFO("broadcast_iterator");
             auto iter = vec.template begin<layout_type::row_major>();
             auto iter_end = vec.template end<layout_type::row_major>();
             for (size_t i = 0; i < nb_iter; ++i)
@@ -856,8 +774,8 @@ namespace xt
             EXPECT_EQ(iter, iter_end);
         }
 
+        // shaped_xiterator
         {
-            INFO("shaped_xiterator");
             shape_type shape(rm.m_shape.size() + 1);
             std::copy(rm.m_shape.begin(), rm.m_shape.end(), shape.begin() + 1);
             shape[0] = 2;
@@ -875,8 +793,8 @@ namespace xt
             EXPECT_EQ(iter, iter_end);
         }
 
+        // column broadcast_iterator
         {
-            INFO("column broadcast_iterator");
             auto iter = vec.template begin<layout_type::column_major>();
             auto iter_end = vec.template end<layout_type::column_major>();
             for (size_t i = 0; i < nb_iter; ++i)
@@ -891,8 +809,8 @@ namespace xt
             EXPECT_EQ(iter, iter_end);
         }
 
+        // column shaped_xiterator
         {
-            INFO("column shaped_xiterator");
             shape_type shape(rm.m_shape.size() + 1);
             std::copy(rm.m_shape.begin(), rm.m_shape.end(), shape.begin() + 1);
             shape[0] = 2;
@@ -919,8 +837,8 @@ namespace xt
         indexed_assign_array(vec, rm.m_assigner);
         size_t nb_iter = vec.size() / 2;
 
+        // broadcast_iterator
         {
-            INFO("broadcast_iterator");
             auto iter = vec.template rbegin<layout_type::row_major>();
             auto iter_end = vec.template rend<layout_type::row_major>();
             for (size_t i = 0; i < nb_iter; ++i)
@@ -935,8 +853,8 @@ namespace xt
             EXPECT_EQ(iter, iter_end);
         }
 
+        // shaped_xiterator
         {
-            INFO("shaped_xiterator");
             using shape_type = std::vector<size_t>;
             shape_type shape(rm.m_shape.size() + 1);
             std::copy(rm.m_shape.begin(), rm.m_shape.end(), shape.begin() + 1);
@@ -961,7 +879,7 @@ namespace xt
     // SCIT: storage const iterator (const int*, std::vector<int>::const_iterator)
     template <class C, class SIT, class SCIT>
     void test_iterator_types()
-    {
+    {   
         using stepper = xstepper<C>;
         using const_stepper = xstepper<const C>;
         using shape_type = typename C::shape_type;
@@ -969,9 +887,8 @@ namespace xt
         using rm_layout_iterator = typename C::template layout_iterator<layout_type::row_major>;
         using rm_const_layout_iterator = typename C::template const_layout_iterator<layout_type::row_major>;
         using rm_reverse_layout_iterator = typename C::template reverse_layout_iterator<layout_type::row_major>;
-        using rm_const_reverse_layout_iterator = typename C::template const_reverse_layout_iterator<
-            layout_type::row_major>;
-
+        using rm_const_reverse_layout_iterator = typename C::template const_reverse_layout_iterator<layout_type::row_major>;
+        
         using exp_rm_layout_iterator = xiterator<stepper, shape_type*, layout_type::row_major>;
         using exp_rm_const_layout_iterator = xiterator<const_stepper, shape_type*, layout_type::row_major>;
         using exp_rm_reverse_layout_iterator = std::reverse_iterator<rm_layout_iterator>;
@@ -980,15 +897,13 @@ namespace xt
         EXPECT_TRUE((std::is_same<rm_layout_iterator, exp_rm_layout_iterator>::value));
         EXPECT_TRUE((std::is_same<rm_const_layout_iterator, exp_rm_const_layout_iterator>::value));
         EXPECT_TRUE((std::is_same<rm_reverse_layout_iterator, exp_rm_reverse_layout_iterator>::value));
-        EXPECT_TRUE((std::is_same<rm_const_reverse_layout_iterator, exp_rm_const_reverse_layout_iterator>::value
-        ));
+        EXPECT_TRUE((std::is_same<rm_const_reverse_layout_iterator, exp_rm_const_reverse_layout_iterator>::value));
 
         using cm_layout_iterator = typename C::template layout_iterator<layout_type::column_major>;
         using cm_const_layout_iterator = typename C::template const_layout_iterator<layout_type::column_major>;
         using cm_reverse_layout_iterator = typename C::template reverse_layout_iterator<layout_type::column_major>;
-        using cm_const_reverse_layout_iterator = typename C::template const_reverse_layout_iterator<
-            layout_type::column_major>;
-
+        using cm_const_reverse_layout_iterator = typename C::template const_reverse_layout_iterator<layout_type::column_major>;     
+        
         using exp_cm_layout_iterator = xiterator<stepper, shape_type*, layout_type::column_major>;
         using exp_cm_const_layout_iterator = xiterator<const_stepper, shape_type*, layout_type::column_major>;
         using exp_cm_reverse_layout_iterator = std::reverse_iterator<cm_layout_iterator>;
@@ -997,23 +912,22 @@ namespace xt
         EXPECT_TRUE((std::is_same<cm_layout_iterator, exp_cm_layout_iterator>::value));
         EXPECT_TRUE((std::is_same<cm_const_layout_iterator, exp_cm_const_layout_iterator>::value));
         EXPECT_TRUE((std::is_same<cm_reverse_layout_iterator, exp_cm_reverse_layout_iterator>::value));
-        EXPECT_TRUE((std::is_same<cm_const_reverse_layout_iterator, exp_cm_const_reverse_layout_iterator>::value
-        ));
+        EXPECT_TRUE((std::is_same<cm_const_reverse_layout_iterator, exp_cm_const_reverse_layout_iterator>::value));
 
-        using linear_iterator = typename C::linear_iterator;
-        using const_linear_iterator = typename C::const_linear_iterator;
-        using reverse_linear_iterator = typename C::reverse_linear_iterator;
-        using const_reverse_linear_iterator = typename C::const_reverse_linear_iterator;
+        using storage_iterator = typename C::storage_iterator;
+        using const_storage_iterator = typename C::const_storage_iterator;
+        using reverse_storage_iterator = typename C::reverse_storage_iterator;
+        using const_reverse_storage_iterator = typename C::const_reverse_storage_iterator;
 
-        using exp_linear_iterator = SIT;
-        using exp_const_linear_iterator = SCIT;
-        using exp_reverse_linear_iterator = std::reverse_iterator<SIT>;
-        using exp_const_reverse_linear_iterator = std::reverse_iterator<SCIT>;
+        using exp_storage_iterator = SIT;
+        using exp_const_storage_iterator = SCIT;
+        using exp_reverse_storage_iterator = std::reverse_iterator<SIT>;
+        using exp_const_reverse_storage_iterator = std::reverse_iterator<SCIT>;
 
-        EXPECT_TRUE((std::is_same<linear_iterator, exp_linear_iterator>::value));
-        EXPECT_TRUE((std::is_same<const_linear_iterator, exp_const_linear_iterator>::value));
-        EXPECT_TRUE((std::is_same<reverse_linear_iterator, exp_reverse_linear_iterator>::value));
-        EXPECT_TRUE((std::is_same<const_reverse_linear_iterator, exp_const_reverse_linear_iterator>::value));
+        EXPECT_TRUE((std::is_same<storage_iterator, exp_storage_iterator>::value));
+        EXPECT_TRUE((std::is_same<const_storage_iterator, exp_const_storage_iterator>::value));
+        EXPECT_TRUE((std::is_same<reverse_storage_iterator, exp_reverse_storage_iterator>::value));
+        EXPECT_TRUE((std::is_same<const_reverse_storage_iterator, exp_const_reverse_storage_iterator>::value));
     }
 }
 

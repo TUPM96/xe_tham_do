@@ -7,21 +7,21 @@
 Adapting 1-D containers
 =======================
 
-*xtensor* can adapt one-dimensional containers in place, and provide them a tensor interface.
+`xtensor` can adapt one-dimensional containers in place, and provide them a tensor interface.
 Only random access containers can be adapted.
 
 Adapting std::vector
 --------------------
 
 The following example shows how to bring an ``std::vector`` into the expression system of
-*xtensor*:
+`xtensor`:
 
 .. code::
 
     #include <cstddef>
     #include <vector>
-    #include <xtensor/containers/xarray.hpp>
-    #include <xtensor/containers/xadapt.hpp>
+    #include <xtensor/xarray.hpp>
+    #include <xtensor/xadapt.hpp>
 
     std::vector<double> v = {1., 2., 3., 4., 5., 6. };
     std::vector<std::size_t> shape = { 2, 3 };
@@ -44,13 +44,13 @@ the corresponding value in ``v``:
 Adapting C-style arrays
 -----------------------
 
-*xtensor* provides two ways for adapting a C-style array; the first one does not take the
+`xtensor` provides two ways for adapting a C-style array; the first one does not take the
 ownership of the array:
 
 .. code::
 
     #include <cstddef>
-    #include <xtensor/containers/xadapt.hpp>
+    #include <xtensor/xadapt.hpp>
 
     void compute(double* data, std::size_t size)
     {
@@ -76,14 +76,14 @@ ownership of the array:
         // prints 0 2 (data is still available here)
     }
 
-However if you replace :cpp:enumerator:`xt::no_ownership` with :cpp:enumerator:`xt::acquire_ownership`, the adaptor will take
+However if you replace ``xt::no_ownership`` with ``xt::acquire_ownership``, the adaptor will take
 the ownership of the array, meaning it will be deleted when the adaptor is destroyed:
 
 .. code::
 
     #include <cstddef>
-    #include <xtensor/containers/xarray.hpp>
-    #include <xtensor/containers/xadapt.hpp>
+    #include <xtensor/xarray.hpp>
+    #include <xtensor/xadapt.hpp>
 
     void compute(double*& data, std::size_t size)
     {
@@ -119,8 +119,8 @@ adaptor before calling ``compute`` and pass it to the function:
 .. code::
 
     #include <cstddef>
-    #include <xtensor/containers/xarray.hpp>
-    #include <xtensor/containers/xadapt.hpp>
+    #include <xtensor/xarray.hpp>
+    #include <xtensor/xadapt.hpp>
 
     template <class A>
     void compute(A& a)
@@ -154,8 +154,8 @@ Adapting C arrays allocated on the stack is as simple as adapting ``std::vector`
 
     #include <cstddef>
     #include <vector>
-    #include <xtensor/containers/xarray.hpp>
-    #include <xtensor/containers/xadapt.hpp>
+    #include <xtensor/xarray.hpp>
+    #include <xtensor/xadapt.hpp>
 
     double v[6] = {1., 2., 3., 4., 5., 6. };
     std::vector<std::size_t> shape = { 2, 3 };
@@ -179,14 +179,14 @@ Adapting C++ smart pointers
 ---------------------------
 
 If you want to manage your data with shared or unique pointers, you can use the
-:cpp:func:`xt::adapt_smart_ptr` function of xtensor.
-It will automatically increment the reference count of shared pointers upon creation, and decrement upon deletion.
+``adapt_smart_ptr`` function of xtensor. It will automatically increment the
+reference count of shared pointers upon creation, and decrement upon deletion.
 
 .. code::
 
     #include <memory>
-    #include <xtensor/containers/xadapt.hpp>
-    #include <xtensor/io/xio.hpp>
+    #include <xtensor/xadapt.hpp>
+    #include <xtensor/xio.hpp>
 
     std::shared_ptr<double> sptr(new double[8], std::default_delete<double[]>());
     sptr.get()[2] = 321.;
@@ -201,8 +201,8 @@ memory) as follows:
 .. code::
 
     #include <memory>
-    #include <xtensor/containers/xadapt.hpp>
-    #include <xtensor/io/xio.hpp>
+    #include <xtensor/xadapt.hpp>
+    #include <xtensor/xio.hpp>
 
     struct Buffer {
         Buffer(std::vector<double>& buf) : m_buf(buf) {}

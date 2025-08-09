@@ -7,7 +7,8 @@
 xrepeat
 =======
 
-Defined in ``xtensor/views/xrepeat.hpp``
+Defined in ``xtensor/xrepeat.hpp``
 
 .. doxygenclass:: xt::xrepeat
+   :project: xtensor
    :members:

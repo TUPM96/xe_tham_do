@@ -1,20 +1,19 @@
 /***************************************************************************
- * Copyright (c) Johan Mabille, Sylvain Corlay and Wolf Vollprecht          *
- * Copyright (c) QuantStack                                                 *
- *                                                                          *
- * Distributed under the terms of the BSD 3-Clause License.                 *
- *                                                                          *
- * The full license is in the file LICENSE, distributed with this software. *
- ****************************************************************************/
+* Copyright (c) Johan Mabille, Sylvain Corlay and Wolf Vollprecht          *
+* Copyright (c) QuantStack                                                 *
+*                                                                          *
+* Distributed under the terms of the BSD 3-Clause License.                 *
+*                                                                          *
+* The full license is in the file LICENSE, distributed with this software. *
+****************************************************************************/
 
+#include "gtest/gtest.h"
+#include "xtensor/xtensor.hpp"
+#include "xtensor/xarray.hpp"
+#include "test_common.hpp"
 #include <type_traits>
 
-#include "xtensor/containers/xarray.hpp"
-#include "xtensor/containers/xtensor.hpp"
-#include "xtensor/io/xio.hpp"
-
-#include "test_common.hpp"
-#include "test_common_macros.hpp"
+#include "xtensor/xio.hpp"
 
 namespace xt
 {
@@ -31,7 +30,13 @@ namespace xt
 
     TEST(xtensor, initializer_constructor)
     {
-        xtensor_dynamic t{{{0, 1, 2}, {3, 4, 5}, {6, 7, 8}}, {{9, 10, 11}, {12, 13, 14}, {15, 16, 17}}};
+        xtensor_dynamic t
+          {{{0, 1, 2},
+            {3, 4, 5},
+            {6, 7, 8}},
+           {{9, 10, 11},
+            {12, 13, 14},
+            {15, 16, 17}}};
         EXPECT_EQ(t.dimension(), size_t(3));
         EXPECT_EQ(t(0, 0, 1), 1);
         EXPECT_EQ(t.shape()[0], size_t(2));
@@ -39,22 +44,22 @@ namespace xt
 
     TEST(xtensor, shaped_constructor)
     {
-        SUBCASE("row_major constructor")
         {
+            SCOPED_TRACE("row_major constructor");
             row_major_result<storage_type> rm;
             xtensor_dynamic ra(rm.m_shape, layout_type::row_major);
             compare_shape(ra, rm);
         }
 
-        SUBCASE("column_major constructor")
         {
+            SCOPED_TRACE("column_major constructor");
             column_major_result<storage_type> cm;
             xtensor_dynamic ca(cm.m_shape, layout_type::column_major);
             compare_shape(ca, cm);
         }
 
-        SUBCASE("from shape")
         {
+            SCOPED_TRACE("from shape");
             std::array<std::size_t, 3> shp = {5, 4, 2};
             std::vector<std::size_t> shp_as_vec = {5, 4, 2};
             auto ca = xtensor<int, 3>::from_shape({3, 2, 1});
@@ -74,8 +79,8 @@ namespace xt
 
     TEST(xtensor, valued_constructor)
     {
-        SUBCASE("row_major valued constructor")
         {
+            SCOPED_TRACE("row_major valued constructor");
             row_major_result<storage_type> rm;
             int value = 2;
             xtensor_dynamic ra(rm.m_shape, value, layout_type::row_major);
@@ -84,8 +89,8 @@ namespace xt
             EXPECT_EQ(ra.storage(), vec);
         }
 
-        SUBCASE("column_major valued constructor")
         {
+            SCOPED_TRACE("column_major valued constructor");
             column_major_result<storage_type> cm;
             int value = 2;
             xtensor_dynamic ca(cm.m_shape, value, layout_type::column_major);
@@ -118,15 +123,15 @@ namespace xt
         int value = 2;
         xtensor_dynamic a(res.m_shape, res.m_strides, value);
 
-        SUBCASE("copy constructor")
         {
+            SCOPED_TRACE("copy constructor");
             xtensor_dynamic b(a);
             compare_shape(a, b);
             EXPECT_EQ(a.storage(), b.storage());
         }
 
-        SUBCASE("assignment operator")
         {
+            SCOPED_TRACE("assignment operator");
             row_major_result<storage_type> r;
             xtensor_dynamic c(r.m_shape, 0);
             EXPECT_NE(a.storage(), c.storage());
@@ -142,16 +147,16 @@ namespace xt
         int value = 2;
         xtensor_dynamic a(res.m_shape, res.m_strides, value);
 
-        SUBCASE("move constructor")
         {
+            SCOPED_TRACE("move constructor");
             xtensor_dynamic tmp(a);
             xtensor_dynamic b(std::move(tmp));
             compare_shape(a, b);
             EXPECT_EQ(a.storage(), b.storage());
         }
 
-        SUBCASE("move assignment")
         {
+            SCOPED_TRACE("move assignment");
             row_major_result<storage_type> r;
             xtensor_dynamic c(r.m_shape, 0);
             EXPECT_NE(a.storage(), c.storage());
@@ -162,53 +167,6 @@ namespace xt
         }
     }
 
-    TEST(xtensor, missing)
-    {
-        xt::xtensor<int, 2> a{{0, 1, 2}, {3, 4, 5}, {6, 7, 8}};
-
-        EXPECT_EQ(a(0), 0);
-        EXPECT_EQ(a(1), 1);
-        EXPECT_EQ(a(2), 2);
-        EXPECT_EQ(a(0, 0), 0);
-        EXPECT_EQ(a(1, 0), 3);
-        EXPECT_EQ(a(2, 0), 6);
-        EXPECT_EQ(a(xt::missing), 0);
-        EXPECT_EQ(a(0, xt::missing), 0);
-        EXPECT_EQ(a(1, xt::missing), 3);
-        EXPECT_EQ(a(2, xt::missing), 6);
-        EXPECT_EQ(a(0, 0), 0);
-        EXPECT_EQ(a(0, 1), 1);
-        EXPECT_EQ(a(0, 2), 2);
-        EXPECT_EQ(a(1, 0), 3);
-        EXPECT_EQ(a(1, 1), 4);
-        EXPECT_EQ(a(1, 2), 5);
-        EXPECT_EQ(a(2, 0), 6);
-        EXPECT_EQ(a(2, 1), 7);
-        EXPECT_EQ(a(2, 2), 8);
-        EXPECT_EQ(a(9, 9, 9, 0, 0), 0);
-        EXPECT_EQ(a(9, 9, 9, 0, 1), 1);
-        EXPECT_EQ(a(9, 9, 9, 0, 2), 2);
-        EXPECT_EQ(a(9, 9, 9, 1, 0), 3);
-        EXPECT_EQ(a(9, 9, 9, 1, 1), 4);
-        EXPECT_EQ(a(9, 9, 9, 1, 2), 5);
-        EXPECT_EQ(a(9, 9, 9, 2, 0), 6);
-        EXPECT_EQ(a(9, 9, 9, 2, 1), 7);
-        EXPECT_EQ(a(9, 9, 9, 2, 2), 8);
-
-        EXPECT_EQ(a.periodic(-1, xt::missing), a(2, xt::missing));
-        EXPECT_EQ(a.periodic(-2, xt::missing), a(1, xt::missing));
-        EXPECT_EQ(a.periodic(-3, xt::missing), a(0, xt::missing));
-
-        EXPECT_EQ(a.at(0, xt::missing), a.at(0, 0));
-        EXPECT_EQ(a.at(1, xt::missing), a.at(1, 0));
-        EXPECT_EQ(a.at(2, xt::missing), a.at(2, 0));
-
-        EXPECT_TRUE(a.in_bounds(0, xt::missing));
-        EXPECT_TRUE(a.in_bounds(1, xt::missing));
-        EXPECT_TRUE(a.in_bounds(2, xt::missing));
-        EXPECT_FALSE(a.in_bounds(3, xt::missing));
-    }
-
     TEST(xtensor, resize)
     {
         xtensor_dynamic a;
@@ -216,7 +174,7 @@ namespace xt
 
 #ifdef XTENSOR_ENABLE_ASSERT
         xtensor_dynamic b;
-        std::vector<size_t> s = {2u, 2u};
+        std::vector<size_t> s = { 2u, 2u };
         xtensor_dynamic::strides_type strides = {2u, 1u};
         EXPECT_THROW(b.resize(s), std::runtime_error);
         EXPECT_THROW(b.resize(s, layout_type::dynamic), std::runtime_error);
@@ -319,24 +277,18 @@ namespace xt
         EXPECT_EQ(2, res(0));
         EXPECT_EQ(2, res(1));
 
-        xtensor<int, 1> b = {1, 2};
+        xtensor<int, 1> b = { 1, 2 };
         xt::xarray<double> ca = a * b;
     }
 
     TEST(xtensor, move_from_xarray)
     {
-        xarray<double> a = {{{1, 2, 3}, {4, 5, 6}}, {{10, 10, 10}, {1, 5, 10}}};
+        xarray<double> a = {{{1,2,3}, {4,5,6}}, {{10, 10, 10}, {1,5,10}}};
         xarray<double> a1 = a;
         xtensor<double, 3> b(std::move(a1));
         EXPECT_EQ(a, b);
-        EXPECT_TRUE(
-            std::equal(a.strides().begin(), a.strides().end(), b.strides().begin())
-            && a.strides().size() == b.strides().size()
-        );
-        EXPECT_TRUE(
-            std::equal(a.backstrides().begin(), a.backstrides().end(), b.backstrides().begin())
-            && a.backstrides().size() == b.backstrides().size()
-        );
+        EXPECT_TRUE(std::equal(a.strides().begin(), a.strides().end(), b.strides().begin()) && a.strides().size() == b.strides().size());
+        EXPECT_TRUE(std::equal(a.backstrides().begin(), a.backstrides().end(), b.backstrides().begin()) && a.backstrides().size() == b.backstrides().size());
         EXPECT_EQ(a.layout(), b.layout());
 
         xarray<double> a2 = a;
@@ -344,107 +296,78 @@ namespace xt
         c = std::move(a2);
 
         EXPECT_EQ(a, c);
-        EXPECT_TRUE(
-            std::equal(a.strides().begin(), a.strides().end(), c.strides().begin())
-            && a.strides().size() == c.strides().size()
-        );
-        EXPECT_TRUE(
-            std::equal(a.backstrides().begin(), a.backstrides().end(), c.backstrides().begin())
-            && a.backstrides().size() == c.backstrides().size()
-        );
+        EXPECT_TRUE(std::equal(a.strides().begin(), a.strides().end(), c.strides().begin()) && a.strides().size() == c.strides().size());
+        EXPECT_TRUE(std::equal(a.backstrides().begin(), a.backstrides().end(), c.backstrides().begin()) && a.backstrides().size() == c.backstrides().size());
         EXPECT_EQ(a.layout(), c.layout());
     }
 
     TEST(xtensor, from_indices)
     {
-        xt::xtensor<int, 2> a = {{1, 0, 0}, {1, 1, 0}, {1, 1, 1}};
-        xt::xtensor<size_t, 2> jdx = {{0, 0}, {1, 0}, {1, 1}, {2, 0}, {2, 1}, {2, 2}};
-        xt::xtensor<size_t, 2> idx = xt::from_indices(xt::argwhere(xt::equal(a, 1)));
-        EXPECT_TRUE(idx == jdx);
+        xt::xtensor<int, 2> a = {{1,0,0},{1,1,0},{1,1,1}};
+        xt::xtensor<size_t, 2> jdx = {{0,0},{1,0},{1,1},{2,0},{2,1},{2,2}};
+        xt::xtensor<size_t, 2> idx = xt::from_indices(xt::argwhere(xt::equal(a,1)));
+        EXPECT_TRUE(idx==jdx);
     }
 
     TEST(xtensor, flatten_indices)
     {
-        xt::xtensor<int, 1> a = {1, 0, 0, 1, 1, 0, 1, 1, 1};
-        xt::xtensor<size_t, 1> jdx = {0, 3, 4, 6, 7, 8};
-        xt::xtensor<size_t, 1> idx = xt::flatten_indices(xt::argwhere(xt::equal(a, 1)));
-        EXPECT_TRUE(idx == jdx);
+        xt::xtensor<int, 1> a = {1,0,0,1,1,0,1,1,1};
+        xt::xtensor<size_t, 1> jdx = {0,3,4,6,7,8};
+        xt::xtensor<size_t, 1> idx = xt::flatten_indices(xt::argwhere(xt::equal(a,1)));
+        EXPECT_TRUE(idx==jdx);
     }
 
     TEST(xtensor, ravel_indices)
     {
-        xt::xtensor<int, 2> a = {{1, 0, 0}, {1, 1, 0}, {1, 1, 1}};
-        xt::xtensor<size_t, 1> jdx = {0, 3, 4, 6, 7, 8};
-        xt::xtensor<size_t, 1> idx = xt::ravel_indices(xt::argwhere(xt::equal(a, 1)), a.shape());
-        EXPECT_TRUE(idx == jdx);
+        xt::xtensor<int, 2> a = {{1,0,0},{1,1,0},{1,1,1}};
+        xt::xtensor<size_t, 1> jdx = {0,3,4,6,7,8};
+        xt::xtensor<size_t, 1> idx = xt::ravel_indices(xt::argwhere(xt::equal(a,1)), a.shape());
+        EXPECT_TRUE(idx==jdx);
     }
 
     TEST(xtensor, ravel_indices_column_major)
     {
-        xt::xtensor<int, 2, xt::layout_type::column_major> a = {{1, 0, 0}, {1, 1, 0}, {1, 1, 1}};
-        xt::xtensor<size_t, 1> jdx = {0, 1, 4, 2, 5, 8};
-        xt::xtensor<size_t, 1> idx = xt::ravel_indices(
-            xt::argwhere(xt::equal(a, 1)),
-            a.shape(),
-            xt::layout_type::column_major
-        );
-        EXPECT_TRUE(idx == jdx);
-    }
-
-    TEST(xarray, operator_brace)
-    {
-#ifdef XTENSOR_ENABLE_ASSERT
-        xt::xtensor<size_t, 2> a = {{0, 1, 2}, {3, 4, 5}};
-        EXPECT_THROW(a(2, 0), std::runtime_error);
-        EXPECT_THROW(a(0, 3), std::runtime_error);
-
-        xt::xtensor<size_t, 2> b = {{0, 1, 2}};
-        EXPECT_THROW(a(0, 3), std::runtime_error);
-        EXPECT_THROW(a(1, 3), std::runtime_error);
-#endif
+        xt::xtensor<int, 2, xt::layout_type::column_major> a = {{1,0,0},{1,1,0},{1,1,1}};
+        xt::xtensor<size_t, 1> jdx = {0,1,4,2,5,8};
+        xt::xtensor<size_t, 1> idx = xt::ravel_indices(xt::argwhere(xt::equal(a,1)), a.shape(), xt::layout_type::column_major);
+        EXPECT_TRUE(idx==jdx);
     }
 
     TEST(xtensor, periodic)
     {
-        xt::xtensor<size_t, 2> a = {{0, 1, 2}, {3, 4, 5}};
-        xt::xtensor<size_t, 2> b = {{0, 1, 2}, {30, 40, 50}};
-        a.periodic(-1, 3) = 30;
-        a.periodic(-1, 4) = 40;
-        a.periodic(-1, 5) = 50;
+        xt::xtensor<size_t,2> a = {{0,1,2}, {3,4,5}};
+        xt::xtensor<size_t,2> b = {{0,1,2}, {30,40,50}};
+        a.periodic(-1,3) = 30;
+        a.periodic(-1,4) = 40;
+        a.periodic(-1,5) = 50;
         EXPECT_EQ(a, b);
     }
 
     TEST(xtensor, flat)
     {
         {
-            xt::xtensor<size_t, 2, xt::layout_type::row_major> a = {{0, 1, 2}, {3, 4, 5}};
-            xt::xtensor<size_t, 2, xt::layout_type::row_major> b = {{0, 1, 2}, {30, 40, 50}};
+            xt::xtensor<size_t, 2, xt::layout_type::row_major> a = {{0,1,2}, {3,4,5}};
+            xt::xtensor<size_t, 2, xt::layout_type::row_major> b = {{0,1,2}, {30,40,50}};
             a.flat(3) = 30;
             a.flat(4) = 40;
             a.flat(5) = 50;
             EXPECT_EQ(a, b);
-#ifdef XTENSOR_ENABLE_ASSERT
-            EXPECT_THROW(a.flat(6), std::runtime_error);
-#endif
         }
         {
-            xt::xtensor<size_t, 2, xt::layout_type::column_major> a = {{0, 1, 2}, {3, 4, 5}};
-            xt::xtensor<size_t, 2, xt::layout_type::column_major> b = {{0, 1, 2}, {30, 40, 50}};
+            xt::xtensor<size_t, 2, xt::layout_type::column_major> a = {{0,1,2}, {3,4,5}};
+            xt::xtensor<size_t, 2, xt::layout_type::column_major> b = {{0,1,2}, {30,40,50}};
             a.flat(1) = 30;
             a.flat(3) = 40;
             a.flat(5) = 50;
             EXPECT_EQ(a, b);
-#ifdef XTENSOR_ENABLE_ASSERT
-            EXPECT_THROW(a.flat(6), std::runtime_error);
-#endif
         }
     }
 
     TEST(xtensor, in_bounds)
     {
-        xt::xtensor<size_t, 2> a = {{0, 1, 2}, {3, 4, 5}};
-        EXPECT_TRUE(a.in_bounds(0, 0) == true);
-        EXPECT_TRUE(a.in_bounds(2, 0) == false);
+        xt::xtensor<size_t,2> a = {{0,1,2}, {3,4,5}};
+        EXPECT_TRUE(a.in_bounds(0,0) == true);
+        EXPECT_TRUE(a.in_bounds(2,0) == false);
     }
 
     TEST(xtensor, iterator_types)

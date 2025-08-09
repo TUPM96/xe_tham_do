@@ -1,20 +1,18 @@
 /***************************************************************************
- * Copyright (c) Johan Mabille, Sylvain Corlay and Wolf Vollprecht          *
- * Copyright (c) QuantStack                                                 *
- *                                                                          *
- * Distributed under the terms of the BSD 3-Clause License.                 *
- *                                                                          *
- * The full license is in the file LICENSE, distributed with this software. *
- ****************************************************************************/
+* Copyright (c) Johan Mabille, Sylvain Corlay and Wolf Vollprecht          *
+* Copyright (c) QuantStack                                                 *
+*                                                                          *
+* Distributed under the terms of the BSD 3-Clause License.                 *
+*                                                                          *
+* The full license is in the file LICENSE, distributed with this software. *
+****************************************************************************/
 
 #ifndef TEST_XSEMANTIC_HPP
 #define TEST_XSEMANTIC_HPP
 
 #include <functional>
-
-#include "xtensor/containers/xarray.hpp"
-#include "xtensor/containers/xtensor.hpp"
-
+#include "xtensor/xarray.hpp"
+#include "xtensor/xtensor.hpp"
 #include "test_common.hpp"
 
 namespace xt

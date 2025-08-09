@@ -15,12 +15,12 @@ xtensor and numpy are very different libraries in their internal semantics. Whil
 is a lazy expression system, numpy manipulates in-memory containers, however, similarities in
 APIs are obvious. See e.g. the numpy to xtensor cheat sheet.
 
-And this page tracks the subtle differences of behavior between NumPy and xtensor.
+And this page tracks the subtle differences of behavior between numpy and xtensor.
 
 Zero-dimensional arrays
 -----------------------
 
-With NumPy, 0-D arrays are nearly indistinguishable from scalars. This led to some issues w.r.t.
+With numpy, 0-D arrays are nearly indistinguishable from scalars. This led to some issues w.r.t.
 universal functions returning scalars with 0-D array inputs instead of actual arrays...
 
 In xtensor, 0-D expressions are not implicitly convertible to scalar values. Values held by 0-D
@@ -32,8 +32,8 @@ array argument is a 0-D argument:
 
 .. code::
 
-    #include <xtensor/containers/xarray.hpp>
-    #include <xtensor/io/xio.hpp>
+    #include <xtensor/xarray.hpp>
+    #include <xtensor/xio.hpp>
 
     xt::xarray<double> x = 1;
     std::cout << xt::cumsum(x, 0) << std::endl;
@@ -87,7 +87,7 @@ be assigned to a container such as xarray or xtensor.
 Missing values
 --------------
 
-Support of missing values in NumPy can be emulated with the masked array module,
+Support of missing values in numpy can be emulated with the masked array module,
 which provides a means to handle arrays that have missing or invalid data.
 
 Support of missing values in xtensor is done through a notion of optional values, implemented in ``xoptional<T, B>``, which serves both as a value type for container and as a reference proxy for optimized storage types. See the section of the documentation on :doc:`missing`.
@@ -95,22 +95,8 @@ Support of missing values in xtensor is done through a notion of optional values
 Strides
 -------
 
-Strided containers of xtensor and NumPy having the same exact memory layout may have different strides when accessing them through the ``strides`` attribute.
+Strided containers of xtensor and numpy having the same exact memory layout may have different strides when accessing them through the ``strides`` attribute.
 The reason is an optimization in xtensor, which is to set the strides to ``0`` in dimensions of length ``1``, which simplifies the implementation of broadcasting of universal functions.
-
-.. tip::
-
-    Use the free function ``xt::strides`` to switch between representations.
-
-    .. code-block:: cpp
-
-        xt::strides(a); // strides of ``a`` corresponding to storage
-        xt::strides(a, xt::stride_type::normal); // same
-
-        xt::strides(a, xt::stride_type::internal); // ``== a.strides()``
-
-        xt::strides(a, xt::stride_type::bytes) // strides in bytes, as in NumPy
-
 
 Array indices
 -------------

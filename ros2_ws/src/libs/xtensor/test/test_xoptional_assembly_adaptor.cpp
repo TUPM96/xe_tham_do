@@ -1,18 +1,19 @@
 /***************************************************************************
- * Copyright (c) Johan Mabille, Sylvain Corlay and Wolf Vollprecht          *
- * Copyright (c) QuantStack                                                 *
- *                                                                          *
- * Distributed under the terms of the BSD 3-Clause License.                 *
- *                                                                          *
- * The full license is in the file LICENSE, distributed with this software. *
- ****************************************************************************/
+* Copyright (c) Johan Mabille, Sylvain Corlay and Wolf Vollprecht          *
+* Copyright (c) QuantStack                                                 *
+*                                                                          *
+* Distributed under the terms of the BSD 3-Clause License.                 *
+*                                                                          *
+* The full license is in the file LICENSE, distributed with this software. *
+****************************************************************************/
 
-#include "xtensor/containers/xarray.hpp"
-#include "xtensor/io/xio.hpp"
-#include "xtensor/optional/xoptional_assembly.hpp"
+#include "gtest/gtest.h"
+
+#include "xtensor/xarray.hpp"
+#include "xtensor/xio.hpp"
+#include "xtensor/xoptional_assembly.hpp"
 
 #include "test_common.hpp"
-#include "test_common_macros.hpp"
 
 namespace xt
 {
@@ -34,16 +35,16 @@ namespace xt
         flag_array_type hv = {{true, false, true}, {false, true, false}};
         adaptor_type a(v, hv);
 
-        SUBCASE("copy constructor")
         {
+            SCOPED_TRACE("copy constructor");
             adaptor_type b(a);
             compare_shape(a, b);
             EXPECT_EQ(a.value().storage(), b.value().storage());
             EXPECT_EQ(a.has_value().storage(), b.has_value().storage());
         }
 
-        SUBCASE("assignment operator")
         {
+            SCOPED_TRACE("assignment operator");
             array_type v2 = {{1, 2, 13}, {14, 15, 16}};
             flag_array_type hv2 = {{false, true, true}, {false, true, false}};
             adaptor_type c(v2, hv2);
@@ -62,8 +63,8 @@ namespace xt
         flag_array_type hv = {{true, false, true}, {false, true, false}};
         adaptor_type a(v, hv);
 
-        SUBCASE("copy constructor")
         {
+            SCOPED_TRACE("copy constructor");
             adaptor_type tmp(a);
             adaptor_type b(std::move(tmp));
             compare_shape(a, b);
@@ -71,8 +72,8 @@ namespace xt
             EXPECT_EQ(a.has_value().storage(), b.has_value().storage());
         }
 
-        SUBCASE("assignment operator")
         {
+            SCOPED_TRACE("assignment operator");
             array_type v2 = {{1, 2, 13}, {14, 15, 16}};
             flag_array_type hv2 = {{false, true, true}, {false, true, false}};
             adaptor_type c(v2, hv2);
@@ -138,7 +139,8 @@ namespace xt
         array_type v = {{1, 2, 3}, {4, 5, 6}};
         flag_array_type hv = {{true, false, true}, {false, true, false}};
         adaptor_type a(v, hv);
-        std::vector<std::size_t> v00({0, 0}), v01({0, 1}), v02({0, 2}), v10({1, 0}), v11({1, 1}), v12({1, 2});
+        std::vector<std::size_t> v00({0, 0}), v01({0, 1}), v02({0, 2}),
+            v10({1, 0}), v11({1, 1}), v12({1, 2});
 
         EXPECT_EQ(a.element(v00.begin(), v00.end()), opt(1, true));
         EXPECT_EQ(a.element(v01.begin(), v01.end()), opt(2, false));
@@ -154,7 +156,8 @@ namespace xt
         array_type v = {{1, 2, 3}, {4, 5, 6}};
         flag_array_type hv = {{true, false, true}, {false, true, false}};
         adaptor_type a(v, hv);
-        xindex i00({0, 0}), i01({0, 1}), i02({0, 2}), i10({1, 0}), i11({1, 1}), i12({1, 2});
+        xindex i00({0, 0}), i01({0, 1}), i02({0, 2}),
+            i10({1, 0}), i11({1, 1}), i12({1, 2});
 
         EXPECT_EQ(a[i00], opt(1, true));
         EXPECT_EQ((a[{0, 0}]), opt(1, true));
@@ -178,16 +181,16 @@ namespace xt
         flag_array_type hv(s);
         adaptor_type a(v, hv);
 
-        SUBCASE("same shape")
         {
+            SCOPED_TRACE("same shape");
             shape_type s1 = s;
             bool res = a.broadcast_shape(s1);
             EXPECT_EQ(s1, s);
             EXPECT_TRUE(res);
         }
 
-        SUBCASE("different shape")
         {
+            SCOPED_TRACE("different shape");
             shape_type s2 = {3, 5, 1, 2};
             shape_type s2r = {3, 5, 4, 2};
             bool res = a.broadcast_shape(s2);
@@ -195,16 +198,16 @@ namespace xt
             EXPECT_FALSE(res);
         }
 
-        SUBCASE("incompatible shapes")
         {
+            SCOPED_TRACE("incompatible shapes");
             shape_type s4 = {2, 1, 3, 2};
             XT_EXPECT_THROW(a.broadcast_shape(s4), broadcast_error);
         }
 
         {
             shape_type s2 = {3, 1, 4, 2};
-            SUBCASE("different dimensions")
             a.resize(s2);
+            SCOPED_TRACE("different dimensions");
             shape_type s3 = {5, 3, 1, 4, 2};
             shape_type s3r = s3;
             bool res = a.broadcast_shape(s3);
@@ -218,8 +221,8 @@ namespace xt
         using opt = xtl::xoptional<int>;
         std::vector<opt> vec = {opt(1), opt(2, false), opt(3, false), opt(4)};
 
-        SUBCASE("row_major storage iterator")
         {
+            SCOPED_TRACE("row_major storage iterator");
             xarray<int, layout_type::row_major> v;
             xarray<bool, layout_type::row_major> hv;
             xoptional_assembly_adaptor<decltype(v)&, decltype(hv)&> rma(v, hv);
@@ -229,14 +232,11 @@ namespace xt
             EXPECT_EQ(vec[1], rma(0, 1));
             EXPECT_EQ(vec[2], rma(1, 0));
             EXPECT_EQ(vec[3], rma(1, 1));
-            EXPECT_EQ(
-                vec.size(),
-                std::size_t(std::distance(rma.begin<layout_type::row_major>(), rma.end<layout_type::row_major>()))
-            );
+            EXPECT_EQ(vec.size(), std::size_t(std::distance(rma.begin<layout_type::row_major>(), rma.end<layout_type::row_major>())));
         }
 
-        SUBCASE("column_major storage iterator")
         {
+            SCOPED_TRACE("column_major storage iterator");
             xarray<int, layout_type::row_major> v;
             xarray<bool, layout_type::row_major> hv;
             xoptional_assembly_adaptor<decltype(v)&, decltype(hv)&> cma(v, hv);
@@ -246,12 +246,7 @@ namespace xt
             EXPECT_EQ(vec[1], cma(1, 0));
             EXPECT_EQ(vec[2], cma(0, 1));
             EXPECT_EQ(vec[3], cma(1, 1));
-            EXPECT_EQ(
-                vec.size(),
-                std::size_t(
-                    std::distance(cma.begin<layout_type::column_major>(), cma.end<layout_type::column_major>())
-                )
-            );
+            EXPECT_EQ(vec.size(), std::size_t(std::distance(cma.begin<layout_type::column_major>(), cma.end<layout_type::column_major>())));
         }
     }
 

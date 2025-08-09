@@ -1,25 +1,24 @@
 /***************************************************************************
- * Copyright (c) Johan Mabille, Sylvain Corlay and Wolf Vollprecht          *
- * Copyright (c) QuantStack                                                 *
- *                                                                          *
- * Distributed under the terms of the BSD 3-Clause License.                 *
- *                                                                          *
- * The full license is in the file LICENSE, distributed with this software. *
- ****************************************************************************/
+* Copyright (c) Johan Mabille, Sylvain Corlay and Wolf Vollprecht          *
+* Copyright (c) QuantStack                                                 *
+*                                                                          *
+* Distributed under the terms of the BSD 3-Clause License.                 *
+*                                                                          *
+* The full license is in the file LICENSE, distributed with this software. *
+****************************************************************************/
 
-#include "xtensor/containers/xarray.hpp"
-#include "xtensor/io/xio.hpp"
-#include "xtensor/views/xrepeat.hpp"
-#include "xtensor/views/xview.hpp"
-
-#include "test_common_macros.hpp"
+#include "gtest/gtest.h"
+#include "xtensor/xarray.hpp"
+#include "xtensor/xrepeat.hpp"
+#include "xtensor/xview.hpp"
+#include "xtensor/xio.hpp"
 
 namespace xt
 {
 
     TEST(xrepeat, const_array)
     {
-        const xarray<size_t> array = {1, 2, 3};
+        xarray<size_t> const array = {1, 2, 3};
 
         const auto repeated_array = xt::repeat(array, 1, 0);
 

@@ -14,7 +14,7 @@ Default iteration
 
     #include <iostream>
     #include <iterator>
-    #include <xtensor/containers/xarray.hpp>
+    #include <xtensor/xarray.hpp>
 
     xt::xarray<int> a = {{1, 2, 3}, {4, 5, 6}};
     std::copy(a.begin(), a.end(), std::ostream_iterator<int>(std::cout, ", "));
@@ -27,7 +27,7 @@ Specified traversal order
 
     #include <iostream>
     #include <iterator>
-    #include <xtensor/containers/xarray.hpp>
+    #include <xtensor/xarray.hpp>
 
     xt::xarray<int> a = {{1, 2, 3}, {4, 5, 6}};
     std::copy(a.begin<layout_type::row_major>(),
@@ -47,19 +47,19 @@ Broacasting iteration
 
     #include <iostream>
     #include <iterator>
-    #include <xtensor/containers/xarray.hpp>
+    #include <xtensor/xarray.hpp>
 
     xt::xarray<int> a = {{1, 2, 3}, {4, 5, 6}};
     using shape_type = xt::dynamic_shape<std::size_t>;
     shape_type s = {2, 2, 3};
-
+    
     std::copy(a.begin(s), a.end(s), std::ostream_iterator<int>(std::cout, ", "));
-    // Prints 1, 2, 3, 4, 5, 6, 1, 2, 3, 4, 5, 6,
+    // Prints 1, 2, 3, 4, 5, 6, 1, 2, 3, 4, 5, 6, 
 
     std::copy(a.begin<layout_type::row_major>(s),
               a.end<layout_type::row_major>(s),
               std::ostream_iterator<int>(std::cout, ", "));
-    // Prints 1, 2, 3, 4, 5, 6, 1, 2, 3, 4, 5, 6,
+    // Prints 1, 2, 3, 4, 5, 6, 1, 2, 3, 4, 5, 6, 
 
     std::copy(a.begin<layout_type::column_major>(s),
               a.end<layout_type>::column_major>(s),
@@ -73,9 +73,9 @@ Iterating over axis 0:
 
 .. code::
 
-    #include <xtensor/containers/xarray.hpp>
-    #include <xtensor/views/xaxis_slice_iterator.hpp>
-    #include <xtensor/io/xio.hpp>
+    #include <xtensor/xarray.hpp>
+    #include <xtensor/xaxis_slice_iterator.hpp>
+    #include <xtensor/xio.hpp>
 
     xarray<int> a = {{{1, 2, 3, 4},
                       {5, 6, 7, 8},
@@ -108,9 +108,9 @@ Iterating over axis 1:
 
 .. code::
 
-    #include <xtensor/containers/xarray.hpp>
-    #include <xtensor/views/xaxis_slice_iterator.hpp>
-    #include <xtensor/io/xio.hpp>
+    #include <xtensor/xarray.hpp>
+    #include <xtensor/xaxis_slice_iterator.hpp>
+    #include <xtensor/xio.hpp>
 
     xarray<int> a = {{{1, 2, 3, 4},
                       {5, 6, 7, 8},
@@ -126,7 +126,7 @@ Iterating over axis 1:
         std::cout << *iter++ << std::endl;
     }
     // Prints:
-    // { 1, 5, 9 }
+    // { 1, 5, 9 } 
     // { 2, 6, 10 }
     // { 3, 7, 11 }
     // { 4, 8, 12 }
@@ -139,9 +139,9 @@ Iterating over axis 2:
 
 .. code::
 
-    #include <xtensor/containers/xarray.hpp>
-    #include <xtensor/views/xaxis_slice_iterator.hpp>
-    #include <xtensor/io/xio.hpp>
+    #include <xtensor/xarray.hpp>
+    #include <xtensor/xaxis_slice_iterator.hpp>
+    #include <xtensor/xio.hpp>
 
     xarray<int> a = {{{1, 2, 3, 4},
                       {5, 6, 7, 8},
@@ -171,9 +171,9 @@ Iterating over axis 0:
 
 .. code::
 
-    #include <xtensor/containers/xarray.hpp>
-    #include <xtensor/views/xaxis_iterator.hpp>
-    #include <xtensor/io/xio.hpp>
+    #include <xtensor/xarray.hpp>
+    #include <xtensor/xaxis_iterator.hpp>
+    #include <xtensor/xio.hpp>
 
     xarray<int> a = {{{1, 2, 3, 4},
                       {5, 6, 7, 8},
@@ -200,9 +200,9 @@ Iterating over axis 1:
 
 .. code::
 
-    #include <xtensor/containers/xarray.hpp>
-    #include <xtensor/views/xaxis_iterator.hpp>
-    #include <xtensor/io/xio.hpp>
+    #include <xtensor/xarray.hpp>
+    #include <xtensor/xaxis_iterator.hpp>
+    #include <xtensor/xio.hpp>
 
     xarray<int> a = {{{1, 2, 3, 4},
                       {5, 6, 7, 8},
@@ -229,9 +229,9 @@ Iterating over axis 2:
 
 .. code::
 
-    #include <xtensor/containers/xarray.hpp>
-    #include <xtensor/views/xaxis_iterator.hpp>
-    #include <xtensor/io/xio.hpp>
+    #include <xtensor/xarray.hpp>
+    #include <xtensor/xaxis_iterator.hpp>
+    #include <xtensor/xio.hpp>
 
     xarray<int> a = {{{1, 2, 3, 4},
                       {5, 6, 7, 8},

@@ -1,26 +1,28 @@
 /***************************************************************************
- * Copyright (c) Johan Mabille, Sylvain Corlay and Wolf Vollprecht          *
- * Copyright (c) QuantStack                                                 *
- *                                                                          *
- * Distributed under the terms of the BSD 3-Clause License.                 *
- *                                                                          *
- * The full license is in the file LICENSE, distributed with this software. *
- ****************************************************************************/
+* Copyright (c) Johan Mabille, Sylvain Corlay and Wolf Vollprecht          *
+* Copyright (c) QuantStack                                                 *
+*                                                                          *
+* Distributed under the terms of the BSD 3-Clause License.                 *
+*                                                                          *
+* The full license is in the file LICENSE, distributed with this software. *
+****************************************************************************/
 
-#include "xtensor/containers/xarray.hpp"
-#include "xtensor/io/xio.hpp"
-#include "xtensor/misc/xexpression_holder.hpp"
-#include "xtensor/views/xview.hpp"
+#include "gtest/gtest.h"
 
-#include "test_common_macros.hpp"
+#include "xtensor/xarray.hpp"
+#include "xtensor/xexpression_holder.hpp"
+
+#include "xtensor/xarray.hpp"
+#include "xtensor/xio.hpp"
+#include "xtensor/xview.hpp"
 
 namespace xt
 {
     TEST(xexpression_holder, ctor)
     {
-        xarray<double> a = {{1, 2, 3, 4}, {5, 6, 7, 8}};
-        xarray<double> b = {{3, 2, 1}, {5, 6, 7}};
-        xarray<double> c = {{56, 5, 2}, {4, 2, 6}};
+        xarray<double> a = {{1,2,3,4}, {5,6,7,8}};
+        xarray<double> b = {{3,2,1}, {5,6,7}};
+        xarray<double> c = {{56,5,2}, {4,2,6}};
 
         xexpression_holder holder_a = xexpression_holder(a);
         xexpression_holder holder_b(b);
@@ -29,9 +31,9 @@ namespace xt
 
     TEST(xexpression_holder, assign)
     {
-        xarray<double> a = {{1, 2, 3, 4}, {5, 6, 7, 8}};
-        xarray<double> b = {{3, 2, 1}, {5, 6, 7}};
-        xarray<double> c = {{56, 5, 2}, {4, 2, 6}};
+        xarray<double> a = {{1,2,3,4}, {5,6,7,8}};
+        xarray<double> b = {{3,2,1}, {5,6,7}};
+        xarray<double> c = {{56,5,2}, {4,2,6}};
 
         xexpression_holder holder_a = xexpression_holder(a);
         xexpression_holder holder_b(b);
@@ -42,7 +44,7 @@ namespace xt
 
     TEST(xexpression_holder, to_json)
     {
-        xarray<double> a = {{1, 2, 3, 4}, {5, 6, 7, 8}};
+        xarray<double> a = {{1,2,3,4}, {5,6,7,8}};
         xexpression_holder holder_a = xexpression_holder(a);
 
         nlohmann::json json_out;
@@ -56,8 +58,8 @@ namespace xt
 
     TEST(xexpression_holder, from_json)
     {
-        xarray<double> a = {{1, 2, 3, 4}, {5, 6, 7, 8}};
-        xarray<double> b = {{5, 6, 7, 8}, {1, 2, 3, 4}};
+        xarray<double> a = {{1,2,3,4}, {5,6,7,8}};
+        xarray<double> b = {{5,6,7,8}, {1,2,3,4}};
 
         xexpression_holder holder_a = xexpression_holder(a);
 

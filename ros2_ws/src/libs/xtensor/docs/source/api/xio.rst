@@ -7,15 +7,15 @@
 xio: pretty printing
 ====================
 
-Defined in ``xtensor/io/xio.hpp``
+Defined in ``xtensor/xio.hpp``
 
 This file defines functions for pretty printing xexpressions. It defines appropriate
 overloads for the ``<<`` operator for std::ostreams and xexpressions.
 
 .. code::
 
-    #include <xtensor/io/xio.hpp>
-    #include <xtensor/containers/xarray.hpp>
+    #include <xtensor/xio.hpp>
+    #include <xtensor/xarray.hpp>
 
     int main()
     {
@@ -24,7 +24,7 @@ overloads for the ``<<`` operator for std::ostreams and xexpressions.
         return 0;
     }
 
-Will print
+Will print 
 
 .. code::
 
@@ -34,19 +34,27 @@ Will print
 With the following functions, the global print options can be set:
 
 .. doxygenfunction:: xt::print_options::set_line_width
+   :project: xtensor
 
 .. doxygenfunction:: xt::print_options::set_threshold
+   :project: xtensor
 
 .. doxygenfunction:: xt::print_options::set_edge_items
+   :project: xtensor
 
 .. doxygenfunction:: xt::print_options::set_precision
+   :project: xtensor
 
 On can also locally overwrite the print options with io manipulators:
 
 .. doxygenclass:: xt::print_options::line_width
+   :project: xtensor
 
 .. doxygenclass:: xt::print_options::threshold
+   :project: xtensor
 
 .. doxygenclass:: xt::print_options::edge_items
+   :project: xtensor
 
 .. doxygenclass:: xt::print_options::precision
+   :project: xtensor

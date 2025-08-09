@@ -1,17 +1,18 @@
 /***************************************************************************
- * Copyright (c) Johan Mabille, Sylvain Corlay and Wolf Vollprecht          *
- * Copyright (c) QuantStack                                                 *
- *                                                                          *
- * Distributed under the terms of the BSD 3-Clause License.                 *
- *                                                                          *
- * The full license is in the file LICENSE, distributed with this software. *
- ****************************************************************************/
+* Copyright (c) Johan Mabille, Sylvain Corlay and Wolf Vollprecht          *
+* Copyright (c) QuantStack                                                 *
+*                                                                          *
+* Distributed under the terms of the BSD 3-Clause License.                 *
+*                                                                          *
+* The full license is in the file LICENSE, distributed with this software. *
+****************************************************************************/
 
-#include "xtensor/containers/xarray.hpp"
-#include "xtensor/containers/xtensor.hpp"
+#include "gtest/gtest.h"
+
+#include "xtensor/xarray.hpp"
+#include "xtensor/xtensor.hpp"
 
 #include "test_common.hpp"
-#include "test_common_macros.hpp"
 
 namespace xt
 {
@@ -22,6 +23,10 @@ namespace xt
 
         using result_type = R;
     };
+
+    using testing_types = ::testing::Types<row_major_result<>, column_major_result<>,
+        central_major_result<>, unit_shape_result<>>;
+    TYPED_TEST_SUITE(xiterator_test, testing_types);
 
     using std::size_t;
 
@@ -34,16 +39,10 @@ namespace xt
         xarray_adaptor<typename R::vector_type, layout_type::dynamic> a(data, result.shape(), result.strides());
 
         auto offset = shape.size() - a.dimension();
-        auto broadcasting_stride = std::accumulate(
-            shape.cbegin(),
-            shape.cbegin() + offset,
-            size_type(1),
-            std::multiplies<size_type>()
-        );
-        size_type nb_inc =
-            (L == layout_type::row_major
-                 ? shape.back() * shape[shape.size() - 2] + 1
-                 : broadcasting_stride * (result.shape().front() * result.shape()[1] + 1));
+        auto broadcasting_stride = std::accumulate(shape.cbegin(), shape.cbegin() + offset, size_type(1), std::multiplies<size_type>());
+        size_type nb_inc = (L == layout_type::row_major ?
+            shape.back() * shape[shape.size() - 2] + 1 :
+            broadcasting_stride * (result.shape().front() * result.shape()[1] + 1));
 
         int expected = a(1, 0, 1);
 
@@ -55,8 +54,38 @@ namespace xt
             iter2++;
         }
 
-        CHECK_MESSAGE(*iter == expected, "preincrement operator doesn't give expected result");
-        CHECK_MESSAGE(*iter2 == expected, "postincrement operator doesn't give expected result");
+        EXPECT_EQ(*iter, expected) << "preincrement operator doesn't give expected result";
+        EXPECT_EQ(*iter2, expected) << "postincrement operator doesn't give expected result";
+    }
+
+    TYPED_TEST(xiterator_test, increment)
+    {
+        typename TestFixture::result_type rm;
+        {
+            SCOPED_TRACE("same shape - row_major iterator");
+            test_increment<layout_type::row_major>(rm, rm.shape());
+        }
+
+        {
+            SCOPED_TRACE("broadcasting shape - row_major iterator");
+            layout_result<>::shape_type sh = rm.shape();
+            sh.insert(sh.begin(), 2);
+            sh.insert(sh.begin(), 4);
+            test_increment<layout_type::row_major>(rm, rm.shape());
+        }
+
+        {
+            SCOPED_TRACE("same shape - column_major iterator");
+            test_increment<layout_type::column_major>(rm, rm.shape());
+        }
+
+        {
+            SCOPED_TRACE("broadcasting shape - column_major iterator");
+            layout_result<>::shape_type sh = rm.shape();
+            sh.insert(sh.begin(), 2);
+            sh.insert(sh.begin(), 4);
+            test_increment<layout_type::column_major>(rm, rm.shape());
+        }
     }
 
     template <layout_type L, class R, class S>
@@ -68,16 +97,10 @@ namespace xt
         xarray_adaptor<typename R::vector_type, layout_type::dynamic> a(data, result.shape(), result.strides());
 
         auto offset = shape.size() - a.dimension();
-        auto broadcasting_stride = std::accumulate(
-            shape.cbegin(),
-            shape.cbegin() + offset,
-            difference_type(1),
-            std::multiplies<difference_type>()
-        );
-        auto nb_inc = L == layout_type::row_major
-                          ? difference_type(shape.back() * shape[shape.size() - 2] + 1)
-                          : broadcasting_stride
-                                * difference_type(result.shape().front() * result.shape()[1] + 1);
+        auto broadcasting_stride = std::accumulate(shape.cbegin(), shape.cbegin() + offset, difference_type(1), std::multiplies<difference_type>());
+        auto nb_inc = L == layout_type::row_major ?
+            difference_type(shape.back() * shape[shape.size() - 2] + 1) :
+            broadcasting_stride * difference_type(result.shape().front() * result.shape()[1] + 1);
 
         int expected = a(1, 0, 1);
 
@@ -87,10 +110,39 @@ namespace xt
         iter += nb_inc;
         auto iter3 = iter2 + nb_inc;
 
+        EXPECT_EQ(*iter, expected) << "preincrement operator doesn't give expected result";
+        EXPECT_EQ(*iter3, expected) << "postincrement operator doesn't give expected result";
+        EXPECT_EQ(iter2[nb_inc], expected) << "postincrement operator doesn't give expected result";
+    }
 
-        CHECK_MESSAGE(*iter == expected, "preincrement operator doesn't give expected result");
-        CHECK_MESSAGE(*iter3 == expected, "postincrement operator doesn't give expected result");
-        CHECK_MESSAGE(iter2[nb_inc] == expected, "postincrement operator doesn't give expected result");
+    TYPED_TEST(xiterator_test, random_increment)
+    {
+        typename TestFixture::result_type rm;
+        {
+            SCOPED_TRACE("same shape - row_major iterator");
+            test_random_increment<layout_type::row_major>(rm, rm.shape());
+        }
+
+        {
+            SCOPED_TRACE("broadcasting shape - row_major iterator");
+            layout_result<>::shape_type sh = rm.shape();
+            sh.insert(sh.begin(), 2);
+            sh.insert(sh.begin(), 4);
+            test_random_increment<layout_type::row_major>(rm, rm.shape());
+        }
+
+        {
+            SCOPED_TRACE("same shape - column_major iterator");
+            test_random_increment<layout_type::column_major>(rm, rm.shape());
+        }
+
+        {
+            SCOPED_TRACE("broadcasting shape - column_major iterator");
+            layout_result<>::shape_type sh = rm.shape();
+            sh.insert(sh.begin(), 2);
+            sh.insert(sh.begin(), 4);
+            test_random_increment<layout_type::column_major>(rm, rm.shape());
+        }
     }
 
     template <layout_type L, class R, class S>
@@ -109,8 +161,38 @@ namespace xt
             ++iter;
         }
 
-        CHECK_MESSAGE(iter == last, "iterator doesn't reach the end");
+        EXPECT_EQ(iter, last) << "iterator doesn't reach the end";
         EXPECT_FALSE(iter < last);
+    }
+
+    TYPED_TEST(xiterator_test, end)
+    {
+        typename TestFixture::result_type rm;
+        {
+            SCOPED_TRACE("same shape - row_major iterator");
+            test_end<layout_type::row_major>(rm, rm.shape());
+        }
+
+        {
+            SCOPED_TRACE("broadcasting shape - row_major iterator");
+            layout_result<>::shape_type sh = rm.shape();
+            sh.insert(sh.begin(), 2);
+            sh.insert(sh.begin(), 4);
+            test_end<layout_type::row_major>(rm, sh);
+        }
+
+        {
+            SCOPED_TRACE("same shape - column_major iterator");
+            test_end<layout_type::column_major>(rm, rm.shape());
+        }
+
+        {
+            SCOPED_TRACE("broadcasting shape - column_major iterator");
+            layout_result<>::shape_type sh = rm.shape();
+            sh.insert(sh.begin(), 2);
+            sh.insert(sh.begin(), 4);
+            test_end<layout_type::column_major>(rm, sh);
+        }
     }
 
     template <layout_type L, class R, class S>
@@ -122,16 +204,10 @@ namespace xt
         xarray_adaptor<typename R::vector_type, layout_type::dynamic> a(data, result.shape(), result.strides());
 
         auto offset = shape.size() - a.dimension();
-        auto broadcasting_stride = std::accumulate(
-            shape.cbegin(),
-            shape.cbegin() + offset,
-            size_type(1),
-            std::multiplies<size_type>()
-        );
-        size_type nb_inc =
-            (L == layout_type::row_major
-                 ? shape.back() * shape[shape.size() - 2] + 1
-                 : broadcasting_stride * (result.shape().front() * result.shape()[1] + 1));
+        auto broadcasting_stride = std::accumulate(shape.cbegin(), shape.cbegin() + offset, size_type(1), std::multiplies<size_type>());
+        size_type nb_inc = (L == layout_type::row_major ?
+            shape.back() * shape[shape.size() - 2] + 1 :
+            broadcasting_stride * (result.shape().front() * result.shape()[1] + 1));
 
         int expected = a(1, 1, 2);
 
@@ -142,8 +218,38 @@ namespace xt
             ++iter;
             iter2++;
         }
-        CHECK_MESSAGE(*iter == expected, "predecrement operator doesn't give expected result");
-        CHECK_MESSAGE(*iter2 == expected, "postdecrement operator doesn't give expected result");
+        EXPECT_EQ(*iter, expected) << "predecrement operator doesn't give expected result";
+        EXPECT_EQ(*iter2, expected) << "postdecrement operator doesn't give expected result";
+    }
+
+    TYPED_TEST(xiterator_test, decrement)
+    {
+        typename TestFixture::result_type rm;
+        {
+            SCOPED_TRACE("same shape - row_major iterator");
+            test_decrement<layout_type::row_major>(rm, rm.shape());
+        }
+
+        {
+            SCOPED_TRACE("broadcasting shape - row_major iterator");
+            layout_result<>::shape_type sh = rm.shape();
+            sh.insert(sh.begin(), 2);
+            sh.insert(sh.begin(), 4);
+            test_decrement<layout_type::row_major>(rm, sh);
+        }
+
+        {
+            SCOPED_TRACE("same shape - column_major iterator");
+            test_decrement<layout_type::column_major>(rm, rm.shape());
+        }
+
+        {
+            SCOPED_TRACE("broadcasting shape - column_major iterator");
+            layout_result<>::shape_type sh = rm.shape();
+            sh.insert(sh.begin(), 2);
+            sh.insert(sh.begin(), 4);
+            test_decrement<layout_type::column_major>(rm, sh);
+        }
     }
 
     template <layout_type L, class R, class S>
@@ -155,17 +261,11 @@ namespace xt
         xarray_adaptor<typename R::vector_type, layout_type::dynamic> a(data, result.shape(), result.strides());
 
         auto offset = shape.size() - a.dimension();
-        auto broadcasting_stride = std::accumulate(
-            shape.cbegin(),
-            shape.cbegin() + offset,
-            difference_type(1),
-            std::multiplies<difference_type>()
-        );
-
-        auto nb_inc = L == layout_type::row_major
-                          ? difference_type(shape.back() * shape[shape.size() - 2] + 1)
-                          : broadcasting_stride
-                                * difference_type(result.shape().front() * result.shape()[1] + 1);
+        auto broadcasting_stride = std::accumulate(shape.cbegin(), shape.cbegin() + offset, difference_type(1), std::multiplies<difference_type>());
+        
+        auto nb_inc = L == layout_type::row_major ?
+            difference_type(shape.back() * shape[shape.size() - 2] + 1) :
+            broadcasting_stride * difference_type(result.shape().front() * result.shape()[1] + 1);
 
         int expected = a(1, 1, 2);
 
@@ -175,8 +275,38 @@ namespace xt
         iter += nb_inc;
         auto iter3 = iter2 + nb_inc;
 
-        CHECK_MESSAGE(*iter == expected, "predecrement operator doesn't give expected result");
-        CHECK_MESSAGE(*iter3 == expected, "postdecrement operator doesn't give expected result");
+        EXPECT_EQ(*iter, expected) << "predecrement operator doesn't give expected result";
+        EXPECT_EQ(*iter3, expected) << "postdecrement operator doesn't give expected result";
+    }
+
+    TYPED_TEST(xiterator_test, random_decrement)
+    {
+        typename TestFixture::result_type rm;
+        {
+            SCOPED_TRACE("same shape - row_major iterator");
+            test_random_decrement<layout_type::row_major>(rm, rm.shape());
+        }
+
+        {
+            SCOPED_TRACE("broadcasting shape - row_major iterator");
+            layout_result<>::shape_type sh = rm.shape();
+            sh.insert(sh.begin(), 2);
+            sh.insert(sh.begin(), 4);
+            test_random_decrement<layout_type::row_major>(rm, sh);
+        }
+
+        {
+            SCOPED_TRACE("same shape - column_major iterator");
+            test_random_decrement<layout_type::column_major>(rm, rm.shape());
+        }
+
+        {
+            SCOPED_TRACE("broadcasting shape - column_major iterator");
+            layout_result<>::shape_type sh = rm.shape();
+            sh.insert(sh.begin(), 2);
+            sh.insert(sh.begin(), 4);
+            test_random_decrement<layout_type::column_major>(rm, sh);
+        }
     }
 
     template <layout_type L, class R, class S>
@@ -191,210 +321,44 @@ namespace xt
         auto iter = a.template rbegin<L>(shape);
         auto last = a.template rend<L>(shape);
 
-        CHECK_MESSAGE(*iter == data.back(), "dereferencing rbegin does not result in last element");
-        CHECK_MESSAGE(*last == data.front(), "dereferencing rend does not result in first element");
+        EXPECT_EQ(*iter, data.back()) << "dereferencing rbegin does not result in last element";
+        EXPECT_EQ(*last, data.front()) << "dereferencing rend does not result in first element";
 
         for (size_type i = 0; i < size; ++i)
         {
             ++iter;
         }
 
-        CHECK_MESSAGE(iter == last, "reverse iterator doesn't reach the end");
+        EXPECT_EQ(iter, last) << "reverse iterator doesn't reach the end";
     }
 
-#define XITERATOR_TEST_TYPES \
-    row_major_result<>, column_major_result<>, central_major_result<>, unit_shape_result<>
-
-    TEST_SUITE("xiterator_test")
+    TYPED_TEST(xiterator_test, reverse_end)
     {
-        TEST_CASE_TEMPLATE("increment", TypeParam, XITERATOR_TEST_TYPES)
+        typename TestFixture::result_type rm;
         {
-            using TestFixture = xiterator_test<TypeParam>;
-            typename TestFixture::result_type rm;
-            SUBCASE("same shape - row_major iterator")
-            {
-                test_increment<layout_type::row_major>(rm, rm.shape());
-            }
-
-            SUBCASE("broadcasting shape - row_major iterator")
-            {
-                layout_result<>::shape_type sh = rm.shape();
-                sh.insert(sh.begin(), 2);
-                sh.insert(sh.begin(), 4);
-                test_increment<layout_type::row_major>(rm, rm.shape());
-            }
-
-            SUBCASE("same shape - column_major iterator")
-            {
-                test_increment<layout_type::column_major>(rm, rm.shape());
-            }
-
-            SUBCASE("broadcasting shape - column_major iterator")
-            {
-                layout_result<>::shape_type sh = rm.shape();
-                sh.insert(sh.begin(), 2);
-                sh.insert(sh.begin(), 4);
-                test_increment<layout_type::column_major>(rm, rm.shape());
-            }
+            SCOPED_TRACE("same shape - row_major iterator");
+            test_rend<layout_type::row_major>(rm, rm.shape());
         }
 
-
-        TEST_CASE_TEMPLATE("random_increment", TypeParam, XITERATOR_TEST_TYPES)
         {
-            using TestFixture = xiterator_test<TypeParam>;
-            typename TestFixture::result_type rm;
-            SUBCASE("same shape - row_major iterator")
-            {
-                test_random_increment<layout_type::row_major>(rm, rm.shape());
-            }
-
-            SUBCASE("broadcasting shape - row_major iterator")
-            {
-                layout_result<>::shape_type sh = rm.shape();
-                sh.insert(sh.begin(), 2);
-                sh.insert(sh.begin(), 4);
-                test_random_increment<layout_type::row_major>(rm, rm.shape());
-            }
-
-            SUBCASE("same shape - column_major iterator")
-            {
-                test_random_increment<layout_type::column_major>(rm, rm.shape());
-            }
-
-            SUBCASE("broadcasting shape - column_major iterator")
-            {
-                layout_result<>::shape_type sh = rm.shape();
-                sh.insert(sh.begin(), 2);
-                sh.insert(sh.begin(), 4);
-                test_random_increment<layout_type::column_major>(rm, rm.shape());
-            }
+            SCOPED_TRACE("broadcasting shape - row_major iterator");
+            layout_result<>::shape_type sh = rm.shape();
+            sh.insert(sh.begin(), 2);
+            sh.insert(sh.begin(), 4);
+            test_rend<layout_type::row_major>(rm, sh);
         }
 
-
-        TEST_CASE_TEMPLATE("end", TypeParam, XITERATOR_TEST_TYPES)
         {
-            using TestFixture = xiterator_test<TypeParam>;
-            typename TestFixture::result_type rm;
-            SUBCASE("same shape - row_major iterator")
-            {
-                test_end<layout_type::row_major>(rm, rm.shape());
-            }
-
-            SUBCASE("broadcasting shape - row_major iterator")
-            {
-                layout_result<>::shape_type sh = rm.shape();
-                sh.insert(sh.begin(), 2);
-                sh.insert(sh.begin(), 4);
-                test_end<layout_type::row_major>(rm, sh);
-            }
-
-            SUBCASE("same shape - column_major iterator")
-            {
-                test_end<layout_type::column_major>(rm, rm.shape());
-            }
-
-            SUBCASE("broadcasting shape - column_major iterator")
-            {
-                layout_result<>::shape_type sh = rm.shape();
-                sh.insert(sh.begin(), 2);
-                sh.insert(sh.begin(), 4);
-                test_end<layout_type::column_major>(rm, sh);
-            }
+            SCOPED_TRACE("same shape - column_major iterator");
+            test_rend<layout_type::column_major>(rm, rm.shape());
         }
 
-
-        TEST_CASE_TEMPLATE("decrement", TypeParam, XITERATOR_TEST_TYPES)
         {
-            using TestFixture = xiterator_test<TypeParam>;
-            typename TestFixture::result_type rm;
-            SUBCASE("same shape - row_major iterator")
-            {
-                test_decrement<layout_type::row_major>(rm, rm.shape());
-            }
-
-            SUBCASE("broadcasting shape - row_major iterator")
-            {
-                layout_result<>::shape_type sh = rm.shape();
-                sh.insert(sh.begin(), 2);
-                sh.insert(sh.begin(), 4);
-                test_decrement<layout_type::row_major>(rm, sh);
-            }
-
-            SUBCASE("same shape - column_major iterator")
-            {
-                test_decrement<layout_type::column_major>(rm, rm.shape());
-            }
-
-            SUBCASE("broadcasting shape - column_major iterator")
-            {
-                layout_result<>::shape_type sh = rm.shape();
-                sh.insert(sh.begin(), 2);
-                sh.insert(sh.begin(), 4);
-                test_decrement<layout_type::column_major>(rm, sh);
-            }
-        }
-
-        TEST_CASE_TEMPLATE("random_decrement", TypeParam, XITERATOR_TEST_TYPES)
-        {
-            using TestFixture = xiterator_test<TypeParam>;
-            typename TestFixture::result_type rm;
-            SUBCASE("same shape - row_major iterator")
-            {
-                test_random_decrement<layout_type::row_major>(rm, rm.shape());
-            }
-
-            SUBCASE("broadcasting shape - row_major iterator")
-            {
-                layout_result<>::shape_type sh = rm.shape();
-                sh.insert(sh.begin(), 2);
-                sh.insert(sh.begin(), 4);
-                test_random_decrement<layout_type::row_major>(rm, sh);
-            }
-
-            SUBCASE("same shape - column_major iterator")
-            {
-                test_random_decrement<layout_type::column_major>(rm, rm.shape());
-            }
-
-            SUBCASE("broadcasting shape - column_major iterator")
-            {
-                layout_result<>::shape_type sh = rm.shape();
-                sh.insert(sh.begin(), 2);
-                sh.insert(sh.begin(), 4);
-                test_random_decrement<layout_type::column_major>(rm, sh);
-            }
-        }
-
-
-        TEST_CASE_TEMPLATE("reverse_end", TypeParam, XITERATOR_TEST_TYPES)
-        {
-            using TestFixture = xiterator_test<TypeParam>;
-            typename TestFixture::result_type rm;
-            SUBCASE("same shape - row_major iterator")
-            {
-                test_rend<layout_type::row_major>(rm, rm.shape());
-            }
-
-            SUBCASE("broadcasting shape - row_major iterator")
-            {
-                layout_result<>::shape_type sh = rm.shape();
-                sh.insert(sh.begin(), 2);
-                sh.insert(sh.begin(), 4);
-                test_rend<layout_type::row_major>(rm, sh);
-            }
-
-            SUBCASE("same shape - column_major iterator")
-            {
-                test_rend<layout_type::column_major>(rm, rm.shape());
-            }
-
-            SUBCASE("broadcasting shape - column_major iterator")
-            {
-                layout_result<>::shape_type sh = rm.shape();
-                sh.insert(sh.begin(), 2);
-                sh.insert(sh.begin(), 4);
-                test_rend<layout_type::column_major>(rm, sh);
-            }
+            SCOPED_TRACE("broadcasting shape - column_major iterator");
+            layout_result<>::shape_type sh = rm.shape();
+            sh.insert(sh.begin(), 2);
+            sh.insert(sh.begin(), 4);
+            test_rend<layout_type::column_major>(rm, sh);
         }
     }
 
@@ -406,44 +370,42 @@ namespace xt
         using vector_type = typename R::vector_type;
         vector_type data = result.storage();
         xarray_adaptor<typename R::vector_type, layout_type::dynamic> a(data, result.shape(), result.strides());
-
+        
         size_type size = shape.size();
-        difference_type nb_inc = difference_type(
-            L == layout_type::row_major ? shape.back() * shape[size - 2] + shape.back() + 2
-                                        : shape[size - 3] * shape[size - 2] * 2 + shape[size - 3] + 1
-        );
-        difference_type nb_inc2 = difference_type(
-            L == layout_type::row_major ? shape.back() * shape[size - 2] * 2 + 3
-                                        : shape[size - 3] * shape[size - 2] * 3 + 2
-        );
+        difference_type nb_inc = difference_type(L == layout_type::row_major ?
+            shape.back() * shape[size - 2] + shape.back() + 2 :
+            shape[size - 3] * shape[size - 2] * 2 + shape[size - 3] + 1);
+        difference_type nb_inc2 = difference_type(L == layout_type::row_major ?
+            shape.back() * shape[size - 2] * 2  + 3 :
+            shape[size - 3] * shape[size - 2] * 3 + 2);
 
         ptrdiff_t expected = ptrdiff_t(nb_inc2 - nb_inc);
 
         auto iter = a.template begin<L>() + nb_inc;
         auto iter2 = a.template begin<L>() + nb_inc2;
-        CHECK_MESSAGE(iter2 - iter == expected, "operator- doesn't give expected result");
+        EXPECT_EQ(iter2 - iter, expected) << "operator- doesn't give expected result";
 
         auto riter = a.template rbegin<L>() + nb_inc;
         auto riter2 = a.template rbegin<L>() + nb_inc2;
-        CHECK_MESSAGE(riter2 - riter == expected, "operator- doesn't give expected result");
+        EXPECT_EQ(riter2 - riter, expected) << "operator- doesn't give expected result";
 
         auto diff = a.template end<L>() - a.template begin<L>();
-        CHECK_EQ(size_type(diff), a.size());
+        EXPECT_EQ(size_type(diff), a.size());
 
         auto rdiff = a.template rend<L>() - a.template rbegin<L>();
-        CHECK_EQ(size_type(rdiff), a.size());
+        EXPECT_EQ(size_type(rdiff), a.size());
     }
 
     TEST(xiterator, row_major_minus)
     {
         row_major_result<> rm;
-        SUBCASE("same shape - row_major iterator")
         {
+            SCOPED_TRACE("same shape - row_major iterator");
             test_minus<layout_type::row_major>(rm, rm.shape());
         }
 
-        SUBCASE("broadcasting shape - row_major iterator")
         {
+            SCOPED_TRACE("broadcasting shape - row_major iterator");
             layout_result<>::shape_type sh = rm.shape();
             sh.insert(sh.begin(), 2);
             sh.insert(sh.begin(), 4);
@@ -454,13 +416,13 @@ namespace xt
     TEST(xiterator, column_major_minus)
     {
         column_major_result<> rm;
-        SUBCASE("same shape - column_major iterator")
         {
+            SCOPED_TRACE("same shape - column_major iterator");
             test_minus<layout_type::column_major>(rm, rm.shape());
         }
 
-        SUBCASE("broadcasting shape - column_major iterator")
         {
+            SCOPED_TRACE("broadcasting shape - column_major iterator");
             layout_result<>::shape_type sh = rm.shape();
             sh.insert(sh.begin(), 2);
             sh.insert(sh.begin(), 4);
@@ -470,18 +432,17 @@ namespace xt
 
     TEST(xiterator, broadcast)
     {
-        EXPECT_TRUE(broadcastable(std::vector<size_t>({1, 2, 1}), std::vector<size_t>({3, 2, 1})));
-        EXPECT_TRUE(broadcastable(std::vector<size_t>({1, 1}), std::vector<size_t>({3, 2, 1})));
+        EXPECT_TRUE(broadcastable(std::vector<size_t>({1, 2, 1}), std::vector<size_t>({ 3, 2, 1 })));
+        EXPECT_TRUE(broadcastable(std::vector<size_t>({1, 1}), std::vector<size_t>({ 3, 2, 1 })));
         EXPECT_TRUE(broadcastable(std::vector<size_t>({1, 1}), std::vector<size_t>({2, 2, 1})));
-        EXPECT_FALSE(broadcastable(std::vector<size_t>({2, 2, 1}), std::vector<size_t>({3, 2, 1})));
+        EXPECT_FALSE(broadcastable(std::vector<size_t>({2, 2, 1}), std::vector<size_t>({ 3, 2, 1 })));
     }
 
     TEST(xiterator, pointer)
     {
-        xarray<double> m{{3, 4}, {6, 5}};
-        constexpr layout_type l = xarray<double>::static_layout == layout_type::column_major
-                                      ? layout_type::row_major
-                                      : layout_type::column_major;
+        xarray<double> m {{3, 4}, {6, 5}};
+        constexpr layout_type l = xarray<double>::static_layout == layout_type::column_major ?
+            layout_type::row_major : layout_type::column_major;
         auto it = m.begin<l>();
         EXPECT_EQ(*(it.operator->()), 3);
     }
@@ -528,26 +489,18 @@ namespace xt
         row_major_result<> rm;
         using vector_type = row_major_result<>::vector_type;
         xarray_adaptor<vector_type, layout_type::dynamic> a(rm.storage(), rm.shape(), rm.strides());
-
-        SUBCASE("row_major iterator")
+        
         {
+            SCOPED_TRACE("row_major iterator");
             xarray<vector_type::value_type> dst(a.shape(), 1);
-            std::copy(
-                a.cbegin<layout_type::row_major>(),
-                a.cend<layout_type::row_major>(),
-                dst.begin<layout_type::row_major>()
-            );
+            std::copy(a.cbegin<layout_type::row_major>(), a.cend<layout_type::row_major>(), dst.begin<layout_type::row_major>());
             EXPECT_EQ(a, dst);
         }
 
-        SUBCASE("column_major iterator")
         {
+            SCOPED_TRACE("column_major iterator");
             xarray<vector_type::value_type> dst(a.shape(), 1);
-            std::copy(
-                a.cbegin<layout_type::column_major>(),
-                a.cend<layout_type::column_major>(),
-                dst.begin<layout_type::column_major>()
-            );
+            std::copy(a.cbegin<layout_type::column_major>(), a.cend<layout_type::column_major>(), dst.begin<layout_type::column_major>());
             EXPECT_EQ(a, dst);
         }
     }
@@ -558,32 +511,26 @@ namespace xt
         using vector_type = row_major_result<>::vector_type;
         xarray_adaptor<vector_type, layout_type::dynamic> a(rm.storage(), rm.shape(), rm.strides());
 
-        SUBCASE("row_major iterator")
         {
+            SCOPED_TRACE("row_major iterator");
             xarray<vector_type::value_type> dst(a.shape(), 1);
-            std::copy(
-                a.crbegin<layout_type::row_major>(),
-                a.crend<layout_type::row_major>(),
-                dst.rbegin<layout_type::row_major>()
-            );
+            std::copy(a.crbegin<layout_type::row_major>(), a.crend<layout_type::row_major>(), dst.rbegin<layout_type::row_major>());
             EXPECT_EQ(a, dst);
         }
 
-        SUBCASE("column_major iterator")
         {
+            SCOPED_TRACE("column_major iterator");
             xarray<vector_type::value_type> dst(a.shape(), 1);
-            std::copy(
-                a.crbegin<layout_type::column_major>(),
-                a.crend<layout_type::column_major>(),
-                dst.rbegin<layout_type::column_major>()
-            );
+            std::copy(a.crbegin<layout_type::column_major>(), a.crend<layout_type::column_major>(), dst.rbegin<layout_type::column_major>());
             EXPECT_EQ(a, dst);
         }
     }
 
     TEST(xiterator, reverse_corner_cases)
     {
-        xtensor<double, 3> a = {{{13, 16}, {13, 16}, {13, 16}}};
+        xtensor<double, 3> a = {{{13, 16},
+                                 {13, 16},
+                                 {13, 16}}};
 
         constexpr auto cm = layout_type::column_major;
         constexpr auto rm = layout_type::row_major;
@@ -630,9 +577,14 @@ namespace xt
             }
         }
 
-        xtensor<double, 3> b = {{{1}, {1}}, {{2}, {2}}, {{3}, {3}}};
+        xtensor<double, 3> b = {{{1},
+                                 {1}},
+                                {{2},
+                                 {2}},
+                                {{3},
+                                 {3}}};
 
-        {
+       {
             std::vector<double> exp_iter = {3, 2, 1, 3, 2, 1};
             auto e_iter = exp_iter.begin();
             for (auto it = b.template rbegin<cm>(); it != b.template rend<cm>(); ++it)
@@ -641,9 +593,9 @@ namespace xt
                 ++e_iter;
             }
             EXPECT_TRUE(e_iter == exp_iter.end());
-        }
+       }
 
-        {
+       {
             std::vector<double> exp_iter = {3, 3, 2, 2, 1, 1};
             auto e_iter = exp_iter.begin();
             for (auto it = b.template rbegin<rm>(); it != b.template rend<rm>(); ++it)
@@ -652,9 +604,9 @@ namespace xt
                 ++e_iter;
             }
             EXPECT_TRUE(e_iter == exp_iter.end());
-        }
+       }
 
-        {
+       {
             std::vector<double> exp_iter = {1, 1, 2, 2, 3, 3};
             auto e_iter = exp_iter.begin();
             for (auto it = b.template begin<rm>(); it != b.template end<rm>(); ++it)
@@ -663,9 +615,9 @@ namespace xt
                 ++e_iter;
             }
             EXPECT_TRUE(e_iter == exp_iter.end());
-        }
+       }
 
-        {
+       {
             std::vector<double> exp_iter = {1, 2, 3, 1, 2, 3};
             auto e_iter = exp_iter.begin();
             for (auto it = b.template begin<cm>(); it != b.template end<cm>(); ++it)
@@ -674,6 +626,6 @@ namespace xt
                 ++e_iter;
             }
             EXPECT_TRUE(e_iter == exp_iter.end());
-        }
+       }
     }
 }

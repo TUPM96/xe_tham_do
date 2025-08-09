@@ -1,19 +1,19 @@
 /***************************************************************************
- * Copyright (c) 2016, Johan Mabille, Sylvain Corlay and Wolf Vollprecht    *
- *                                                                          *
- * Distributed under the terms of the BSD 3-Clause License.                 *
- *                                                                          *
- * The full license is in the file LICENSE, distributed with this software. *
- ****************************************************************************/
+* Copyright (c) 2016, Johan Mabille, Sylvain Corlay and Wolf Vollprecht    *
+*                                                                          *
+* Distributed under the terms of the BSD 3-Clause License.                 *
+*                                                                          *
+* The full license is in the file LICENSE, distributed with this software. *
+****************************************************************************/
 
-#include <chrono>
 #include <cstddef>
+#include <chrono>
 #include <string>
 
 #include <benchmark/benchmark.h>
 
-#include "xtensor/containers/xarray.hpp"
-#include "xtensor/containers/xtensor.hpp"
+#include "xtensor/xarray.hpp"
+#include "xtensor/xtensor.hpp"
 
 namespace xt
 {
@@ -25,9 +25,9 @@ namespace xt
         template <class E>
         inline void init_benchmark(E& x, E& y, E& res, typename E::size_type size)
         {
-            x.resize({size});
-            y.resize({size});
-            res.resize({size});
+            x.resize({ size });
+            y.resize({ size });
+            res.resize({ size });
 
             using value_type = typename E::value_type;
             using size_type = typename E::size_type;

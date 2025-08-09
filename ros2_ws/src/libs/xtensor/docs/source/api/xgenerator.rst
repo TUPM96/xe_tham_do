@@ -7,7 +7,9 @@
 xgenerator
 ==========
 
-Defined in ``xtensor/generators/xgenerator.hpp``
+Defined in ``xtensor/xgenerator.hpp``
 
 .. doxygenclass:: xt::xgenerator
+   :project: xtensor
    :members:
+

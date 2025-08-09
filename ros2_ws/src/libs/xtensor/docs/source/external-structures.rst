@@ -7,14 +7,14 @@
 Extending xtensor
 =================
 
-*xtensor* provides means to plug external data structures into its expression engine without
+``xtensor`` provides means to plug external data structures into its expression engine without
 copying any data.
 
 Adapting one-dimensional containers
 -----------------------------------
 
 You may want to use your own one-dimensional container as a backend for tensor data containers
-and even for the shape or the strides. This is the simplest structure to plug into *xtensor*.
+and even for the shape or the strides. This is the simplest structure to plug into ``xtensor``.
 In the following example, we define new container and adaptor types for user-specified storage and shape types.
 
 .. code::
@@ -27,7 +27,7 @@ In the following example, we define new container and adaptor types for user-spe
     using my_tensor_type = xt::xtensor_container<container_type, 3>;
     using my_adaptor_type = xt::xtensor_adaptor<container_type, 3>;
 
-These new types will have all the features of the core :cpp:type:`xt::xtensor` and :cpp:type:`xt::xarray` types.
+These new types will have all the features of the core ``xt::xtensor`` and ``xt::xarray`` types.
 ``xt::xarray_container`` and ``xt::xtensor_container`` embed the data container, while
 ``xt::xarray_adaptor`` and ``xt::xtensor_adaptor`` hold a reference on an already initialized
 container.
@@ -39,43 +39,15 @@ A requirement for the user-specified containers is to provide a minimal ``std::v
 - iterator methods (``begin``, ``end``, ``cbegin``, ``cend``)
 - ``size`` and ``reshape``, ``resize`` methods
 
-*xtensor* does not require that the container has a contiguous memory layout, only that it
+``xtensor`` does not require that the container has a contiguous memory layout, only that it
 provides the aforementioned interface. In fact, the container could even be backed by a
 file on the disk, a database or a binary message.
-
-Adapting a pointer
-------------------
-
-Suppose that you want to use the *xtensor* machinery on a small contiguous subset of a large tensor.
-You can, of course, use :ref:`Views`, but for efficiency you can also use pointers to the right bit of memory.
-Consider an example of an ``[M, 2, 2]`` tensor ``A``,
-for which you want to operate on ``A[i, :, :]`` for different ``i``.
-In this case the most efficient *xtensor* has to offer is:
-
-.. code-block:: cpp
-
-    int main()
-    {
-        size_t M = 3;
-        size_t nd = 2;
-        size_t size = nd * nd;
-        xt::xarray<int> A = xt::arange<int>(M * size).reshape({M, nd, nd});
-        auto b = xt::adapt(&A.flat(0), std::array<size_t, 2>{nd, nd});
-
-        for (size_t i = 0; i < M; ++i) {
-            b.reset_buffer(&A.flat(i * size), size);
-        }
-        return 0;
-    }
-
-where ``xt::adapt`` first creates an ``xt::xtensor_adaptor`` on the memory of ``A[0, :, :]``.
-Then, inside the loop, we only replace the pointer to the relevant ``A[i, 0, 0]``.
 
 Structures that embed shape and strides
 ---------------------------------------
 
 Some structures may gather data container, shape and strides, making them impossible to plug
-into *xtensor* with the method above. This section illustrates how to adapt such structures
+into ``xtensor`` with the method above. This section illustrates how to adapt such structures
 with the following simple example:
 
 .. code::
@@ -99,7 +71,7 @@ with the following simple example:
 Define inner types
 ~~~~~~~~~~~~~~~~~~
 
-The following tells *xtensor* which types must be used for getting shape, strides, and data:
+The following tells ``xtensor`` which types must be used for getting shape, strides, and data:
 
 .. code::
 
@@ -145,13 +117,13 @@ Next step is to inherit from the ``xcontainer`` and the ``xcontainer_semantic`` 
     };
 
 Thanks to definition of the previous structures, inheriting from ``xcontainer`` brings almost all the container
-API available in the other entities of *xtensor*, while  inheriting from ``xtensor_semantic`` brings the support
+API available in the other entities of ``xtensor``, while  inheriting from ``xtensor_semantic`` brings the support
 for mathematical operations.
 
 Define semantic
 ~~~~~~~~~~~~~~~
 
-*xtensor* classes have full value semantic, so you may define the constructors specific to your structures,
+``xtensor`` classes have full value semantic, so you may define the constructors specific to your structures,
 and use the default copy and move constructors and assign operators. Note these last ones *must* be declared as
 they are declared as ``protected`` in the base class.
 
@@ -161,7 +133,7 @@ they are declared as ``protected`` in the base class.
     class raw_tensor_adaptor : public xcontainer<raw_tensor_adaptor<T>>,
                                public xcontainer_semantic<raw_tensor_adaptor<T>>
     {
-
+    
     public:
 
         using self_type = raw_tensor_adaptor<T>;
@@ -189,7 +161,7 @@ they are declared as ``protected`` in the base class.
             return semantic_base::operator=(e);
         }
     };
-
+    
 The last two methods are extended copy constructor and assign operator. They allow writing things like
 
 .. code::
@@ -202,12 +174,12 @@ The last two methods are extended copy constructor and assign operator. They all
 Implement the resize methods
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
-The next methods to define are the overloads of ``resize``. *xtensor* provides utility functions to compute
+The next methods to define are the overloads of ``resize``. ``xtensor`` provides utility functions to compute
 strides based on the shape and the layout, so the implementation of the ``resize`` overloads is straightforward:
 
 .. code::
 
-    #include <xtensor/core/xstrides.hpp> // for utility functions
+    #include <xtensor/xstrides.hpp> // for utility functions
 
     template <class T>
     void resize(const shape_type& shape)
@@ -392,11 +364,11 @@ constructor and assign operator.
             return semantic_base::operator=(e);
         }
     };
-
+    
 Implement access operators
 ~~~~~~~~~~~~~~~~~~~~~~~~~~
 
-*xtensor* requires that the following access operators are defined
+``xtensor`` requires that the following access operators are defined
 
 .. code::
 
@@ -464,7 +436,7 @@ This part is relatively straightforward:
     template <class S>
     bool broadcast_shape(const S& s) const
     {
-        // Available in "xtensor/core/xstrides.hpp"
+        // Available in "xtensor/xtrides.hpp"
         return xt::broadcast_shape(shape(), s);
     }
 
@@ -510,3 +482,4 @@ iterators.
         size_type offset = s.size() - dimension();
         return const_stepper(this, offset, true);
     }
+

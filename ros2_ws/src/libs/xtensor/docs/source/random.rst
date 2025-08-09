@@ -10,8 +10,10 @@
 Random
 ******
 
-:cpp:func:`xt::random::seed`
-============================
+xt::random::seed
+================
+
+:ref:`xt::random::seed <random-seed-function-reference>`
 
 Set seed for random number generator. A common practice to get a 'real' random number is to use:
 
@@ -23,32 +25,50 @@ Set seed for random number generator. A common practice to get a 'real' random n
 
     xt::random::seed(time(NULL));
 
-:cpp:func:`xt::random::rand`
-============================
+xt::random::rand
+================
 
-:cpp:func:`xt::random::randint`
-===============================
+:ref:`xt::random::rand <random-rand-function-reference>`
 
-:cpp:func:`xt::random::randn`
+xt::random::randint
+===================
+
+:ref:`xt::random::randint <random-randint-function-reference>`
+
+xt::random::randn
+=================
+
+:ref:`xt::random::randn <random-randn-function-reference>`
+
+xt::random::binomial
+====================
+
+:ref:`xt::random::binomial <random-binomial-function-reference>`
+
+xt::random::geometric
+=====================
+
+:ref:`xt::random::geometric <random-geometric-function-reference>`
+
+xt::random::negative_binomial
 =============================
 
-:cpp:func:`xt::random::binomial`
-================================
+:ref:`xt::random::negative_binomial <random-negative_binomial-function-reference>`
 
-:cpp:func:`xt::random::geometric`
-=================================
+xt::random::poisson
+===================
 
-:cpp:func:`xt::random::negative_binomial`
-=========================================
+:ref:`xt::random::poisson <random-poisson-function-reference>`
 
-:cpp:func:`xt::random::poisson`
-===============================
+xt::random::exponential
+=======================
 
-:cpp:func:`xt::random::exponential`
-===================================
+:ref:`xt::random::exponential <random-exponential-function-reference>`
 
-:cpp:func:`xt::random::gamma`
-=============================
+xt::random::gamma
+=================
+
+:ref:`xt::random::gamma <random-gamma-function-reference>`
 
 Produces (an array of) random positive floating-point values,
 distributed according to the probability density:
@@ -57,8 +77,7 @@ distributed according to the probability density:
 
     P(x) = x^{\alpha-1} \frac{e^{-x / \beta}}{\beta^\alpha \; \Gamma(\alpha)}
 
-where :math:`\alpha` is the shape (also known as :math:`k`) and :math:`\beta` the scale
-(also known as :math:`\theta`), and :math:`\Gamma` is the Gamma function.
+where :math:`\alpha` is the shape (also known as :math:`k`) and :math:`\beta` the scale (also known as :math:`\theta`), and :math:`\Gamma` is the Gamma function.
 
 .. note::
 
@@ -71,8 +90,10 @@ where :math:`\alpha` is the shape (also known as :math:`k`) and :math:`\beta` th
     *   `Weisstein, Eric W. "Gamma Distribution." From MathWorld – A Wolfram Web Resource. <http://mathworld.wolfram.com/GammaDistribution.html>`_
     *   `Wikipedia, "Gamma distribution". <https://en.wikipedia.org/wiki/Gamma_distribution>`_
 
-:cpp:func:`xt::random::weibull`
-===============================
+xt::random::weibull
+===================
+
+:ref:`xt::random::weibull <random-weibull-function-reference>`
 
 Produces (an array of) random positive floating-point values,
 distributed according to the probability density:
@@ -103,26 +124,42 @@ Note that you can specify only :math:`a` while choosing the default for :math:`b
     *   `std::weibull_distribution <https://en.cppreference.com/w/cpp/numeric/random/weibull_distribution>`_
     *   `Wikipedia, "Weibull distribution". <https://en.wikipedia.org/wiki/Weibull_distribution>`_
 
-:cpp:func:`xt::random::extreme_value`
-=====================================
+xt::random::extreme_value
+=========================
 
-:cpp:func:`xt::random::lognormal`
-=================================
+:ref:`xt::random::extreme_value <random-extreme_value-function-reference>`
 
-:cpp:func:`xt::random::cauchy`
-==============================
+xt::random::lognormal
+=====================
 
-:cpp:func:`xt::random::fisher_f`
-================================
+:ref:`xt::random::lognormal <random-lognormal-function-reference>`
 
-:cpp:func:`xt::random::student_t`
-=================================
+xt::random::cauchy
+==================
 
-:cpp:func:`xt::random::choice`
-==============================
+:ref:`xt::random::cauchy <random-cauchy-function-reference>`
 
-:cpp:func:`xt::random::shuffle`
-===============================
+xt::random::fisher_f
+====================
 
-:cpp:func:`xt::random::permutation`
-===================================
+:ref:`xt::random::fisher_f <random-fisher_f-function-reference>`
+
+xt::random::student_t
+=====================
+
+:ref:`xt::random::student_t <random-student_t-function-reference>`
+
+xt::random::choice
+==================
+
+:ref:`xt::random::choice <random-choice-function-reference>`
+
+xt::random::shuffle
+===================
+
+:ref:`xt::random::shuffle <random-shuffle-function-reference>`
+
+xt::random::permutation
+=======================
+
+:ref:`xt::random::permutation <random-permutation-function-reference>`

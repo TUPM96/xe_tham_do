@@ -7,11 +7,13 @@
 xfunction
 =========
 
-Defined in ``xtensor/core/xfunction.hpp``
+Defined in ``xtensor/xfunction.hpp``
 
 .. doxygenclass:: xt::xfunction
+   :project: xtensor
    :members:
 
-Defined in ``xtensor/core/xmath.hpp``
+Defined in ``xtensor/xmath.hpp``
 
 .. doxygenfunction:: make_lambda_xfunction
+   :project: xtensor

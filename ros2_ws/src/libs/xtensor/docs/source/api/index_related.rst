@@ -7,12 +7,20 @@
 Index related functions
 =======================
 
-Defined in ``xtensor/core/xoperation.hpp``
+Defined in ``xtensor/xoperation.hpp``
 
+.. _wherec-op-ref:
 .. doxygenfunction:: where(const T&)
+   :project: xtensor
 
+.. _nonzero-op-ref:
 .. doxygenfunction:: nonzero(const T&)
+   :project: xtensor
 
+.. _argwhere-op-ref:
 .. doxygenfunction:: argwhere
+   :project: xtensor
 
+.. _frindices-op-ref:
 .. doxygenfunction:: from_indices
+   :project: xtensor

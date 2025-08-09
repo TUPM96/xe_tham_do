@@ -18,7 +18,7 @@ Tensor types
 .. note::
 
    Except if mentioned otherwise, the methods described below are available for the
-   three kinds of containers, even if the examples show :cpp:type:`xt::xarray` usage only.
+   three kinds of containers, even if the examples show ``xarray`` usage only.
 
 Initialization
 --------------
@@ -27,7 +27,7 @@ Tensor with dynamic shape:
 
 .. code::
 
-    #include <xtensor/containers/xarray.hpp>
+    #include <xtensor/xarray.hpp>
 
     xt::xarray<double>::shape_type shape = {2, 3};
     xt::xarray<double> a0(shape);
@@ -39,7 +39,7 @@ Tensor with static number of dimensions:
 
 .. code::
 
-    #include <xtensor/containers/xtensor.hpp>
+    #include <xtensor/xtensor.hpp>
 
     xt::xtensor<double, 2>::shape_type shape = {2, 3};
     xt::xtensor<double, 2> a0(shape);
@@ -51,7 +51,7 @@ Tensor with fixed shape:
 
 .. code::
 
-    #include <xtensor/containers/xfixed.hpp>
+    #include <xtensor/xfixed.hpp>
 
     xt::xtensor_fixed<double, xt::xshape<2, 3>> = {{1., 2., 3.}, {4., 5., 6.}};
 
@@ -59,7 +59,7 @@ In-memory chunked tensor with dynamic shape:
 
 .. code::
 
-    #include <xtensor/chunk/xchunked_array.hpp>
+    #include <xtensor/xchunked_array.hpp>
 
     std::vector<std::size_t> shape = {10, 10, 10};
     std::vector<std::size_t> chunk_shape = {2, 3, 4};
@@ -70,10 +70,10 @@ Output
 
 .. code::
 
-    #include <xtensor/containers/xarray.hpp>
-    #include <xtensor/containers/xfixed.hpp>
-    #include <xtensor/io/xio.hpp>
-    #include <xtensor/containers/xtensor.hpp>
+    #include <xtensor/xarray.hpp>
+    #include <xtensor/xfixed.hpp>
+    #include <xtensor/xio.hpp>
+    #include <xtensor/xtensor.hpp>
 
     xt::xarray<double> a = {{1., 2.}, {3., 4.}};
     std::cout << a << std::endl;
@@ -107,7 +107,7 @@ Print the shape
 Reshape
 -------
 
-The number of elements of an :cpp:type:`xt::xarray` must remain the same:
+The number of elements of an ``xarray`` must remain the same:
 
 .. code::
 
@@ -116,7 +116,7 @@ The number of elements of an :cpp:type:`xt::xarray` must remain the same:
     std::cout << a0 << std::endl;
     // outputs {{1., 2., 3.}, {4., 5., 6. }}
 
-For :cpp:type:`xt::xtensor` the number of elements and the number of dimensions
+For ``xtensor`` the number of elements and the number of dimensions
 must remain the same:
 
 .. code::
@@ -151,7 +151,7 @@ Resize
     xt::xarray<double> a0 = {1., 2., 3, 4.};
     a0.resize({2, 3});
 
-When resizing an :cpp:type:`xt::xtensor` object, the number of dimensions must remain
+When resizing an ``xtensor`` object, the number of dimensions must remain
 the same:
 
 .. code::
@@ -214,7 +214,7 @@ Fill
 Iterators
 ---------
 
-*xtensor* containers provide iterators compatible with algorithms from the STL:
+``xtensor`` containers provide iterators compatible with algorithms from the STL:
 
 .. code::
 
@@ -233,7 +233,7 @@ Reverse iterators are also available:
     std::copy(a.crbegin(), a.crend(), b.begin());
     std::cout << b << std::endl;
     // Outputs {{6., 5., 4.}, {3., 2., 1.}}
-
+ 
 Data buffer
 -----------
 

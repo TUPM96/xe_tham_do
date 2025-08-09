@@ -1,16 +1,14 @@
 /***************************************************************************
- * Copyright (c) Johan Mabille, Sylvain Corlay and Wolf Vollprecht          *
- * Copyright (c) QuantStack                                                 *
- *                                                                          *
- * Distributed under the terms of the BSD 3-Clause License.                 *
- *                                                                          *
- * The full license is in the file LICENSE, distributed with this software. *
- ****************************************************************************/
+* Copyright (c) Johan Mabille, Sylvain Corlay and Wolf Vollprecht          *
+* Copyright (c) QuantStack                                                 *
+*                                                                          *
+* Distributed under the terms of the BSD 3-Clause License.                 *
+*                                                                          *
+* The full license is in the file LICENSE, distributed with this software. *
+****************************************************************************/
 
-#include "test_common.hpp"
+#include "gtest/gtest.h"
 #include "test_xsemantic.hpp"
-
-TEST_SUITE_BEGIN("adaptor_semantic");
 
 namespace xt
 {
@@ -37,56 +35,64 @@ namespace xt
     using get_test_adaptor_t = typename get_test_adaptor<C>::type;
 
     template <class C>
-    class adaptor_semantic
+    class adaptor_semantic : public ::testing::Test
     {
     public:
-
         using container_type = C;
         using adaptor_type = get_test_adaptor_t<C>;
     };
 
-#define ADAPTOR_SEMANTIC_TYPES xarray_dynamic, xtensor_dynamic
+    using testing_types = ::testing::Types<xarray_dynamic, xtensor_dynamic>;
+    TYPED_TEST_SUITE(adaptor_semantic, testing_types);
 
-    TEST_CASE_TEMPLATE("xsimd_info", TypeParam, ADAPTOR_SEMANTIC_TYPES)
+    TYPED_TEST(adaptor_semantic, xsimd_info)
     {
 #if defined(XTENSOR_USE_XSIMD)
         std::cout << "Built with XSIMD" << std::endl;
-        std::cout << " arch " << xsimd::default_arch::name() << std::endl;
+    #if defined(XSIMD_X86_INSTR_SET)
+        std::cout << "Using X86 Instruction set: " << XSIMD_INSTR_SET << std::endl;
+    #elif defined(XSIMD_X86_AMD_INSTR_SET)
+        std::cout << "Using AMD Instruction set: " << XSIMD_INSTR_SET << std::endl;
+    #elif defined(XSIMD_ARM_INSTR_SET)
+        std::cout << "Using ARM Instruction set: " << XSIMD_INSTR_SET << std::endl;
+    #else
+        std::cout << "Using unknown Instruction set: " << XSIMD_INSTR_SET << std::endl;
+    #endif
 #else
         std::cout << "Built without XSIMD" << std::endl;
 #endif
     }
 
-    TEST_CASE_TEMPLATE("a_plus_b", TypeParam, ADAPTOR_SEMANTIC_TYPES)
+    TYPED_TEST(adaptor_semantic, a_plus_b)
     {
         operation_tester<std::plus<>, TypeParam> tester;
-        using adaptor_type = typename adaptor_semantic<TypeParam>::adaptor_type;
-        SUBCASE("row_major + row_major")
+        using adaptor_type = typename TestFixture::adaptor_type;
         {
+            SCOPED_TRACE("row_major + row_major");
             vector_type v;
             adaptor_type b(v);
             b = tester.a + tester.ra;
             EXPECT_EQ(tester.res_rr, b);
         }
 
-        SUBCASE("row_major + column_major")
         {
+            SCOPED_TRACE("row_major + column_major");
             vector_type v;
             adaptor_type b(v);
             b = tester.a + tester.ca;
             EXPECT_EQ(tester.res_rc, b);
         }
 
-        SUBCASE("row_major + central_major")
         {
+            SCOPED_TRACE("row_major + central_major");
             vector_type v;
             adaptor_type b(v);
             b = tester.a + tester.cta;
             EXPECT_EQ(tester.res_rct, b);
         }
 
-        SUBCASE("row_major + unit_major")
         {
+            SCOPED_TRACE("row_major + unit_major");
             vector_type v;
             adaptor_type b(v);
             b = tester.a + tester.ua;
@@ -94,37 +100,37 @@ namespace xt
         }
     }
 
-    TEST_CASE_TEMPLATE("a_minus_b", TypeParam, ADAPTOR_SEMANTIC_TYPES)
+    TYPED_TEST(adaptor_semantic, a_minus_b)
     {
         operation_tester<std::minus<>, TypeParam> tester;
-        using adaptor_type = typename adaptor_semantic<TypeParam>::adaptor_type;
+        using adaptor_type = typename TestFixture::adaptor_type;
 
-        SUBCASE("row_major - row_major")
         {
+            SCOPED_TRACE("row_major - row_major");
             vector_type v;
             adaptor_type b(v);
             b = tester.a - tester.ra;
             EXPECT_EQ(tester.res_rr, b);
         }
 
-        SUBCASE("row_major - column_major")
         {
+            SCOPED_TRACE("row_major - column_major");
             vector_type v;
             adaptor_type b(v);
             b = tester.a - tester.ca;
             EXPECT_EQ(tester.res_rc, b);
         }
 
-        SUBCASE("row_major - central_major")
         {
+            SCOPED_TRACE("row_major - central_major");
             vector_type v;
             adaptor_type b(v);
             b = tester.a - tester.cta;
             EXPECT_EQ(tester.res_rct, b);
         }
 
-        SUBCASE("row_major - unit_major")
         {
+            SCOPED_TRACE("row_major - unit_major");
             vector_type v;
             adaptor_type b(v);
             b = tester.a - tester.ua;
@@ -132,37 +138,37 @@ namespace xt
         }
     }
 
-    TEST_CASE_TEMPLATE("a_times_b", TypeParam, ADAPTOR_SEMANTIC_TYPES)
+    TYPED_TEST(adaptor_semantic, a_times_b)
     {
         operation_tester<std::multiplies<>, TypeParam> tester;
-        using adaptor_type = typename adaptor_semantic<TypeParam>::adaptor_type;
+        using adaptor_type = typename TestFixture::adaptor_type;
 
-        SUBCASE("row_major * row_major")
         {
+            SCOPED_TRACE("row_major * row_major");
             vector_type v;
             adaptor_type b(v);
             b = tester.a * tester.ra;
             EXPECT_EQ(tester.res_rr, b);
         }
 
-        SUBCASE("row_major * column_major")
         {
+            SCOPED_TRACE("row_major * column_major");
             vector_type v;
             adaptor_type b(v);
             b = tester.a * tester.ca;
             EXPECT_EQ(tester.res_rc, b);
         }
 
-        SUBCASE("row_major * central_major")
         {
+            SCOPED_TRACE("row_major * central_major");
             vector_type v;
             adaptor_type b(v);
             b = tester.a * tester.cta;
             EXPECT_EQ(tester.res_rct, b);
         }
 
-        SUBCASE("row_major * unit_major")
         {
+            SCOPED_TRACE("row_major * unit_major");
             vector_type v;
             adaptor_type b(v);
             b = tester.a * tester.ua;
@@ -170,37 +176,37 @@ namespace xt
         }
     }
 
-    TEST_CASE_TEMPLATE("a_divide_by_b", TypeParam, ADAPTOR_SEMANTIC_TYPES)
+    TYPED_TEST(adaptor_semantic, a_divide_by_b)
     {
         operation_tester<std::divides<>, TypeParam> tester;
-        using adaptor_type = typename adaptor_semantic<TypeParam>::adaptor_type;
+        using adaptor_type = typename TestFixture::adaptor_type;
 
-        SUBCASE("row_major / row_major")
         {
+            SCOPED_TRACE("row_major / row_major");
             vector_type v;
             adaptor_type b(v);
             b = tester.a / tester.ra;
             EXPECT_EQ(tester.res_rr, b);
         }
 
-        SUBCASE("row_major / column_major")
         {
+            SCOPED_TRACE("row_major / column_major");
             vector_type v;
             adaptor_type b(v);
             b = tester.a / tester.ca;
             EXPECT_EQ(tester.res_rc, b);
         }
 
-        SUBCASE("row_major / central_major")
         {
+            SCOPED_TRACE("row_major / central_major");
             vector_type v;
             adaptor_type b(v);
             b = tester.a / tester.cta;
             EXPECT_EQ(tester.res_rct, b);
         }
 
-        SUBCASE("row_major / unit_major")
         {
+            SCOPED_TRACE("row_major / unit_major");
             vector_type v;
             adaptor_type b(v);
             b = tester.a / tester.ua;
@@ -208,13 +214,13 @@ namespace xt
         }
     }
 
-    TEST_CASE_TEMPLATE("a_plus_equal_b", TypeParam, ADAPTOR_SEMANTIC_TYPES)
+    TYPED_TEST(adaptor_semantic, a_plus_equal_b)
     {
         operation_tester<std::plus<>, TypeParam> tester;
-        using adaptor_type = typename adaptor_semantic<TypeParam>::adaptor_type;
+        using adaptor_type = typename TestFixture::adaptor_type;
 
-        SUBCASE("row_major += row_major")
         {
+            SCOPED_TRACE("row_major += row_major");
             vector_type v;
             adaptor_type b(v);
             b = tester.a;
@@ -222,8 +228,8 @@ namespace xt
             EXPECT_EQ(tester.res_rr, b);
         }
 
-        SUBCASE("row_major += column_major")
         {
+            SCOPED_TRACE("row_major += column_major");
             vector_type v;
             adaptor_type b(v);
             b = tester.a;
@@ -231,8 +237,8 @@ namespace xt
             EXPECT_EQ(tester.res_rc, b);
         }
 
-        SUBCASE("row_major += central_major")
         {
+            SCOPED_TRACE("row_major += central_major");
             vector_type v;
             adaptor_type b(v);
             b = tester.a;
@@ -240,8 +246,8 @@ namespace xt
             EXPECT_EQ(tester.res_rct, b);
         }
 
-        SUBCASE("row_major += unit_major")
         {
+            SCOPED_TRACE("row_major += unit_major");
             vector_type v;
             adaptor_type b(v);
             b = tester.a;
@@ -250,13 +256,13 @@ namespace xt
         }
     }
 
-    TEST_CASE_TEMPLATE("a_minus_equal_b", TypeParam, ADAPTOR_SEMANTIC_TYPES)
+    TYPED_TEST(adaptor_semantic, a_minus_equal_b)
     {
         operation_tester<std::minus<>, TypeParam> tester;
-        using adaptor_type = typename adaptor_semantic<TypeParam>::adaptor_type;
+        using adaptor_type = typename TestFixture::adaptor_type;
 
-        SUBCASE("row_major -= row_major")
         {
+            SCOPED_TRACE("row_major -= row_major");
             vector_type v;
             adaptor_type b(v);
             b = tester.a;
@@ -264,8 +270,8 @@ namespace xt
             EXPECT_EQ(tester.res_rr, b);
         }
 
-        SUBCASE("row_major -= column_major")
         {
+            SCOPED_TRACE("row_major -= column_major");
             vector_type v;
             adaptor_type b(v);
             b = tester.a;
@@ -273,8 +279,8 @@ namespace xt
             EXPECT_EQ(tester.res_rc, b);
         }
 
-        SUBCASE("row_major -= central_major")
         {
+            SCOPED_TRACE("row_major -= central_major");
             vector_type v;
             adaptor_type b(v);
             b = tester.a;
@@ -282,8 +288,8 @@ namespace xt
             EXPECT_EQ(tester.res_rct, b);
         }
 
-        SUBCASE("row_major -= unit_major")
         {
+            SCOPED_TRACE("row_major -= unit_major");
             vector_type v;
             adaptor_type b(v);
             b = tester.a;
@@ -292,13 +298,13 @@ namespace xt
         }
     }
 
-    TEST_CASE_TEMPLATE("a_times_equal_b", TypeParam, ADAPTOR_SEMANTIC_TYPES)
+    TYPED_TEST(adaptor_semantic, a_times_equal_b)
     {
         operation_tester<std::multiplies<>, TypeParam> tester;
-        using adaptor_type = typename adaptor_semantic<TypeParam>::adaptor_type;
+        using adaptor_type = typename TestFixture::adaptor_type;
 
-        SUBCASE("row_major *= row_major")
         {
+            SCOPED_TRACE("row_major *= row_major");
             vector_type v;
             adaptor_type b(v);
             b = tester.a;
@@ -306,8 +312,8 @@ namespace xt
             EXPECT_EQ(tester.res_rr, b);
         }
 
-        SUBCASE("row_major *= column_major")
         {
+            SCOPED_TRACE("row_major *= column_major");
             vector_type v;
             adaptor_type b(v);
             b = tester.a;
@@ -315,8 +321,8 @@ namespace xt
             EXPECT_EQ(tester.res_rc, b);
         }
 
-        SUBCASE("row_major *= central_major")
         {
+            SCOPED_TRACE("row_major *= central_major");
             vector_type v;
             adaptor_type b(v);
             b = tester.a;
@@ -324,8 +330,8 @@ namespace xt
             EXPECT_EQ(tester.res_rct, b);
         }
 
-        SUBCASE("row_major *= unit_major")
         {
+            SCOPED_TRACE("row_major *= unit_major");
             vector_type v;
             adaptor_type b(v);
             b = tester.a;
@@ -334,13 +340,13 @@ namespace xt
         }
     }
 
-    TEST_CASE_TEMPLATE("a_divide_by_equal_b", TypeParam, ADAPTOR_SEMANTIC_TYPES)
+    TYPED_TEST(adaptor_semantic, a_divide_by_equal_b)
     {
         operation_tester<std::divides<>, TypeParam> tester;
-        using adaptor_type = typename adaptor_semantic<TypeParam>::adaptor_type;
+        using adaptor_type = typename TestFixture::adaptor_type;
 
-        SUBCASE("row_major /= row_major")
         {
+            SCOPED_TRACE("row_major /= row_major");
             vector_type v;
             adaptor_type b(v);
             b = tester.a;
@@ -348,8 +354,8 @@ namespace xt
             EXPECT_EQ(tester.res_rr, b);
         }
 
-        SUBCASE("row_major /= column_major")
         {
+            SCOPED_TRACE("row_major /= column_major");
             vector_type v;
             adaptor_type b(v);
             b = tester.a;
@@ -357,8 +363,8 @@ namespace xt
             EXPECT_EQ(tester.res_rc, b);
         }
 
-        SUBCASE("row_major /= central_major")
         {
+            SCOPED_TRACE("row_major /= central_major");
             vector_type v;
             adaptor_type b(v);
             b = tester.a;
@@ -366,8 +372,8 @@ namespace xt
             EXPECT_EQ(tester.res_rct, b);
         }
 
-        SUBCASE("row_major /= unit_major")
         {
+            SCOPED_TRACE("row_major /= unit_major");
             vector_type v;
             adaptor_type b(v);
             b = tester.a;
@@ -375,8 +381,4 @@ namespace xt
             EXPECT_EQ(tester.res_ru, b);
         }
     }
-
-#undef ADAPTOR_SEMANTIC_TYPES
 }
-
-TEST_SUITE_END();

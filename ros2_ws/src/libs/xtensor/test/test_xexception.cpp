@@ -1,11 +1,11 @@
 /***************************************************************************
- * Copyright (c) Johan Mabille, Sylvain Corlay and Wolf Vollprecht          *
- * Copyright (c) QuantStack                                                 *
- *                                                                          *
- * Distributed under the terms of the BSD 3-Clause License.                 *
- *                                                                          *
- * The full license is in the file LICENSE, distributed with this software. *
- ****************************************************************************/
+* Copyright (c) Johan Mabille, Sylvain Corlay and Wolf Vollprecht          *
+* Copyright (c) QuantStack                                                 *
+*                                                                          *
+* Distributed under the terms of the BSD 3-Clause License.                 *
+*                                                                          *
+* The full license is in the file LICENSE, distributed with this software. *
+****************************************************************************/
 
 #ifndef XTENSOR_ENABLE_ASSERT
 #define XTENSOR_ENABLE_ASSERT
@@ -13,8 +13,8 @@
 
 #include <string>
 
-#include "xtensor/utils/xexception.hpp"
-
+#include "gtest/gtest.h"
+#include "xtensor/xexception.hpp"
 #include "test_common_macros.hpp"
 
 namespace xt
@@ -33,7 +33,7 @@ namespace xt
         try
         {
             XTENSOR_ASSERT_MSG(false, "Intentional error");
-            CHECK_MESSAGE(false, "no exception thrown");
+            FAIL() << "No exception thrown.";
         }
         catch (std::runtime_error& e)
         {
@@ -44,7 +44,7 @@ namespace xt
         try
         {
             XTENSOR_PRECONDITION(false, "Intentional error");
-            CHECK_MESSAGE(false, "no exception thrown");
+            FAIL() << "No exception thrown.";
         }
         catch (std::runtime_error& e)
         {

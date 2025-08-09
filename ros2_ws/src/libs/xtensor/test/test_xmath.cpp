@@ -1,22 +1,21 @@
 /***************************************************************************
- * Copyright (c) Johan Mabille, Sylvain Corlay and Wolf Vollprecht          *
- * Copyright (c) QuantStack                                                 *
- *                                                                          *
- * Distributed under the terms of the BSD 3-Clause License.                 *
- *                                                                          *
- * The full license is in the file LICENSE, distributed with this software. *
- ****************************************************************************/
+* Copyright (c) Johan Mabille, Sylvain Corlay and Wolf Vollprecht          *
+* Copyright (c) QuantStack                                                 *
+*                                                                          *
+* Distributed under the terms of the BSD 3-Clause License.                 *
+*                                                                          *
+* The full license is in the file LICENSE, distributed with this software. *
+****************************************************************************/
 
 #include <complex>
 #include <limits>
 
-#include "xtensor/containers/xadapt.hpp"
-#include "xtensor/containers/xarray.hpp"
-#include "xtensor/core/xmath.hpp"
-#include "xtensor/generators/xrandom.hpp"
-#include "xtensor/optional/xoptional_assembly.hpp"
-
-#include "test_common_macros.hpp"
+#include "gtest/gtest.h"
+#include "xtensor/xarray.hpp"
+#include "xtensor/xadapt.hpp"
+#include "xtensor/xoptional_assembly.hpp"
+#include "xtensor/xmath.hpp"
+#include "xtensor/xrandom.hpp"
 
 namespace xt
 {
@@ -174,8 +173,8 @@ namespace xt
 
         xarray<double> a = {1, 2, 3, 4, 5, 6};
         xarray<double> b = {6, 5, 4, 3, 2, 1};
-        opt_type opt_a = {1, missing, 3, 4, 5, missing};
-        opt_type opt_b = {6, 5, 4, 3, missing, 1};
+        opt_type opt_a = {1, missing, 3, 4,       5, missing};
+        opt_type opt_b = {6,       5, 4, 3, missing,       1};
 
         xarray<double> res = {1, 2, 3, 3, 2, 1};
         EXPECT_EQ(res, minimum(a, b));
@@ -194,8 +193,8 @@ namespace xt
 
         xarray<double> a = {1, 2, 3, 4, 5, 6};
         xarray<double> b = {6, 5, 4, 3, 2, 1};
-        opt_type opt_a = {1, missing, 3, 4, 5, missing};
-        opt_type opt_b = {6, 5, 4, 3, missing, 1};
+        opt_type opt_a = {1, missing, 3, 4,       5, missing};
+        opt_type opt_b = {6,       5, 4, 3, missing,       1};
 
         xarray<double> res = {6, 5, 4, 4, 5, 6};
         EXPECT_EQ(res, maximum(a, b));
@@ -274,41 +273,51 @@ namespace xt
 
     TEST(xmath, isnan)
     {
-        xarray<double> arr{
-            {1.0, std::numeric_limits<double>::quiet_NaN()},
-            {std::numeric_limits<double>::quiet_NaN(), 0.0}
-        };
-        xarray<bool> expected{{false, true}, {true, false}};
+        xarray<double> arr
+           {{1.0, std::numeric_limits<double>::quiet_NaN()},
+            {std::numeric_limits<double>::quiet_NaN(), 0.0}};
+        xarray<bool> expected
+           {{false, true}, {true, false}};
         EXPECT_TRUE(all(equal(expected, xt::isnan(arr))));
     }
 
     TEST(xmath, deg2rad)
     {
-        xarray<double> arr{-180, -135, -90, -45, 0, 45, 90, 135, 180};
-        xarray<double>
-            expected{-3.141593, -2.356194, -1.570796, -0.785398, 0., 0.785398, 1.570796, 2.356194, 3.141593};
+        xarray<double> arr
+            {-180, -135, -90, -45, 0, 45, 90, 135, 180};
+        xarray<double> expected
+            {-3.141593, -2.356194, -1.570796, -0.785398,  0.,
+              0.785398,  1.570796,  2.356194,  3.141593};
         EXPECT_TRUE(all(isclose(expected, xt::deg2rad(arr))));
     }
 
     TEST(xmath, radians)
     {
-        xarray<double> arr{-180, -135, -90, -45, 0, 45, 90, 135, 180};
-        xarray<double>
-            expected{-3.141593, -2.356194, -1.570796, -0.785398, 0., 0.785398, 1.570796, 2.356194, 3.141593};
+        xarray<double> arr
+            {-180, -135, -90, -45, 0, 45, 90, 135, 180};
+        xarray<double> expected
+            {-3.141593, -2.356194, -1.570796, -0.785398,  0.,
+             0.785398,  1.570796,  2.356194,  3.141593};
         EXPECT_TRUE(all(isclose(expected, xt::radians(arr))));
     }
 
     TEST(xmath, rad2deg)
     {
-        xarray<double> arr{-3.141593, -2.356194, -1.570796, -0.785398, 0., 0.785398, 1.570796, 2.356194, 3.141593};
-        xarray<double> expected{-180, -135, -90, -45, 0, 45, 90, 135, 180};
+        xarray<double> arr
+            {-3.141593, -2.356194, -1.570796, -0.785398,  0.,
+             0.785398,  1.570796,  2.356194,  3.141593};
+        xarray<double> expected
+            {-180, -135, -90, -45, 0, 45, 90, 135, 180};
         EXPECT_TRUE(all(isclose(expected, xt::rad2deg(arr))));
     }
 
     TEST(xmath, degrees)
     {
-        xarray<double> arr{-3.141593, -2.356194, -1.570796, -0.785398, 0., 0.785398, 1.570796, 2.356194, 3.141593};
-        xarray<double> expected{-180, -135, -90, -45, 0, 45, 90, 135, 180};
+        xarray<double> arr
+            {-3.141593, -2.356194, -1.570796, -0.785398,  0.,
+             0.785398,  1.570796,  2.356194,  3.141593};
+        xarray<double> expected
+            {-180, -135, -90, -45, 0, 45, 90, 135, 180};
         EXPECT_TRUE(all(isclose(expected, xt::degrees(arr))));
     }
 
@@ -319,10 +328,10 @@ namespace xt
     TEST(xmath, assign_traits)
     {
         using array_type = xarray<double>;
-        array_type a = {{1.2, 2.3}, {3.4, 4.5}};
+        array_type a = { {1.2, 2.3}, {3.4, 4.5} };
 
-        SUBCASE("unary function")
         {
+            SCOPED_TRACE("unary function");
             auto fexp = exp(a);
             using assign_traits = xassign_traits<array_type, decltype(fexp)>;
 #if XTENSOR_USE_XSIMD
@@ -336,8 +345,8 @@ namespace xt
 #endif
         }
 
-        SUBCASE("binary function")
         {
+            SCOPED_TRACE("binary function");
             auto fpow = pow(a, a);
             using assign_traits = xassign_traits<array_type, decltype(fpow)>;
 #if XTENSOR_USE_XSIMD
@@ -351,8 +360,8 @@ namespace xt
 #endif
         }
 
-        SUBCASE("ternary function")
         {
+            SCOPED_TRACE("ternary function");
             auto ffma = xt::fma(a, a, a);
             using assign_traits = xassign_traits<array_type, decltype(ffma)>;
 #if XTENSOR_USE_XSIMD
@@ -485,6 +494,7 @@ namespace xt
         using assign_traits = xassign_traits<xarray<double>, decltype(f)>;
         EXPECT_TRUE(assign_traits::simd_linear_assign());
 #endif
+
     }
 
     TEST(xmath, cube)
@@ -578,6 +588,7 @@ namespace xt
         EXPECT_EQ(atan2(sa, b)(0, 0), std::atan2(sa, b(0, 0)));
     }
 
+
     /************************
      * Hyperbolic functions *
      ************************/
@@ -623,6 +634,7 @@ namespace xt
         xarray<double> a(shape, 0.7);
         EXPECT_EQ(atanh(a)(0, 0), std::atanh(a(0, 0)));
     }
+
 
     /*****************************
      * Error and gamma functions *
@@ -789,7 +801,7 @@ namespace xt
     TEST(xmath, diff)
     {
         xt::xarray<int> a = {1, 2, 4, 7, 0};
-        xt::xarray<int> expected1 = {1, 2, 3, -7};
+        xt::xarray<int> expected1 = {1,  2,  3, -7};
         EXPECT_EQ(xt::diff(a), expected1);
         xt::xarray<int> expected2 = {1, 1, -10};
         EXPECT_EQ(xt::diff(a, 2), expected2);
@@ -806,8 +818,8 @@ namespace xt
         xt::xarray<bool> expected7({2, 1}, false);
         EXPECT_EQ(xt::diff(c, 2), expected7);
 
-        std::vector<int> d = {1, 2, 4, 7, 0};
-        xt::xarray<int> orig = {1, 2, 4, 7, 0};
+        std::vector<int> d = { 1, 2, 4, 7, 0 };
+        xt::xarray<int> orig = { 1, 2, 4, 7, 0 };
         auto ad = xt::adapt(d);
         EXPECT_EQ(xt::diff(ad), expected1);
         EXPECT_EQ(ad, orig);
@@ -820,7 +832,8 @@ namespace xt
 
     TEST(xmath, trapz)
     {
-        xt::xarray<int> a = {{0, 1, 2}, {3, 4, 5}};
+        xt::xarray<int> a = {{0, 1, 2},
+                             {3, 4, 5}};
         xt::xarray<double> expected1 = {1.5, 2.5, 3.5};
         EXPECT_EQ(trapz(a, 1.0, 0), expected1);
 
@@ -847,9 +860,9 @@ namespace xt
 
     TEST(xmath, mean)
     {
-        xt::xtensor<double, 2> v = {{1.0, 1.0, 1.0}, {2.0, 2.0, 2.0}};
-        xt::xtensor<double, 1> m0 = {1.5, 1.5, 1.5};
-        xt::xtensor<double, 1> m1 = {1.0, 2.0};
+        xt::xtensor<double,2> v = {{1.0, 1.0, 1.0}, {2.0, 2.0, 2.0}};
+        xt::xtensor<double,1> m0 = {1.5, 1.5, 1.5};
+        xt::xtensor<double,1> m1 = {1.0, 2.0};
         double m = 9.0 / 6.0;
 
         EXPECT_TRUE(xt::all(xt::equal(xt::mean(v, 0), m0)));
@@ -862,10 +875,10 @@ namespace xt
 
     TEST(xmath, average)
     {
-        xt::xtensor<double, 2> v = {{1.0, 1.0, 1.0}, {2.0, 2.0, 2.0}};
-        xt::xtensor<double, 2> w = {{2.0, 2.0, 2.0}, {2.0, 2.0, 2.0}};
-        xt::xtensor<double, 1> m0 = {1.5, 1.5, 1.5};
-        xt::xtensor<double, 1> m1 = {1.0, 2.0};
+        xt::xtensor<double,2> v = {{1.0, 1.0, 1.0}, {2.0, 2.0, 2.0}};
+        xt::xtensor<double,2> w = {{2.0, 2.0, 2.0}, {2.0, 2.0, 2.0}};
+        xt::xtensor<double,1> m0 = {1.5, 1.5, 1.5};
+        xt::xtensor<double,1> m1 = {1.0, 2.0};
         double m = 9.0 / 6.0;
 
         EXPECT_TRUE(xt::all(xt::equal(xt::average(v, w, 0), m0)));
@@ -882,13 +895,13 @@ namespace xt
 
     TEST(xmath, interp)
     {
-        xt::xtensor<double, 1> xp = {0.0, 1.0, 3.0};
-        xt::xtensor<double, 1> fp = {0.0, 1.0, 3.0};
-        xt::xtensor<double, 1> x = {0.0, .5, 1.0, 1.5, 2.0, 2.5, 3.0};
+        xt::xtensor<double,1> xp = {0.0, 1.0, 3.0};
+        xt::xtensor<double,1> fp = {0.0, 1.0, 3.0};
+        xt::xtensor<double,1> x  = {0.0, .5, 1.0, 1.5, 2.0, 2.5, 3.0};
 
-        auto f = xt::interp(x, xp, fp);
+        auto f = xt::interp(x,xp,fp);
 
-        for (std::size_t i = 0; i < x.size(); ++i)
+        for ( std::size_t i = 0 ; i < x.size() ; ++i )
         {
             EXPECT_EQ(f[i], x[i]);
         }
@@ -901,72 +914,5 @@ namespace xt
         xt::xarray<double> expected = {{1.0, -1.0}, {-1.0, 1.0}};
 
         EXPECT_EQ(expected, xt::cov(x, y));
-    }
-
-    TEST(xmath, convolve_full)
-    {
-        xt::xarray<double> x = {1.0, 3.0, 1.0};
-        xt::xarray<double> y = {1.0, 1.0, 1.0};
-        xt::xarray<double> expected = {1, 4, 5, 4, 1};
-
-        auto result = xt::convolve(x, y, xt::convolve_mode::full());
-
-        EXPECT_EQ(result, expected);
-    }
-
-    TEST(xmath, convolve_valid)
-    {
-        xt::xarray<double> x = {3.0, 1.0, 1.0};
-        xt::xarray<double> y = {1.0, 1.0, 1.0};
-        xt::xarray<double> expected = {5};
-
-        auto result = xt::convolve(x, y, xt::convolve_mode::valid());
-
-        EXPECT_EQ(result, expected);
-    }
-
-    TEST(xmath, unwrap)
-    {
-        {
-            // {0, pi / 4, pi / 2, -pi / 4, 0}
-            xt::xarray<double> expected = {0., 0.78539816, 1.57079633, -0.78539816, 0};
-            auto pi = xt::numeric_constants<double>::PI;
-            xt::xarray<double> phase = xt::linspace<double>(0, pi, 5);
-            xt::view(phase, xt::range(3, xt::xnone())) += pi;
-            auto unwrapped = xt::unwrap(phase);
-            EXPECT_TRUE(xt::allclose(expected, unwrapped));
-        }
-        {
-            xt::xarray<double> expected = {
-                -180.,
-                -140.,
-                -100.,
-                -60.,
-                -20.,
-                20.,
-                60.,
-                100.,
-                140.,
-                180.,
-                220.,
-                260.,
-                300.,
-                340.,
-                380.,
-                420.,
-                460.,
-                500.,
-                540.
-            };
-            xt::xarray<double> phase_deg = xt::fmod(xt::linspace<double>(0, 720, 19), 360) - 180;
-            auto unwrapped = xt::unwrap(phase_deg, xnone(), -1, 360.0);
-            EXPECT_TRUE(xt::allclose(expected, unwrapped));
-        }
-        {
-            xt::xarray<int> expected = {2, 3, 4, 5, 6, 7, 8, 9};
-            xt::xarray<int> phase = {2, 3, 4, 5, 2, 3, 4, 5};
-            auto unwrapped = xt::unwrap(phase, xnone(), -1, 4);
-            EXPECT_TRUE(xt::allclose(expected, unwrapped));
-        }
     }
 }

@@ -7,9 +7,11 @@
 xreducer
 ========
 
-Defined in ``xtensor/reducers/xreducer.hpp``
+Defined in ``xtensor/xreducer.hpp``
 
 .. doxygenclass:: xt::xreducer
+   :project: xtensor
    :members:
 
 .. doxygenfunction:: xt::reduce(F&&, E&&, X&&, EVS&&)
+   :project: xtensor

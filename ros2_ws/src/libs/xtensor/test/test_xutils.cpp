@@ -1,26 +1,26 @@
 /***************************************************************************
- * Copyright (c) Johan Mabille, Sylvain Corlay and Wolf Vollprecht          *
- * Copyright (c) QuantStack                                                 *
- *                                                                          *
- * Distributed under the terms of the BSD 3-Clause License.                 *
- *                                                                          *
- * The full license is in the file LICENSE, distributed with this software. *
- ****************************************************************************/
+* Copyright (c) Johan Mabille, Sylvain Corlay and Wolf Vollprecht          *
+* Copyright (c) QuantStack                                                 *
+*                                                                          *
+* Distributed under the terms of the BSD 3-Clause License.                 *
+*                                                                          *
+* The full license is in the file LICENSE, distributed with this software. *
+****************************************************************************/
 
-#include <complex>
 #include <initializer_list>
-#include <tuple>
 #include <type_traits>
+#include <tuple>
+#include <complex>
 
-#include "xtensor/containers/xarray.hpp"
-#include "xtensor/containers/xfixed.hpp"
-#include "xtensor/containers/xtensor.hpp"
-#include "xtensor/core/xshape.hpp"
-#include "xtensor/utils/xutils.hpp"
-#include "xtensor/views/xstrided_view.hpp"
-#include "xtensor/views/xview.hpp"
-
+#include "gtest/gtest.h"
 #include "test_common_macros.hpp"
+#include "xtensor/xtensor.hpp"
+#include "xtensor/xarray.hpp"
+#include "xtensor/xfixed.hpp"
+#include "xtensor/xstrided_view.hpp"
+#include "xtensor/xshape.hpp"
+#include "xtensor/xutils.hpp"
+#include "xtensor/xview.hpp"
 
 namespace xt
 {
@@ -70,18 +70,12 @@ namespace xt
 
     TEST(utils, accumulate)
     {
-        auto func = [](int i, int j)
-        {
-            return i + j;
-        };
+        auto func = [](int i, int j) { return i + j; };
         const std::tuple<int, int, int> t(3, 4, 1);
         EXPECT_EQ(8, accumulate(func, 0, t));
         EXPECT_FALSE(noexcept(accumulate(func, 0, t)));
 
-        auto func_ne = [](int i, int j) noexcept
-        {
-            return i + j;
-        };
+        auto func_ne = [](int i, int j) noexcept { return i + j; };
         EXPECT_EQ(8, accumulate(func_ne, 0, t));
         EXPECT_TRUE(noexcept(accumulate(func_ne, 0, t)));
     }
@@ -89,31 +83,21 @@ namespace xt
     template <class... T>
     auto foo(const std::tuple<T...>& t)
     {
-        auto func = [](int i)
-        {
-            return i;
-        };
+        auto func = [](int i) { return i; };
         return apply<int>(1, func, t);
     }
 
-    int fun(int i) noexcept
-    {
-        return 2 * i;
-    }
-
+    int fun(int i) noexcept{ return 2 * i; }
     TEST(utils, apply)
     {
         ASSERT_TRUE(foo(std::make_tuple(1, 2, 3)) == 2);
-        static_assert(!noexcept(foo(std::make_tuple(1, 2, 3))));
-        auto func_ne = [](int i) noexcept
-        {
-            return i;
-        };
+        EXPECT_FALSE(noexcept(foo(std::make_tuple(1, 2, 3))));
+        auto func_ne = [](int i) noexcept { return i; };
         auto t = std::make_tuple(1, 2, 3);
 #if (_MSC_VER >= 1910)
-        static_assert(!noexcept(apply<int>(1, func_ne, t)));
+        EXPECT_FALSE(noexcept(apply<int>(1, func_ne, t)));
 #else
-        static_assert(noexcept(apply<int>(1, func_ne, t)));
+        EXPECT_TRUE(noexcept(apply<int>(1, func_ne, t)));
 #endif
     }
 
@@ -145,21 +129,6 @@ namespace xt
         b = has_data_interface<decltype(vv2)>::value;
         EXPECT_TRUE(b);
         b = has_data_interface<decltype(v3)>::value;
-        EXPECT_FALSE(b);
-    }
-
-    TEST(utils, has_storage_type)
-    {
-        bool b = has_storage_type<xarray<int>>::value;
-        EXPECT_TRUE(b);
-
-        xarray<int> x, y;
-        b = has_storage_type<decltype(x + y)>::value;
-        EXPECT_FALSE(b);
-
-        b = has_storage_type<decltype(view(x, all()))>::value;
-        EXPECT_TRUE(b);
-        b = has_storage_type<decltype(view(2 * x, all()))>::value;
         EXPECT_FALSE(b);
     }
 
@@ -224,12 +193,10 @@ namespace xt
 
     TEST(utils, allocation_tracking)
     {
-        using arr_t = xarray<
-            double,
-            layout_type::row_major,
-            tracking_allocator<double, std::allocator<double>, alloc_tracking::policy::assert>>;
+        using arr_t = xarray<double, layout_type::row_major,
+                             tracking_allocator<double, std::allocator<double>, alloc_tracking::policy::assert>>;
 
-        arr_t a = {{1, 2, 3}, {5, 6, 7}};
+        arr_t a = {{1,2,3}, {5,6,7}};
 
         alloc_tracking::enable();
         XT_EXPECT_THROW(arr_t b = a + 123, std::runtime_error);

@@ -1,17 +1,16 @@
 /***************************************************************************
- * Copyright (c) Johan Mabille, Sylvain Corlay and Wolf Vollprecht          *
- * Copyright (c) QuantStack                                                 *
- *                                                                          *
- * Distributed under the terms of the BSD 3-Clause License.                 *
- *                                                                          *
- * The full license is in the file LICENSE, distributed with this software. *
- ****************************************************************************/
+* Copyright (c) Johan Mabille, Sylvain Corlay and Wolf Vollprecht          *
+* Copyright (c) QuantStack                                                 *
+*                                                                          *
+* Distributed under the terms of the BSD 3-Clause License.                 *
+*                                                                          *
+* The full license is in the file LICENSE, distributed with this software. *
+****************************************************************************/
 
-#include "xtensor/containers/xarray.hpp"
-#include "xtensor/containers/xtensor.hpp"
-
+#include "gtest/gtest.h"
+#include "xtensor/xtensor.hpp"
+#include "xtensor/xarray.hpp"
 #include "test_common.hpp"
-#include "test_common_macros.hpp"
 
 namespace xt
 {
@@ -55,11 +54,17 @@ namespace xt
         using int32_tensor = xtensor<int32_t, 2>;
         using double_tensor = xtensor<double, 2>;
 
-        int8_tensor i8t = {{int8_t(0), int8_t(1)}, {int8_t(2), int8_t(3)}, {int8_t(4), int8_t(5)}};
+        int8_tensor i8t = {{int8_t(0), int8_t(1) },
+                           { int8_t(2) , int8_t(3) },
+                           { int8_t(4) , int8_t(5) }};
 
-        int32_tensor i32t = {{int32_t(0), int32_t(1)}, {int8_t(2), int8_t(3)}, {int8_t(4), int8_t(5)}};
+        int32_tensor i32t = {{ int32_t(0), int32_t(1) },
+                             { int8_t(2) , int8_t(3) },
+                             { int8_t(4) , int8_t(5) }};
 
-        double_tensor dt = {{0., 1.}, {2., 3.}, {4., 5.}};
+        double_tensor dt = {{0., 1.},
+                            {2., 3.},
+                            {4., 5.}};
 
         int32_tensor i32res = i8t;
         EXPECT_EQ(i32res, i32t);
@@ -70,7 +75,7 @@ namespace xt
 
     TEST(xtensor_semantic, broadcasting_single_element)
     {
-        xtensor<int, 2> t = xt::zeros<int>({1, 1});
+        xtensor<int, 2> t = xt::zeros<int>({ 1, 1 });
         EXPECT_EQ(t.backstrides().size(), 2u);
         EXPECT_EQ(t.backstrides()[0], 0u);
         EXPECT_EQ(t.backstrides()[1], 0u);

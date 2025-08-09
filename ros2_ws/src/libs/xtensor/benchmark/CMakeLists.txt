@@ -6,8 +6,7 @@
 # The full license is in the file LICENSE, distributed with this software. #
 ############################################################################
 
-cmake_minimum_required(VERSION 3.22)
-include(FetchContent)
+cmake_minimum_required(VERSION 3.1)
 
 if (CMAKE_CURRENT_SOURCE_DIR STREQUAL CMAKE_SOURCE_DIR)
     project(xtensor-benchmark)
@@ -29,14 +28,12 @@ if (CMAKE_CXX_COMPILER_ID MATCHES "Clang" OR CMAKE_CXX_COMPILER_ID MATCHES "GNU"
         set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -march=native")
     endif()
     set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -O3 -g -Wunused-parameter -Wextra -Wreorder")
+    CHECK_CXX_COMPILER_FLAG("-std=c++14" HAS_CPP14_FLAG)
 
-    if(NOT "${CMAKE_CXX_SIMULATE_ID}" STREQUAL "MSVC")
-        CHECK_CXX_COMPILER_FLAG("-std=c++20" HAS_CPP20_FLAG)
-        if (HAS_CPP20_FLAG)
-            set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -std=c++20")
-        else()
-            message(FATAL_ERROR "Unsupported compiler -- xtensor requires C++17 support!")
-        endif()
+    if (HAS_CPP14_FLAG)
+        set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -std=c++14")
+    else()
+        message(FATAL_ERROR "Unsupported compiler -- xtensor requires C++14 support!")
     endif()
 
     # Enable link time optimization and set the default symbol
@@ -75,17 +72,31 @@ endif()
 
 
 if(DOWNLOAD_GBENCHMARK OR GBENCHMARK_SRC_DIR)
-    FetchContent_Declare(googletest
-            GIT_REPOSITORY https://github.com/google/googletest.git
-            GIT_TAG main)
+    if(DOWNLOAD_GBENCHMARK)
+        # Download and unpack googlebenchmark at configure time
+        configure_file(downloadGBenchmark.cmake.in googlebenchmark-download/CMakeLists.txt)
+    else()
+        # Copy local source of googlebenchmark at configure time
+        configure_file(copyGBenchmark.cmake.in googlebenchmark-download/CMakeLists.txt)
+    endif()
+    execute_process(COMMAND ${CMAKE_COMMAND} -G "${CMAKE_GENERATOR}" .
+                    RESULT_VARIABLE result
+                    WORKING_DIRECTORY ${CMAKE_CURRENT_BINARY_DIR}/googlebenchmark-download )
+    if(result)
+        message(FATAL_ERROR "CMake step for googlebenchmark failed: ${result}")
+    endif()
+    execute_process(COMMAND ${CMAKE_COMMAND} --build .
+                    RESULT_VARIABLE result
+                    WORKING_DIRECTORY ${CMAKE_CURRENT_BINARY_DIR}/googlebenchmark-download )
+    if(result)
+        message(FATAL_ERROR "Build step for googlebenchmark failed: ${result}")
+    endif()
 
-    FetchContent_Declare(googlebenchmark
-            GIT_REPOSITORY https://github.com/google/benchmark.git
-            GIT_TAG main) # need main for benchmark::benchmark
+    # Add googlebenchmark directly to our build. This defines
+    # the gtest and gtest_main targets.
+    add_subdirectory(${CMAKE_CURRENT_BINARY_DIR}/googlebenchmark-src
+                     ${CMAKE_CURRENT_BINARY_DIR}/googlebenchmark-build)
 
-    FetchContent_MakeAvailable(
-            googletest
-            googlebenchmark)
     set(GBENCHMARK_INCLUDE_DIRS "${googlebenchmark_SOURCE_DIR}/include")
     set(GBENCHMARK_LIBRARIES benchmark)
 else()
@@ -116,23 +127,12 @@ set(XTENSOR_BENCHMARK
     benchmark_view_access.cpp
     benchmark_view_assignment.cpp
     benchmark_view_adapt.cpp
-    benchmark_stl.cpp
     main.cpp
 )
 
-
 set(XTENSOR_BENCHMARK_TARGET benchmark_xtensor)
 add_executable(${XTENSOR_BENCHMARK_TARGET} EXCLUDE_FROM_ALL ${XTENSOR_BENCHMARK} ${XTENSOR_HEADERS})
-target_link_libraries(${XTENSOR_BENCHMARK_TARGET} PUBLIC xtensor ${GBENCHMARK_LIBRARIES})
-
-if(XTENSOR_USE_TBB)
-    target_compile_definitions(${XTENSOR_BENCHMARK_TARGET} PUBLIC XTENSOR_USE_TBB)
-    target_include_directories(${XTENSOR_BENCHMARK_TARGET} PUBLIC ${TBB_INCLUDE_DIRS})
-    target_link_libraries(${XTENSOR_BENCHMARK_TARGET} PUBLIC ${TBB_LIBRARIES})
-endif()
-if(XTENSOR_USE_OPENMP)
-    target_compile_definitions(${XTENSOR_BENCHMARK_TARGET} PUBLIC XTENSOR_USE_OPENMP)
-endif()
+target_link_libraries(${XTENSOR_BENCHMARK_TARGET} xtensor ${GBENCHMARK_LIBRARIES})
 
 add_custom_target(xbenchmark
     COMMAND benchmark_xtensor

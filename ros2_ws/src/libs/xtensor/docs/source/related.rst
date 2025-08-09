@@ -24,11 +24,11 @@ xtensor-python
    :alt: xtensor-python
 
 The xtensor-python_ project provides the implementation of container types
-compatible with *xtensor*'s expression system, ``pyarray`` and ``pytensor``
-which effectively wrap NumPy arrays, allowing operating on NumPy arrays
+compatible with ``xtensor``'s expression system, ``pyarray`` and ``pytensor``
+which effectively wrap numpy arrays, allowing operating on numpy arrays
 in-place.
 
-Example 1: Use an algorithm of the C++ library on a NumPy array in-place
+Example 1: Use an algorithm of the C++ library on a numpy array in-place
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
 **C++ code**
@@ -37,9 +37,9 @@ Example 1: Use an algorithm of the C++ library on a NumPy array in-place
 
     #include <numeric>                        // Standard library import for std::accumulate
     #include <pybind11/pybind11.h>            // Pybind11 import to define Python bindings
-    #include <xtensor/core/xmath.hpp>         // xtensor import for the C++ universal functions
-    #define FORCE_IMPORT_ARRAY                // NumPy C api loading
-    #include <xtensor-python/pyarray.hpp>     // NumPy bindings
+    #include <xtensor/xmath.hpp>              // xtensor import for the C++ universal functions
+    #define FORCE_IMPORT_ARRAY                // numpy C api loading
+    #include <xtensor-python/pyarray.hpp>     // Numpy bindings
 
     double sum_of_sines(xt::pyarray<double> &m)
     {
@@ -135,7 +135,7 @@ xtensor-python-cookiecutter
    :width: 50%
 
 The xtensor-python-cookiecutter_ project helps extension authors create Python
-extension modules making use of *xtensor*.
+extension modules making use of `xtensor`.
 
 It takes care of the initial work of generating a project skeleton with
 
@@ -144,7 +144,7 @@ It takes care of the initial work of generating a project skeleton with
 A few examples included in the resulting project including
 
 - A universal function defined from C++
-- A function making use of an algorithm from the STL on a NumPy array
+- A function making use of an algorithm from the STL on a numpy array
 - Unit tests
 - The generation of the HTML documentation with sphinx
 
@@ -155,7 +155,7 @@ xtensor-julia
    :alt: xtensor-julia
 
 The xtensor-julia_ project provides the implementation of container types
-compatible with *xtensor*'s expression system, ``jlarray`` and ``jltensor``
+compatible with ``xtensor``'s expression system, ``jlarray`` and ``jltensor``
 which effectively wrap Julia arrays, allowing operating on Julia arrays
 in-place.
 
@@ -169,7 +169,7 @@ Example 1: Use an algorithm of the C++ library with a Julia array
     #include <numeric>                        // Standard library import for std::accumulate
     #include <cxx_wrap.hpp>                   // CxxWrap import to define Julia bindings
     #include <xtensor-julia/jltensor.hpp>     // Import the jltensor container definition
-    #include <xtensor/core/xmath.hpp>         // xtensor import for the C++ universal functions
+    #include <xtensor/xmath.hpp>              // xtensor import for the C++ universal functions
 
     double sum_of_sines(xt::jltensor<double, 2> m)
     {
@@ -200,7 +200,7 @@ Example 1: Use an algorithm of the C++ library with a Julia array
 
    1.2853996391883833
 
-Example 2: Create a NumPy-style universal function from a C++ scalar function
+Example 2: Create a numpy-style universal function from a C++ scalar function
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
 **C++ code**
@@ -249,7 +249,7 @@ xtensor-julia-cookiecutter
    :width: 50%
 
 The xtensor-julia-cookiecutter_ project helps extension authors create Julia
-extension modules making use of *xtensor*.
+extension modules making use of `xtensor`.
 
 It takes care of the initial work of generating a project skeleton with
 
@@ -257,8 +257,8 @@ It takes care of the initial work of generating a project skeleton with
 
 A few examples included in the resulting project including
 
-- A NumPy-style universal function defined from C++
-- A function making use of an algorithm from the STL on a NumPy array
+- A numpy-style universal function defined from C++
+- A function making use of an algorithm from the STL on a numpy array
 - Unit tests
 - The generation of the HTML documentation with sphinx
 
@@ -269,7 +269,7 @@ xtensor-r
    :alt: xtensor-r
 
 The xtensor-r_ project provides the implementation of container types
-compatible with *xtensor*'s expression system, ``rarray`` and ``rtensor``
+compatible with ``xtensor``'s expression system, ``rarray`` and ``rtensor``
 which effectively wrap R arrays, allowing operating on R arrays in-place.
 
 Example 1: Use an algorithm of the C++ library on a R array in-place
@@ -280,7 +280,7 @@ Example 1: Use an algorithm of the C++ library on a R array in-place
 .. code::
 
     #include <numeric>                    // Standard library import for std::accumulate
-    #include <xtensor/core/xmath.hpp>     // xtensor import for the C++ universal functions
+    #include <xtensor/xmath.hpp>          // xtensor import for the C++ universal functions
     #include <xtensor-r/rarray.hpp>       // R bindings
     #include <Rcpp.h>
 
@@ -318,7 +318,7 @@ xtensor-blas
 The xtensor-blas_ project is an extension to the xtensor library, offering
 bindings to BLAS and LAPACK libraries through cxxblas and cxxlapack from the
 FLENS project. ``xtensor-blas`` powers the ``xt::linalg`` functionalities,
-which are the counterpart to NumPy's ``linalg`` module.
+which are the counterpart to numpy's ``linalg`` module.
 
 xtensor-fftw
 ------------
@@ -328,7 +328,7 @@ xtensor-fftw
 
 The xtensor-fftw_ project is an extension to the xtensor library, offering
 bindings to the fftw library.  ``xtensor-fftw`` powers the ``xt::fftw``
-functionalities, which are the counterpart to NumPy's ``fft`` module.
+functionalities, which are the counterpart to numpy's ``fft`` module.
 
 Example 1: Calculate a derivative in Fourier space
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
@@ -339,13 +339,13 @@ Calculate the derivative of a (discretized) field in Fourier space, e.g. a sine 
 
 .. code::
 
-    #include <xtensor-fftw/basic.hpp>          // rfft, irfft
-    #include <xtensor-fftw/helper.hpp>         // rfftscale
-    #include <xtensor/containers/xarray.hpp>
-    #include <xtensor/generators/xbuilder.hpp> // xt::arange
-    #include <xtensor/core/xmath.hpp>          // xt::sin, cos
+    #include <xtensor-fftw/basic.hpp>   // rfft, irfft
+    #include <xtensor-fftw/helper.hpp>  // rfftscale
+    #include <xtensor/xarray.hpp>
+    #include <xtensor/xbuilder.hpp>     // xt::arange
+    #include <xtensor/xmath.hpp>        // xt::sin, cos
     #include <complex>
-    #include <xtensor/io/xio.hpp>
+    #include <xtensor/xio.hpp>
 
     // generate a sinusoid field
     double dx = M_PI / 100;
@@ -406,7 +406,7 @@ The xsimd_ project provides a unified API for making use of the SIMD features
 of modern preprocessors for C++ library authors. It also provides accelerated
 implementation of common mathematical functions operating on batches.
 
-xsimd_ is an optional dependency to *xtensor* which enable SIMD vectorization
+xsimd_ is an optional dependency to ``xtensor`` which enable SIMD vectorization
 of xtensor operations. This feature is enabled with the ``XTENSOR_USE_XSIMD``
 compilation flag, which is set to ``false`` by default.
 
@@ -416,7 +416,7 @@ xtl
 .. image:: xtl.svg
    :alt: xtl
 
-The xtl_ project, the only dependency of *xtensor* is a C++ template library
+The xtl_ project, the only dependency of ``xtensor`` is a C++ template library
 holding the implementation of basic tools used across the libraries in the ecosystem.
 
 xframe
@@ -426,7 +426,7 @@ xframe
    :alt: xframe
 
 The xframe_ project provides multi-dimensional labeled arrays and a data frame for C++,
-based on *xtensor* and *xtl*.
+based on ``xtensor`` and ``xtl``.
 
 `xframe` provides
 
@@ -443,7 +443,7 @@ The z5_ project implements the zarr_ and n5_ storage specifications in C++.
 Both specifications describe chunked nd-array storage similar to HDF5, but
 use the filesystem to store chunks. This design allows for parallel write access
 and efficient cloud based storage, crucial requirements in modern big data applications.
-The project uses *xtensor* to represent arrays in memory
+The project uses ``xtensor`` to represent arrays in memory
 and also provides a python wrapper based on ``xtensor-python``.
 
 .. _xtensor-python: https://github.com/xtensor-stack/xtensor-python

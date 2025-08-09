@@ -1,21 +1,19 @@
 /***************************************************************************
- * Copyright (c) Johan Mabille, Sylvain Corlay and Wolf Vollprecht          *
- * Copyright (c) QuantStack                                                 *
- *                                                                          *
- * Distributed under the terms of the BSD 3-Clause License.                 *
- *                                                                          *
- * The full license is in the file LICENSE, distributed with this software. *
- ****************************************************************************/
+* Copyright (c) Johan Mabille, Sylvain Corlay and Wolf Vollprecht          *
+* Copyright (c) QuantStack                                                 *
+*                                                                          *
+* Distributed under the terms of the BSD 3-Clause License.                 *
+*                                                                          *
+* The full license is in the file LICENSE, distributed with this software. *
+****************************************************************************/
 
-
-#include <type_traits>
-
-#include "xtensor/containers/xarray.hpp"
-#include "xtensor/containers/xtensor.hpp"
-#include "xtensor/io/xio.hpp"
-#include "xtensor/misc/xmanipulation.hpp"
-
+#include "gtest/gtest.h"
+#include "xtensor/xarray.hpp"
+#include "xtensor/xtensor.hpp"
+#include "xtensor/xmanipulation.hpp"
+#include "xtensor/xio.hpp"
 #include "test_common.hpp"
+#include <type_traits>
 
 namespace xt
 {
@@ -23,22 +21,22 @@ namespace xt
 
     TEST(xarray, shaped_constructor)
     {
-        SUBCASE("row_major constructor")
         {
+            SCOPED_TRACE("row_major constructor");
             row_major_result<> rm;
             xarray_dynamic ra(rm.m_shape, layout_type::row_major);
             compare_shape(ra, rm);
         }
 
-        SUBCASE("column_major constructor")
         {
+            SCOPED_TRACE("column_major constructor");
             column_major_result<> cm;
             xarray<int, layout_type::column_major> ca(cm.m_shape);
             compare_shape(ca, cm);
         }
 
-        SUBCASE("from shape")
         {
+            SCOPED_TRACE("from shape");
             std::array<std::size_t, 3> shp = {5, 4, 2};
             std::vector<std::size_t> shp_as_vec = {5, 4, 2};
             auto ca = xarray<int, layout_type::column_major>::from_shape({3, 2, 1});
@@ -58,8 +56,8 @@ namespace xt
 
     TEST(xarray, valued_constructor)
     {
-        SUBCASE("row_major valued constructor")
         {
+            SCOPED_TRACE("row_major valued constructor");
             row_major_result<> rm;
             int value = 2;
             xarray_dynamic ra(rm.m_shape, value, layout_type::row_major);
@@ -68,8 +66,8 @@ namespace xt
             EXPECT_EQ(ra.storage(), vec);
         }
 
-        SUBCASE("column_major valued constructor")
         {
+            SCOPED_TRACE("column_major valued constructor");
             column_major_result<> cm;
             int value = 2;
             xarray<int, layout_type::column_major> ca(cm.m_shape, value);
@@ -102,15 +100,15 @@ namespace xt
         int value = 2;
         xarray_dynamic a(res.m_shape, res.m_strides, value);
 
-        SUBCASE("copy constructor")
         {
+            SCOPED_TRACE("copy constructor");
             xarray_dynamic b(a);
             compare_shape(a, b);
             EXPECT_EQ(a.storage(), b.storage());
         }
 
-        SUBCASE("assignment operator")
         {
+            SCOPED_TRACE("assignment operator");
             row_major_result<> r;
             xarray_dynamic c(r.m_shape, 0);
             EXPECT_NE(a.storage(), c.storage());
@@ -126,16 +124,16 @@ namespace xt
         int value = 2;
         xarray_dynamic a(res.m_shape, res.m_strides, value);
 
-        SUBCASE("move constructor")
         {
+            SCOPED_TRACE("move constructor");
             xarray_dynamic tmp(a);
             xarray_dynamic b(std::move(tmp));
             compare_shape(a, b);
             EXPECT_EQ(a.storage(), b.storage());
         }
 
-        SUBCASE("move assignment")
         {
+            SCOPED_TRACE("move assignment");
             row_major_result<> r;
             xarray_dynamic c(r.m_shape, 0);
             EXPECT_NE(a.storage(), c.storage());
@@ -260,7 +258,7 @@ namespace xt
         EXPECT_EQ(8, c());
 
         EXPECT_EQ(8, c(1, 2));
-        xindex idx = {1, 2};
+        xindex idx = { 1, 2 };
         EXPECT_EQ(8, c.element(idx.cbegin(), idx.cend()));
     }
 
@@ -278,8 +276,10 @@ namespace xt
 
     TEST(xarray, cross_layout_assign)
     {
-        xarray<int, layout_type::row_major> a = {{1, 2, 3, 4}, {5, 6, 7, 8}};
-        xarray<int, layout_type::column_major> b = {{1, 2, 3, 4}, {5, 6, 7, 8}};
+        xarray<int, layout_type::row_major> a = {{1, 2, 3, 4},
+                                                 {5, 6, 7, 8}};
+        xarray<int, layout_type::column_major> b = {{1, 2, 3, 4},
+                                                    {5, 6, 7, 8}};
 
         xarray<int, layout_type::column_major> ra = a;
         EXPECT_EQ(b, ra);
@@ -296,18 +296,12 @@ namespace xt
 
     TEST(xarray, move_from_xtensor)
     {
-        xtensor<double, 3> a = {{{1, 2, 3}, {4, 5, 6}}, {{10, 10, 10}, {1, 5, 10}}};
+        xtensor<double, 3> a = {{{1,2,3}, {4,5,6}}, {{10, 10, 10}, {1,5,10}}};
         xtensor<double, 3> a1 = a;
         xarray<double> b(std::move(a1));
         EXPECT_EQ(a, b);
-        EXPECT_TRUE(
-            std::equal(a.strides().begin(), a.strides().end(), b.strides().begin())
-            && a.strides().size() == b.strides().size()
-        );
-        EXPECT_TRUE(
-            std::equal(a.backstrides().begin(), a.backstrides().end(), b.backstrides().begin())
-            && a.backstrides().size() == b.backstrides().size()
-        );
+        EXPECT_TRUE(std::equal(a.strides().begin(), a.strides().end(), b.strides().begin()) && a.strides().size() == b.strides().size());
+        EXPECT_TRUE(std::equal(a.backstrides().begin(), a.backstrides().end(), b.backstrides().begin()) && a.backstrides().size() == b.backstrides().size());
         EXPECT_EQ(a.layout(), b.layout());
 
         xtensor<double, 3> a2 = a;
@@ -315,83 +309,58 @@ namespace xt
         c = std::move(a2);
 
         EXPECT_EQ(a, c);
-        EXPECT_TRUE(
-            std::equal(a.strides().begin(), a.strides().end(), c.strides().begin())
-            && a.strides().size() == c.strides().size()
-        );
-        EXPECT_TRUE(
-            std::equal(a.backstrides().begin(), a.backstrides().end(), c.backstrides().begin())
-            && a.backstrides().size() == c.backstrides().size()
-        );
+        EXPECT_TRUE(std::equal(a.strides().begin(), a.strides().end(), c.strides().begin()) && a.strides().size() == c.strides().size());
+        EXPECT_TRUE(std::equal(a.backstrides().begin(), a.backstrides().end(), c.backstrides().begin()) && a.backstrides().size() == c.backstrides().size());
         EXPECT_EQ(a.layout(), c.layout());
-    }
-
-    TEST(xarray, operator_brace)
-    {
-#ifdef XTENSOR_ENABLE_ASSERT
-        xt::xarray<size_t> a = {{0, 1, 2}, {3, 4, 5}};
-        EXPECT_THROW(a(2, 0), std::runtime_error);
-        EXPECT_THROW(a(0, 3), std::runtime_error);
-
-        xt::xarray<size_t> b = {{0, 1, 2}};
-        EXPECT_THROW(a(0, 3), std::runtime_error);
-        EXPECT_THROW(a(1, 3), std::runtime_error);
-#endif
     }
 
     TEST(xarray, periodic)
     {
-        xt::xarray<size_t> a = {{0, 1, 2}, {3, 4, 5}};
-        xt::xarray<size_t> b = {{0, 1, 2}, {30, 40, 50}};
-        a.periodic(-1, 3) = 30;
-        a.periodic(-1, 4) = 40;
-        a.periodic(-1, 5) = 50;
+        xt::xarray<size_t> a = {{0,1,2}, {3,4,5}};
+        xt::xarray<size_t> b = {{0,1,2}, {30,40,50}};
+        a.periodic(-1,3) = 30;
+        a.periodic(-1,4) = 40;
+        a.periodic(-1,5) = 50;
         EXPECT_EQ(a, b);
     }
 
     TEST(xarray, front)
     {
-        xt::xarray<size_t> a = {{1, 2, 3}, {4, 5, 6}};
+        xt::xarray<size_t> a = {{1,2,3}, {4,5,6}};
         EXPECT_EQ(a.front(), 1);
     }
 
     TEST(xarray, back)
     {
-        xt::xarray<size_t> a = {{1, 2, 3}, {4, 5, 6}};
+        xt::xarray<size_t> a = {{1,2,3}, {4,5,6}};
         EXPECT_EQ(a.back(), 6);
     }
 
     TEST(xarray, flat)
     {
         {
-            xt::xarray<size_t, xt::layout_type::row_major> a = {{0, 1, 2}, {3, 4, 5}};
-            xt::xarray<size_t, xt::layout_type::row_major> b = {{0, 1, 2}, {30, 40, 50}};
+            xt::xarray<size_t, xt::layout_type::row_major> a = {{0,1,2}, {3,4,5}};
+            xt::xarray<size_t, xt::layout_type::row_major> b = {{0,1,2}, {30,40,50}};
             a.flat(3) = 30;
             a.flat(4) = 40;
             a.flat(5) = 50;
             EXPECT_EQ(a, b);
-#ifdef XTENSOR_ENABLE_ASSERT
-            EXPECT_THROW(a.flat(6), std::runtime_error);
-#endif
         }
         {
-            xt::xarray<size_t, xt::layout_type::column_major> a = {{0, 1, 2}, {3, 4, 5}};
-            xt::xarray<size_t, xt::layout_type::column_major> b = {{0, 1, 2}, {30, 40, 50}};
+            xt::xarray<size_t, xt::layout_type::column_major> a = {{0,1,2}, {3,4,5}};
+            xt::xarray<size_t, xt::layout_type::column_major> b = {{0,1,2}, {30,40,50}};
             a.flat(1) = 30;
             a.flat(3) = 40;
             a.flat(5) = 50;
             EXPECT_EQ(a, b);
-#ifdef XTENSOR_ENABLE_ASSERT
-            EXPECT_THROW(a.flat(6), std::runtime_error);
-#endif
         }
     }
 
     TEST(xarray, in_bounds)
     {
-        xt::xarray<size_t> a = {{0, 1, 2}, {3, 4, 5}};
-        EXPECT_TRUE(a.in_bounds(0, 0) == true);
-        EXPECT_TRUE(a.in_bounds(2, 0) == false);
+        xt::xarray<size_t> a = {{0,1,2}, {3,4,5}};
+        EXPECT_TRUE(a.in_bounds(0,0) == true);
+        EXPECT_TRUE(a.in_bounds(2,0) == false);
     }
 
     TEST(xarray, iterator_types)
@@ -400,8 +369,7 @@ namespace xt
         test_iterator_types<array_type, int*, const int*>();
     }
 
-    auto test_reshape_compile()
-    {
+    auto test_reshape_compile() {
         xt::xarray<double> a = xt::zeros<double>({5, 5});
         return a.reshape({1, 25});
     }

@@ -1,11 +1,8 @@
 name: xtensor
 channels:
-- conda-forge
+  - conda-forge
 dependencies:
-- cmake
-- xtl=0.8.0
-- xsimd=13.2.0
-- nlohmann_json
-- doctest
-- pre-commit
-- ninja
+  - cmake
+  - xtl=0.7.0
+  - xsimd=7.4.9
+  - nlohmann_json

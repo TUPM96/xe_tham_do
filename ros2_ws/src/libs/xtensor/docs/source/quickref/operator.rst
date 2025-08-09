@@ -7,9 +7,9 @@
 Operators
 =========
 
-Operations and functions of *xtensor* are not evaluated until they are assigned.
+Operations and functions of ``xtensor`` are not evaluated until they are assigned.
 In the following, ``e1``, ``e2`` and ``e3`` can be arbitrary tensor expressions.
-The results of operations and functions are assigned to :cpp:type:`xt::xarray` in the examples,
+The results of operations and functions are assigned to ``xt::xarray`` in the examples,
 but that could be any other container (or even views). To keep an unevaluated
 operator / function, assign to an ``auto`` variable:
 
@@ -84,3 +84,4 @@ comparison and return a boolean:
 
     bool res0 = e1 == e2; // true if all elements in e1 equal those in e2
     bool res1 = e1 != e2;
+

@@ -7,8 +7,8 @@
 Builders
 ========
 
-Most of *xtensor* builders return unevaluated expressions (see :ref:`lazy-evaluation`
-for more details) that can be assigned to any kind of *xtensor* container.
+Most of ``xtensor`` builders return unevaluated expressions (see :ref:`lazy-evaluation`
+for more details) that can be assigned to any kind of ``xtensor`` container.
 
 Ones
 ----
@@ -198,7 +198,7 @@ HStack
 
     xt::xarray<double> a1 = {1, 2, 3};
     xt::xarray<double> b1 = {2, 3 ,4};
-    auto c1 = xt::hstack(xt::xtuple(a1, b1));
+    auto c1 = xt::hastack(xt::xtuple(a1, b1));
     std::cout << c1 << std::endl;
     // Outputs {1, 2, 3, 2, 3, 4}
 
@@ -229,7 +229,7 @@ Returns a 2D-expression using the input value as its diagonal:
     xt::xarray<double> a = {1, 5, 7};
     auto b = xt::diag(a);
     std::cout << b << std::endl;
-    // Outputs {{1, 0, 0} {0, 5, 0}, {0, 0, 7}}
+    // Outputs {{1, 0, 0} {0, 5, 0}, {5, 0, 7}}
 
 Diagonal
 --------
@@ -244,3 +244,6 @@ Returns the elements on the diagonal of the expression
     auto d = xt::diagonal(a);
     std::cout << d << std::endl;
     // Outputs {1, 5, 9}
+
+
+

@@ -1,15 +1,15 @@
 /***************************************************************************
- * Copyright (c) 2016, Johan Mabille, Sylvain Corlay and Wolf Vollprecht    *
- *                                                                          *
- * Distributed under the terms of the BSD 3-Clause License.                 *
- *                                                                          *
- * The full license is in the file LICENSE, distributed with this software. *
- ****************************************************************************/
+* Copyright (c) 2016, Johan Mabille, Sylvain Corlay and Wolf Vollprecht    *
+*                                                                          *
+* Distributed under the terms of the BSD 3-Clause License.                 *
+*                                                                          *
+* The full license is in the file LICENSE, distributed with this software. *
+****************************************************************************/
 
 #include <benchmark/benchmark.h>
 
-#include "xtensor/containers/xarray.hpp"
-#include "xtensor/generators/xrandom.hpp"
+#include "xtensor/xarray.hpp"
+#include "xtensor/xrandom.hpp"
 
 #define SHAPE 30, 30
 #define RANGE 3, 100
@@ -42,7 +42,6 @@ namespace xt
                 benchmark::DoNotOptimize(c);
             }
         }
-
         BENCHMARK(stepper_stepper)->Range(RANGE);
 
         void stepper_stepper_ref(benchmark::State& state)
@@ -66,7 +65,6 @@ namespace xt
                 benchmark::DoNotOptimize(c);
             }
         }
-
         BENCHMARK(stepper_stepper_ref)->Range(RANGE);
     }
 }

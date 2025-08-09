@@ -1,22 +1,20 @@
 /***************************************************************************
- * Copyright (c) Johan Mabille, Sylvain Corlay and Wolf Vollprecht          *
- * Copyright (c) QuantStack                                                 *
- *                                                                          *
- * Distributed under the terms of the BSD 3-Clause License.                 *
- *                                                                          *
- * The full license is in the file LICENSE, distributed with this software. *
- ****************************************************************************/
+* Copyright (c) Johan Mabille, Sylvain Corlay and Wolf Vollprecht          *
+* Copyright (c) QuantStack                                                 *
+*                                                                          *
+* Distributed under the terms of the BSD 3-Clause License.                 *
+*                                                                          *
+* The full license is in the file LICENSE, distributed with this software. *
+****************************************************************************/
 
 #include <complex>
 #include <limits>
 
-#include "xtensor/containers/xarray.hpp"
-#include "xtensor/containers/xtensor.hpp"
-#include "xtensor/views/xview.hpp"
-
-#include "test_common_macros.hpp"
-
+#include "gtest/gtest.h"
+#include "xtensor/xtensor.hpp"
+#include "xtensor/xarray.hpp"
 // #include "xtensor/xfixed.hpp"
+#include "xtensor/xview.hpp"
 
 namespace xt
 {
@@ -48,6 +46,7 @@ namespace xt
         EXPECT_TRUE(sfinae_rank_basic_func(2ul * a) == 0ul);
         EXPECT_TRUE(sfinae_rank_basic_func(2ul * b) == 0ul);
         EXPECT_TRUE(sfinae_rank_basic_func(2ul * c) == 0ul);
+
     }
 
     template <class E, std::enable_if_t<xt::has_rank_t<E, SIZE_MAX>::value, int> = 0>

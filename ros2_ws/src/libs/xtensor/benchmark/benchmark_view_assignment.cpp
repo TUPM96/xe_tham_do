@@ -1,18 +1,18 @@
 /***************************************************************************
- * Copyright (c) 2016, Johan Mabille, Sylvain Corlay and Wolf Vollprecht    *
- *                                                                          *
- * Distributed under the terms of the BSD 3-Clause License.                 *
- *                                                                          *
- * The full license is in the file LICENSE, distributed with this software. *
- ****************************************************************************/
+* Copyright (c) 2016, Johan Mabille, Sylvain Corlay and Wolf Vollprecht    *
+*                                                                          *
+* Distributed under the terms of the BSD 3-Clause License.                 *
+*                                                                          *
+* The full license is in the file LICENSE, distributed with this software. *
+****************************************************************************/
 
 #include <benchmark/benchmark.h>
 
-#include "xtensor/containers/xarray.hpp"
-#include "xtensor/containers/xfixed.hpp"
-#include "xtensor/containers/xtensor.hpp"
-#include "xtensor/core/xnoalias.hpp"
-#include "xtensor/generators/xrandom.hpp"
+#include "xtensor/xnoalias.hpp"
+#include "xtensor/xtensor.hpp"
+#include "xtensor/xarray.hpp"
+#include "xtensor/xfixed.hpp"
+#include "xtensor/xrandom.hpp"
 
 namespace xt
 {
@@ -61,24 +61,23 @@ namespace xt
         }
     }
 
-    /**
-     *     inline void assign_create_strided_view(benchmark::State& state)
-     *     {
-     *         xt::xtensor<double, 4> tens = xt::random::rand<double>({100, 100, 3, 3});
-     *         for (auto _ : state)
-     *         {
-     *             for (std::size_t i = 0; i < tens.shape()[0]; ++i)
-     *             {
-     *                 for (std::size_t j = 0; j < tens.shape()[1]; ++j)
-     *                 {
-     *                     auto v = xt::strided_view(tens, {i, j, all(), all()});
-     *                     xt::xtensor<double, 2> vas = v;
-     *                     benchmark::ClobberMemory();
-     *                 }
-     *             }
-     *         }
-     *     }
-     */
+    inline void assign_create_strided_view(benchmark::State& state)
+    {
+        xt::xtensor<double, 4> tens = xt::random::rand<double>({100, 100, 3, 3});
+        for (auto _ : state)
+        {
+            for (std::size_t i = 0; i < tens.shape()[0]; ++i)
+            {
+                for (std::size_t j = 0; j < tens.shape()[1]; ++j)
+                {
+                    auto v = xt::strided_view(tens, {i, j, all(), all()});
+                    xt::xtensor<double, 2> vas = v;
+                    benchmark::ClobberMemory();
+                }
+            }
+        }
+    }
+
     inline void assign_create_manual_view(benchmark::State& state)
     {
         xt::xtensor<double, 4> tens = xt::random::rand<double>({100, 100, 3, 3});
@@ -152,9 +151,9 @@ namespace xt
     BENCHMARK(create_strided_view_outofplace);
     BENCHMARK(create_strided_view_inplace);
     BENCHMARK(assign_create_manual_noview);
-    //    BENCHMARK(assign_create_strided_view);
+    BENCHMARK(assign_create_strided_view);
     BENCHMARK(assign_create_view);
     BENCHMARK(assign_create_manual_view);
-    // BENCHMARK(data_offset);
+    BENCHMARK(data_offset);
     BENCHMARK(data_offset_view);
 }

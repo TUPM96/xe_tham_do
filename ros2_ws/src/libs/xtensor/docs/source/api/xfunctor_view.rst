@@ -7,12 +7,16 @@
 xfunctor_view
 =============
 
-.. cpp:namespace-push:: xt
+Defined in ``xtensor/xfunctor_view.hpp``
 
-.. doxygengroup:: xt_xfunctor_view
+.. doxygenclass:: xt::xfunctor_view
+   :project: xtensor
    :members:
-   :undoc-members:
 
-.. doxygengroup:: xt_xcomplex
+Defined in ``xtensor/xcomplex.hpp``
 
-.. cpp:namespace-pop::
+.. doxygenfunction:: xt::real(E&&)
+   :project: xtensor
+
+.. doxygenfunction:: xt::imag(E&&)
+   :project: xtensor

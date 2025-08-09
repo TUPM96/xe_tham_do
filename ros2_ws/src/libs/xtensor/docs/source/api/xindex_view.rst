@@ -7,16 +7,21 @@
 xindex_view
 ===========
 
-Defined in ``xtensor/views/xindex_view.hpp``
+Defined in ``xtensor/xindex_view.hpp``
 
 .. doxygenclass:: xt::xindex_view
+   :project: xtensor
    :members:
 
 .. doxygenclass:: xt::xfiltration
+   :project: xtensor
    :members:
 
 .. doxygenfunction:: xt::index_view(E&&, I&&)
+   :project: xtensor
 
 .. doxygenfunction:: xt::filter
+   :project: xtensor
 
 .. doxygenfunction:: xt::filtration
+   :project: xtensor

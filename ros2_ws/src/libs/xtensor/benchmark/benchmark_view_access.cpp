@@ -8,14 +8,14 @@
 
 #include <benchmark/benchmark.h>
 
-// #include "xtensor/core/core/xshape.hpp"
-#include "xtensor/containers/xadapt.hpp"
-#include "xtensor/containers/xstorage.hpp"
-#include "xtensor/core/xnoalias.hpp"
-#include "xtensor/generators/xbuilder.hpp"
-#include "xtensor/generators/xrandom.hpp"
-#include "xtensor/utils/xutils.hpp"
-#include "xtensor/views/xview.hpp"
+// #include "xtensor/xshape.hpp"
+#include "xtensor/xadapt.hpp"
+#include "xtensor/xnoalias.hpp"
+#include "xtensor/xrandom.hpp"
+#include "xtensor/xbuilder.hpp"
+#include "xtensor/xstorage.hpp"
+#include "xtensor/xutils.hpp"
+#include "xtensor/xview.hpp"
 
 namespace xt
 {
@@ -23,12 +23,10 @@ namespace xt
     class simple_array
     {
     public:
-
         using self_type = simple_array<T, N>;
         using shape_type = std::array<ptrdiff_t, N>;
 
         simple_array() = default;
-
         explicit simple_array(const std::array<ptrdiff_t, N>& shape)
             : m_shape(shape)
         {
@@ -68,13 +66,11 @@ namespace xt
             }
             return memory[offset];
         }
-
         xt::uvector<T> memory;
         std::array<ptrdiff_t, N> m_shape, m_strides;
     };
 
-    void xview_access_calc(benchmark::State& state)
-    {
+    void xview_access_calc(benchmark::State &state) {
         xt::xtensor<double, 4> A = xt::random::rand<double>({100, 100, 4, 4});
         xt::xtensor<double, 3> elemvec = xt::random::rand<double>({100, 4, 4});
         xt::xtensor<double, 2> eps = xt::empty<double>({2, 2});
@@ -91,14 +87,15 @@ namespace xt
                     // - evaluate symmetrized dyadic product (loops unrolled for efficiency)
                     //       grad(i,j) += dNx(m,i) * u(m,j)
                     //       eps (j,i)      = 0.5 * ( grad(i,j) + grad(j,i) )
-                    eps(0, 0) = dNx(0, 0) * u(0, 0) + dNx(1, 0) * u(1, 0) + dNx(2, 0) * u(2, 0)
-                                + dNx(3, 0) * u(3, 0);
-                    eps(1, 1) = dNx(0, 1) * u(0, 1) + dNx(1, 1) * u(1, 1) + dNx(2, 1) * u(2, 1)
-                                + dNx(3, 1) * u(3, 1);
-                    eps(0, 1) = (dNx(0, 1) * u(0, 0) + dNx(1, 1) * u(1, 0) + dNx(2, 1) * u(2, 0)
-                                 + dNx(3, 1) * u(3, 0) + dNx(0, 0) * u(0, 1) + dNx(1, 0) * u(1, 1)
-                                 + dNx(2, 0) * u(2, 1) + dNx(3, 0) * u(3, 1))
-                                / 2.;
+                    eps(0, 0) = dNx(0, 0) * u(0, 0) + dNx(1, 0) * u(1, 0) +
+                                dNx(2, 0) * u(2, 0) + dNx(3, 0) * u(3, 0);
+                    eps(1, 1) = dNx(0, 1) * u(0, 1) + dNx(1, 1) * u(1, 1) +
+                                dNx(2, 1) * u(2, 1) + dNx(3, 1) * u(3, 1);
+                    eps(0, 1) =
+                              (dNx(0, 1) * u(0, 0) + dNx(1, 1) * u(1, 0) + dNx(2, 1) * u(2, 0) +
+                               dNx(3, 1) * u(3, 0) + dNx(0, 0) * u(0, 1) + dNx(1, 0) * u(1, 1) +
+                               dNx(2, 0) * u(2, 1) + dNx(3, 0) * u(3, 1)) /
+                              2.;
                     eps(1, 0) = eps(0, 1);
                     benchmark::DoNotOptimize(eps.storage());
                 }
@@ -106,8 +103,7 @@ namespace xt
         }
     }
 
-    void raw_access_calc(benchmark::State& state)
-    {
+    void raw_access_calc(benchmark::State &state) {
         xt::xtensor<double, 4> A = xt::random::rand<double>({100, 100, 4, 4});
         xt::xtensor<double, 3> elemvec = xt::random::rand<double>({100, 4, 4});
         xt::xtensor<double, 2> eps = xt::empty<double>({2, 2});
@@ -121,15 +117,15 @@ namespace xt
                     // - evaluate symmetrized dyadic product (loops unrolled for efficiency)
                     //       grad(i,j) += dNx(m,i) * u(m,j)
                     //       eps (j,i)      = 0.5 * ( grad(i,j) + grad(j,i) )
-                    eps(0, 0) = A(e, k, 0, 0) * elemvec(e, 0, 0) + A(e, k, 1, 0) * elemvec(e, 1, 0)
-                                + A(e, k, 2, 0) * elemvec(e, 2, 0) + A(e, k, 3, 0) * elemvec(e, 3, 0);
-                    eps(1, 1) = A(e, k, 0, 1) * elemvec(e, 0, 1) + A(e, k, 1, 1) * elemvec(e, 1, 1)
-                                + A(e, k, 2, 1) * elemvec(e, 2, 1) + A(e, k, 3, 1) * elemvec(e, 3, 1);
-                    eps(0, 1) = (A(e, k, 0, 1) * elemvec(e, 0, 0) + A(e, k, 1, 1) * elemvec(e, 1, 0)
-                                 + A(e, k, 2, 1) * elemvec(e, 2, 0) + A(e, k, 3, 1) * elemvec(e, 3, 0)
-                                 + A(e, k, 0, 0) * elemvec(e, 0, 1) + A(e, k, 1, 0) * elemvec(e, 1, 1)
-                                 + A(e, k, 2, 0) * elemvec(e, 2, 1) + A(e, k, 3, 0) * elemvec(e, 3, 1))
-                                / 2.;
+                    eps(0, 0) = A(e, k, 0, 0) * elemvec(e, 0, 0) + A(e, k, 1, 0) * elemvec(e, 1, 0) +
+                                A(e, k, 2, 0) * elemvec(e, 2, 0) + A(e, k, 3, 0) * elemvec(e, 3, 0);
+                    eps(1, 1) = A(e, k, 0, 1) * elemvec(e, 0, 1) + A(e, k, 1, 1) * elemvec(e, 1, 1) +
+                                A(e, k, 2, 1) * elemvec(e, 2, 1) + A(e, k, 3, 1) * elemvec(e, 3, 1);
+                    eps(0, 1) = (A(e, k, 0, 1) * elemvec(e, 0, 0) + A(e, k, 1, 1) * elemvec(e, 1, 0) +
+                                 A(e, k, 2, 1) * elemvec(e, 2, 0) + A(e, k, 3, 1) * elemvec(e, 3, 0) +
+                                 A(e, k, 0, 0) * elemvec(e, 0, 1) + A(e, k, 1, 0) * elemvec(e, 1, 1) +
+                                 A(e, k, 2, 0) * elemvec(e, 2, 1) + A(e, k, 3, 0) * elemvec(e, 3, 1)) /
+                                 2.;
                     eps(1, 0) = eps(0, 1);
                     benchmark::DoNotOptimize(eps.storage());
                 }
@@ -137,8 +133,7 @@ namespace xt
         }
     }
 
-    void unchecked_access_calc(benchmark::State& state)
-    {
+    void unchecked_access_calc(benchmark::State &state) {
         xt::xtensor<double, 4> A = xt::random::rand<double>({100, 100, 4, 4});
         xt::xtensor<double, 3> elemvec = xt::random::rand<double>({100, 4, 4});
         xt::xtensor<double, 2> eps = xt::empty<double>({2, 2});
@@ -152,23 +147,26 @@ namespace xt
                     // - evaluate symmetrized dyadic product (loops unrolled for efficiency)
                     //       grad(i,j) += dNx(m,i) * u(m,j)
                     //       eps (j,i)      = 0.5 * ( grad(i,j) + grad(j,i) )
-                    eps.unchecked(0, 0) = A.unchecked(e, k, 0, 0) * elemvec.unchecked(e, 0, 0)
-                                          + A.unchecked(e, k, 1, 0) * elemvec.unchecked(e, 1, 0)
-                                          + A.unchecked(e, k, 2, 0) * elemvec.unchecked(e, 2, 0)
-                                          + A.unchecked(e, k, 3, 0) * elemvec.unchecked(e, 3, 0);
-                    eps.unchecked(1, 1) = A.unchecked(e, k, 0, 1) * elemvec.unchecked(e, 0, 1)
-                                          + A.unchecked(e, k, 1, 1) * elemvec.unchecked(e, 1, 1)
-                                          + A.unchecked(e, k, 2, 1) * elemvec.unchecked(e, 2, 1)
-                                          + A.unchecked(e, k, 3, 1) * elemvec.unchecked(e, 3, 1);
-                    eps.unchecked(0, 1) = (A.unchecked(e, k, 0, 1) * elemvec.unchecked(e, 0, 0)
-                                           + A.unchecked(e, k, 1, 1) * elemvec.unchecked(e, 1, 0)
-                                           + A.unchecked(e, k, 2, 1) * elemvec.unchecked(e, 2, 0)
-                                           + A.unchecked(e, k, 3, 1) * elemvec.unchecked(e, 3, 0)
-                                           + A.unchecked(e, k, 0, 0) * elemvec.unchecked(e, 0, 1)
-                                           + A.unchecked(e, k, 1, 0) * elemvec.unchecked(e, 1, 1)
-                                           + A.unchecked(e, k, 2, 0) * elemvec.unchecked(e, 2, 1)
-                                           + A.unchecked(e, k, 3, 0) * elemvec.unchecked(e, 3, 1))
-                                          / 2.;
+                    eps.unchecked(0, 0) =
+                        A.unchecked(e, k, 0, 0) * elemvec.unchecked(e, 0, 0) +
+                        A.unchecked(e, k, 1, 0) * elemvec.unchecked(e, 1, 0) +
+                        A.unchecked(e, k, 2, 0) * elemvec.unchecked(e, 2, 0) +
+                        A.unchecked(e, k, 3, 0) * elemvec.unchecked(e, 3, 0);
+                    eps.unchecked(1, 1) =
+                        A.unchecked(e, k, 0, 1) * elemvec.unchecked(e, 0, 1) +
+                        A.unchecked(e, k, 1, 1) * elemvec.unchecked(e, 1, 1) +
+                        A.unchecked(e, k, 2, 1) * elemvec.unchecked(e, 2, 1) +
+                        A.unchecked(e, k, 3, 1) * elemvec.unchecked(e, 3, 1);
+                    eps.unchecked(0, 1) =
+                        (A.unchecked(e, k, 0, 1) * elemvec.unchecked(e, 0, 0) +
+                         A.unchecked(e, k, 1, 1) * elemvec.unchecked(e, 1, 0) +
+                         A.unchecked(e, k, 2, 1) * elemvec.unchecked(e, 2, 0) +
+                         A.unchecked(e, k, 3, 1) * elemvec.unchecked(e, 3, 0) +
+                         A.unchecked(e, k, 0, 0) * elemvec.unchecked(e, 0, 1) +
+                         A.unchecked(e, k, 1, 0) * elemvec.unchecked(e, 1, 1) +
+                         A.unchecked(e, k, 2, 0) * elemvec.unchecked(e, 2, 1) +
+                         A.unchecked(e, k, 3, 0) * elemvec.unchecked(e, 3, 1)) /
+                        2.;
                     eps.unchecked(1, 0) = eps.unchecked(0, 1);
                     benchmark::DoNotOptimize(eps.storage());
                 }
@@ -176,8 +174,7 @@ namespace xt
         }
     }
 
-    void simplearray_access_calc(benchmark::State& state)
-    {
+    void simplearray_access_calc(benchmark::State &state) {
         simple_array<double, 4> A(std::array<ptrdiff_t, 4>{100, 100, 4, 2});
         simple_array<double, 3> elemvec(std::array<ptrdiff_t, 3>{100, 4, 2});
         simple_array<double, 2> eps(std::array<ptrdiff_t, 2>{2, 2});
@@ -191,15 +188,23 @@ namespace xt
                     // - evaluate sy mmetrized dyadic product (loops unrolled for efficiency)
                     //             grad(i,j) += dNx(m,i) * u(m,j)
                     //             eps (j,i)            = 0.5 * ( grad(i,j) + grad(j,i) )
-                    eps(0, 0) = A(e, k, 0, 0) * elemvec(e, 0, 0) + A(e, k, 1, 0) * elemvec(e, 1, 0)
-                                + A(e, k, 2, 0) * elemvec(e, 2, 0) + A(e, k, 3, 0) * elemvec(e, 3, 0);
-                    eps(1, 1) = A(e, k, 0, 1) * elemvec(e, 0, 1) + A(e, k, 1, 1) * elemvec(e, 1, 1)
-                                + A(e, k, 2, 1) * elemvec(e, 2, 1) + A(e, k, 3, 1) * elemvec(e, 3, 1);
-                    eps(0, 1) = (A(e, k, 0, 1) * elemvec(e, 0, 0) + A(e, k, 1, 1) * elemvec(e, 1, 0)
-                                 + A(e, k, 2, 1) * elemvec(e, 2, 0) + A(e, k, 3, 1) * elemvec(e, 3, 0)
-                                 + A(e, k, 0, 0) * elemvec(e, 0, 1) + A(e, k, 1, 0) * elemvec(e, 1, 1)
-                                 + A(e, k, 2, 0) * elemvec(e, 2, 1) + A(e, k, 3, 0) * elemvec(e, 3, 1))
-                                / 2.;
+                    eps(0, 0) = A(e, k, 0, 0) * elemvec(e, 0, 0) +
+                                                        A(e, k, 1, 0) * elemvec(e, 1, 0) +
+                                                        A(e, k, 2, 0) * elemvec(e, 2, 0) +
+                                                        A(e, k, 3, 0) * elemvec(e, 3, 0);
+                    eps(1, 1) = A(e, k, 0, 1) * elemvec(e, 0, 1) +
+                                                        A(e, k, 1, 1) * elemvec(e, 1, 1) +
+                                                        A(e, k, 2, 1) * elemvec(e, 2, 1) +
+                                                        A(e, k, 3, 1) * elemvec(e, 3, 1);
+                    eps(0, 1) = (A(e, k, 0, 1) * elemvec(e, 0, 0) +
+                                                         A(e, k, 1, 1) * elemvec(e, 1, 0) +
+                                                         A(e, k, 2, 1) * elemvec(e, 2, 0) +
+                                                         A(e, k, 3, 1) * elemvec(e, 3, 0) +
+                                                         A(e, k, 0, 0) * elemvec(e, 0, 1) +
+                                                         A(e, k, 1, 0) * elemvec(e, 1, 1) +
+                                                         A(e, k, 2, 0) * elemvec(e, 2, 1) +
+                                                         A(e, k, 3, 0) * elemvec(e, 3, 1)) /
+                                                        2.;
                     eps(1, 0) = eps(0, 1);
                     benchmark::DoNotOptimize(eps.memory);
                 }
@@ -207,9 +212,9 @@ namespace xt
         }
     }
 
-#define M_NELEM 3600
-#define M_NNE 4
-#define M_NDIM 2
+    #define M_NELEM 3600
+    #define M_NNE 4
+    #define M_NDIM 2
 
     template <class X, layout_type L>
     class jumping_random
@@ -219,8 +224,8 @@ namespace xt
         using shape_type = typename X::shape_type;
 
         jumping_random()
-            : m_dofs(shape_type{3721, 2})
-            , m_conn(shape_type{3600, 4})
+            : m_dofs(shape_type{3721, 2}),
+              m_conn(shape_type{3600, 4})
         {
             m_dofs = xt::clip(xt::reshape_view(xt::arange(2 * 3721), {3721, 2}), 0, 7199);
 
@@ -236,47 +241,28 @@ namespace xt
         auto calc_dofval(xt::xtensor<double, 3, L>& elemvec, xt::xtensor<double, 1, L>& dofval)
         {
             dofval.fill(0.0);
-            for (size_t e = 0; e < M_NELEM; ++e)
-            {
-                for (size_t m = 0; m < M_NNE; ++m)
-                {
-                    for (size_t i = 0; i < M_NDIM; ++i)
-                    {
+            for (size_t e = 0 ; e < M_NELEM ; ++e)
+                for (size_t m = 0 ; m < M_NNE ; ++m)
+                    for (size_t i = 0 ; i < M_NDIM; ++i)
                         dofval(m_dofs(m_conn(e, m), i)) += elemvec(e, m, i);
-                    }
-                }
-            }
         }
 
         auto calc_dofval_simple(simple_array<double, 3>& elemvec, simple_array<double, 1>& dofval)
         {
             dofval.fill(0.0);
-            for (size_t e = 0; e < M_NELEM; ++e)
-            {
-                for (size_t m = 0; m < M_NNE; ++m)
-                {
-                    for (size_t i = 0; i < M_NDIM; ++i)
-                    {
+            for (size_t e = 0 ; e < M_NELEM ; ++e)
+                for (size_t m = 0 ; m < M_NNE ; ++m)
+                    for (size_t i = 0 ; i < M_NDIM; ++i)
                         dofval(m_dofs(m_conn(e, m), i)) += elemvec(e, m, i);
-                    }
-                }
-            }
         }
 
         auto calc_unchecked_dofval(xt::xtensor<double, 3, L>& elemvec, xt::xtensor<double, 1, L>& dofval)
         {
             dofval.fill(0.0);
-            for (size_t e = 0; e < M_NELEM; ++e)
-            {
-                for (size_t m = 0; m < M_NNE; ++m)
-                {
-                    for (size_t i = 0; i < M_NDIM; ++i)
-                    {
-                        auto d = m_dofs.unchecked(m_conn.unchecked(e, m), i);
-                        dofval.unchecked(d) += elemvec.unchecked(e, m, i);
-                    }
-                }
-            }
+            for (size_t e = 0 ; e < M_NELEM ; ++e)
+                for (size_t m = 0 ; m < M_NNE ; ++m)
+                    for (size_t i = 0 ; i < M_NDIM; ++i)
+                        dofval.unchecked(m_dofs.unchecked(m_conn.unchecked(e, m), i)) += elemvec.unchecked(e, m, i);
         }
 
         X m_dofs, m_conn;

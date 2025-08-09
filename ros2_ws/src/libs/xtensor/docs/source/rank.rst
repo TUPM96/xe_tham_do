@@ -12,7 +12,7 @@ Tensor Rank
 Rank overload
 -------------
 
-All *xtensor*'s classes have a member ``rank`` that can be used
+All `xtensor`'s classes have a member ``rank`` that can be used
 to overload based on rank using *SFINAE*.
 Consider the following example:
 
@@ -81,8 +81,7 @@ Consider the following example:
 Rank as member
 --------------
 
-If you want to use the rank as a member of your own class you can use
-:cpp:type:`xt::get_rank\<E\> <xt::get_rank>`.
+If you want to use the rank as a member of your own class you can use ``xt::get_rank<E>``.
 Consider the following example:
 
 .. code-block:: cpp
@@ -104,13 +103,10 @@ Consider the following example:
         xt::xtensor<double, 2> B = xt::zeros<double>({2, 2});
         xt::xarray<double> C = xt::zeros<double>({2, 2});
 
-        assert(Foo<decltype(A)>::value() == 1);
-        assert(Foo<decltype(B)>::value() == 2);
-        assert(Foo<decltype(C)>::value() == SIZE_MAX);
+        std::cout << Foo<decltype(A)>::value() << std::endl;
+        std::cout << Foo<decltype(B)>::value() << std::endl;
+        std::cout << Foo<decltype(C)>::value() << std::endl;
 
         return 0;
     }
 
-``xt::get_rank`` 'returns' the rank of the *xtensor* object if its rank is fixed.
-In all other cases it 'returns' ``SIZE_MAX``.
-Indeed ``xt::get_rank<xt::array<double>>::value`` is equal to ``SIZE_MAX``, but equally so is ``xt::get_rank<double>::value``.

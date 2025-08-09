@@ -7,8 +7,10 @@
 xaccumulator
 ============
 
-Defined in ``xtensor/reducers/xaccumulator.hpp``
+Defined in ``xtensor/xaccumulator.hpp``
 
 .. doxygenfunction:: xt::accumulate(F&&, E&&, EVS)
+   :project: xtensor
 
 .. doxygenfunction:: xt::accumulate(F&&, E&&, std::ptrdiff_t, EVS)
+   :project: xtensor

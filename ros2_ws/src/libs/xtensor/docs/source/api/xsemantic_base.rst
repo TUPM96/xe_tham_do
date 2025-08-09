@@ -7,7 +7,8 @@
 xsemantic_base
 ==============
 
-Defined in ``xtensor/core/xsemantic.hpp``
+Defined in ``xtensor/xsemantic.hpp``
 
 .. doxygenclass:: xt::xsemantic_base
+   :project: xtensor
    :members:

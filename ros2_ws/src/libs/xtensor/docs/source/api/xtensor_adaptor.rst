@@ -7,7 +7,43 @@
 xtensor_adaptor
 ===============
 
-Defined in ``xtensor/containers/xtensor.hpp``
+Defined in ``xtensor/xtensor.hpp``
 
 .. doxygenclass:: xt::xtensor_adaptor
+   :project: xtensor
    :members:
+
+adapt (xtensor_adaptor)
+========================
+
+Defined in ``xtensor/xadapt.hpp``
+
+.. doxygenfunction:: xt::adapt(C&&, layout_type)
+   :project: xtensor
+
+.. doxygenfunction:: xt::adapt(C&&, const SC&, layout_type)
+   :project: xtensor
+
+.. doxygenfunction:: xt::adapt(C&&, SC&&, SS&&)
+   :project: xtensor
+
+.. doxygenfunction:: xt::adapt(P&&, typename A::size_type, O, layout_type, const A&)
+   :project: xtensor
+
+.. doxygenfunction:: xt::adapt(P&&, typename A::size_type, O, const SC&, layout_type, const A&)
+   :project: xtensor
+
+.. doxygenfunction:: xt::adapt(P&&, typename A::size_type, O, SC&&, SS&&, const A&)
+   :project: xtensor
+
+.. doxygenfunction:: xt::adapt(T (&)[N], const SC&, layout_type)
+   :project: xtensor
+
+.. doxygenfunction:: xt::adapt(T (&)[N], SC&&, SS&&)
+   :project: xtensor
+
+.. doxygenfunction:: xt::adapt_smart_ptr(P&&, const I (&)[N], layout_type)
+   :project: xtensor
+
+.. doxygenfunction:: xt::adapt_smart_ptr(P&&, const I (&)[N], D&&, layout_type)
+   :project: xtensor
