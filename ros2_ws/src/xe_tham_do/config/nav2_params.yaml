@@ -367,6 +367,7 @@ map_server:
     # Sử dụng thời gian mô phỏng
     use_sim_time: True
     # Đường dẫn file bản đồ yaml
+
     yaml_filename: "/root/maps/my_map.yaml"
 
 map_saver:
