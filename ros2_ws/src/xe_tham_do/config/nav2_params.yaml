@@ -172,7 +172,7 @@ controller_server:
       stateful: True
     # Tham số DWB local planner (FollowPath)
     FollowPath:
-      plugin: "dwb_core::DWBLocalPlanner"
+      plugin: "nav2_dwb_controller::DWBLocalPlanner"
       # Hiển thị chi tiết debug quỹ đạo
       debug_trajectory_details: True
       # Vận tốc X tối thiểu (m/s)
