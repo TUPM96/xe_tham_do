@@ -76,7 +76,7 @@ def generate_launch_description():
             package='nav2_controller',
             executable='controller_server',
             output='screen',
-            parameters=[configured_params, os.path.join(bringup_dir, 'config', 'nav2_params.yaml')],
+            parameters=[os.path.join(bringup_dir, 'config', 'nav2_params.yaml')],
             remappings=remappings),
 
         # Planner server needs global_costmap block
@@ -84,7 +84,7 @@ def generate_launch_description():
             package='nav2_planner',
             executable='planner_server',
             output='screen',
-            parameters=[configured_params, os.path.join(bringup_dir, 'config', 'nav2_params.yaml')],
+            parameters=[os.path.join(bringup_dir, 'config', 'nav2_params.yaml')],
             remappings=remappings),
 
         Node(
