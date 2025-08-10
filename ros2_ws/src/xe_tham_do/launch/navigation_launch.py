@@ -88,7 +88,7 @@ def generate_launch_description():
             package='nav2_controller',
             executable='controller_server',
             output='screen',
-            parameters='/root/ros2_ws/install/xe_tham_do/share/xe_tham_do/config/nav2_params.yaml',
+            parameters=['/root/ros2_ws/install/xe_tham_do/share/xe_tham_do/config/nav2_params.yaml'],
             remappings=remappings),
 
         Node(
