@@ -13,14 +13,14 @@ def generate_launch_description():
     params_path = os.path.join(bringup_dir, 'config', 'nav2_params.yaml')
 
     # --- Log nội dung file yaml ra console ---
-    print("\n===== Nội dung file nav2_params.yaml =====\n")
+    print("\n===== Noi dung file nav2_params.yaml =====\n")
     try:
         with open(params_path, 'r') as f:
             yaml_content = f.read()
             print(yaml_content)
     except Exception as e:
-        print(f"Lỗi đọc file yaml: {e}")
-    print("\n===== Kết thúc nội dung file nav2_params.yaml =====\n")
+        print(f"Loi doc file yaml: {e}")
+    print("\n=====Ket thuc noi dung file nav2_params.yaml =====\n")
     # ------------------------------------------
 
     namespace = LaunchConfiguration('namespace')
@@ -88,7 +88,7 @@ def generate_launch_description():
             package='nav2_controller',
             executable='controller_server',
             output='screen',
-            parameters=[params_path],
+            parameters='/root/ros2_ws/install/xe_tham_do/share/xe_tham_do/config/nav2_params.yaml',
             remappings=remappings),
 
         Node(
