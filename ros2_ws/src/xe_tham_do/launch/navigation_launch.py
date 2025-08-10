@@ -1,5 +1,5 @@
 import os
-
+import yaml  # <--- Thêm import yaml
 from ament_index_python.packages import get_package_share_directory
 
 from launch import LaunchDescription
@@ -10,6 +10,19 @@ from nav2_common.launch import RewrittenYaml
 
 def generate_launch_description():
     bringup_dir = get_package_share_directory('xe_tham_do')
+    params_path = os.path.join(bringup_dir, 'config', 'nav2_params.yaml')
+
+    # --- Log nội dung file yaml ra console ---
+    print("\n===== Nội dung file nav2_params.yaml =====\n")
+    try:
+        with open(params_path, 'r') as f:
+            yaml_content = f.read()
+            print(yaml_content)
+    except Exception as e:
+        print(f"Lỗi đọc file yaml: {e}")
+    print("\n===== Kết thúc nội dung file nav2_params.yaml =====\n")
+    # ------------------------------------------
+
     namespace = LaunchConfiguration('namespace')
     use_sim_time = LaunchConfiguration('use_sim_time')
     autostart = LaunchConfiguration('autostart')
@@ -25,14 +38,14 @@ def generate_launch_description():
         'waypoint_follower'
     ]
 
-    remappings = [('/tf', 'tf'),
-                  ('/tf_static', 'tf_static')]
+    remappings = [('/tf', 'tf'), ('/tf_static', 'tf_static')]
 
     param_substitutions = {
         'use_sim_time': use_sim_time,
         'default_bt_xml_filename': default_bt_xml_filename,
         'autostart': autostart,
-        'map_subscribe_transient_local': map_subscribe_transient_local}
+        'map_subscribe_transient_local': map_subscribe_transient_local
+    }
 
     configured_params = RewrittenYaml(
         source_file=params_file,
@@ -57,7 +70,7 @@ def generate_launch_description():
 
         DeclareLaunchArgument(
             'params_file',
-            default_value=os.path.join(bringup_dir, 'config', 'nav2_params.yaml'),
+            default_value=params_path,
             description='Full path to the ROS2 parameters file to use'),
 
         DeclareLaunchArgument(
@@ -71,20 +84,18 @@ def generate_launch_description():
             'map_subscribe_transient_local', default_value='false',
             description='Whether to set the map subscriber QoS to transient local'),
 
-        # Controller server needs local_costmap block
         Node(
             package='nav2_controller',
             executable='controller_server',
             output='screen',
-            parameters=[os.path.join(bringup_dir, 'config', 'nav2_params.yaml')],
+            parameters=[params_path],
             remappings=remappings),
 
-        # Planner server needs global_costmap block
         Node(
             package='nav2_planner',
             executable='planner_server',
             output='screen',
-            parameters=[os.path.join(bringup_dir, 'config', 'nav2_params.yaml')],
+            parameters=[params_path],
             remappings=remappings),
 
         Node(
@@ -113,7 +124,9 @@ def generate_launch_description():
             executable='lifecycle_manager',
             name='lifecycle_manager_navigation',
             output='screen',
-            parameters=[{'use_sim_time': use_sim_time},
-                        {'autostart': autostart},
-                        {'node_names': lifecycle_nodes}]),
+            parameters=[
+                {'use_sim_time': use_sim_time},
+                {'autostart': autostart},
+                {'node_names': lifecycle_nodes}
+            ]),
     ])
