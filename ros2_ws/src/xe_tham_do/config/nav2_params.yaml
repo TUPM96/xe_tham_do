@@ -1,6 +1,6 @@
 amcl:
   ros__parameters:
-    use_sim_time: True
+    use_sim_time: true
     alpha1: 0.2
     alpha2: 0.2
     alpha3: 0.2
@@ -41,19 +41,19 @@ amcl:
 
 amcl_map_client:
   ros__parameters:
-    use_sim_time: True
+    use_sim_time: true
 
 amcl_rclcpp_node:
   ros__parameters:
-    use_sim_time: True
+    use_sim_time: true
 
 bt_navigator:
   ros__parameters:
-    use_sim_time: True
+    use_sim_time: true
     global_frame: map
     robot_base_frame: base_link
     odom_topic: /odom
-    enable_groot_monitoring: True
+    enable_groot_monitoring: true
     groot_zmq_publisher_port: 1666
     groot_zmq_server_port: 1667
     default_bt_xml_filename: "navigate_w_replanning_and_recovery.xml"
@@ -83,11 +83,11 @@ bt_navigator:
 
 bt_navigator_rclcpp_node:
   ros__parameters:
-    use_sim_time: True
+    use_sim_time: true
 
 controller_server:
   ros__parameters:
-    use_sim_time: True
+    use_sim_time: true
     controller_frequency: 20.0
     min_x_velocity_threshold: 0.001
     min_y_velocity_threshold: 0.5
@@ -106,11 +106,11 @@ controller_server:
       plugin: "nav2_controller::SimpleGoalChecker"
       xy_goal_tolerance: 0.25
       yaw_goal_tolerance: 0.25
-      stateful: True
+      stateful: true
     # DWB parameters
     FollowPath:
       plugin: "dwb_core::DWBLocalPlanner"
-      debug_trajectory_details: True
+      debug_trajectory_details: true
       min_vel_x: 0.0
       min_vel_y: 0.0
       max_vel_x: 0.26
@@ -136,8 +136,8 @@ controller_server:
       transform_tolerance: 0.2
       xy_goal_tolerance: 0.25
       trans_stopped_velocity: 0.25
-      short_circuit_trajectory_evaluation: True
-      stateful: True
+      short_circuit_trajectory_evaluation: true
+      stateful: true
       critics: ["RotateToGoal", "Oscillation", "BaseObstacle", "GoalAlign", "PathAlign", "PathDist", "GoalDist"]
       BaseObstacle.scale: 0.02
       PathAlign.scale: 32.0
@@ -152,7 +152,7 @@ controller_server:
 
 controller_server_rclcpp_node:
   ros__parameters:
-    use_sim_time: True
+    use_sim_time: true
 
 local_costmap:
   ros__parameters:
@@ -160,7 +160,7 @@ local_costmap:
     publish_frequency: 2.0
     global_frame: odom
     robot_base_frame: base_link
-    use_sim_time: True
+    use_sim_time: true
     rolling_window: true
     width: 5
     height: 5
@@ -173,8 +173,8 @@ local_costmap:
       inflation_radius: 0.55
     voxel_layer:
       plugin: "nav2_costmap_2d::VoxelLayer"
-      enabled: True
-      publish_voxel_map: True
+      enabled: true
+      publish_voxel_map: true
       origin_z: 0.0
       z_resolution: 0.05
       z_voxels: 16
@@ -184,18 +184,18 @@ local_costmap:
       scan:
         topic: /scan
         max_obstacle_height: 2.0
-        clearing: True
-        marking: True
+        clearing: true
+        marking: true
         data_type: "LaserScan"
     static_layer:
-      map_subscribe_transient_local: True
-    always_send_full_costmap: True
+      map_subscribe_transient_local: true
+    always_send_full_costmap: true
   local_costmap_client:
     ros__parameters:
-      use_sim_time: True
+      use_sim_time: true
   local_costmap_rclcpp_node:
     ros__parameters:
-      use_sim_time: True
+      use_sim_time: true
 
 global_costmap:
   ros__parameters:
@@ -203,44 +203,44 @@ global_costmap:
     publish_frequency: 1.0
     global_frame: map
     robot_base_frame: base_link
-    use_sim_time: True
+    use_sim_time: true
     robot_radius: 0.22
     resolution: 0.05
     track_unknown_space: true
     plugins: [ "static_layer", "obstacle_layer", "inflation_layer" ]
     obstacle_layer:
       plugin: "nav2_costmap_2d::ObstacleLayer"
-      enabled: True
+      enabled: true
       observation_sources: scan
       scan:
         topic: /scan
         max_obstacle_height: 2.0
-        clearing: True
-        marking: True
+        clearing: true
+        marking: true
         data_type: "LaserScan"
     static_layer:
       plugin: "nav2_costmap_2d::StaticLayer"
-      map_subscribe_transient_local: True
+      map_subscribe_transient_local: true
     inflation_layer:
       plugin: "nav2_costmap_2d::InflationLayer"
       cost_scaling_factor: 3.0
       inflation_radius: 0.55
-    always_send_full_costmap: True
+    always_send_full_costmap: true
   global_costmap_client:
     ros__parameters:
-      use_sim_time: True
+      use_sim_time: true
   global_costmap_rclcpp_node:
     ros__parameters:
-      use_sim_time: True
+      use_sim_time: true
 
 map_server:
   ros__parameters:
-    use_sim_time: True
+    use_sim_time: true
     yaml_filename: "/root/maps/my_map.yaml"
 
 map_saver:
   ros__parameters:
-    use_sim_time: True
+    use_sim_time: true
     save_map_timeout: 5000
     free_thresh_default: 0.25
     occupied_thresh_default: 0.65
@@ -249,7 +249,7 @@ map_saver:
 planner_server:
   ros__parameters:
     expected_planner_frequency: 20.0
-    use_sim_time: True
+    use_sim_time: true
     planner_plugins: ["GridBased"]
     GridBased:
       plugin: "nav2_navfn_planner/NavfnPlanner"
@@ -259,7 +259,7 @@ planner_server:
 
 planner_server_rclcpp_node:
   ros__parameters:
-    use_sim_time: True
+    use_sim_time: true
 
 behavior_server:
   ros__parameters:
@@ -284,4 +284,4 @@ behavior_server:
 
 robot_state_publisher:
   ros__parameters:
-    use_sim_time: True
+    use_sim_time: true
