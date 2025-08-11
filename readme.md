@@ -59,6 +59,7 @@ docker-compose up -d
 
 * ###  Chạy robot tổng
 ``` bash
+
 docker exec -it ros2_humble_container bash
 
 source /opt/ros/humble/install/setup.bash
@@ -66,10 +67,12 @@ source /opt/ros/humble/install/setup.bash
 source install/setup.bash
 
 ros2 launch xe_tham_do launch_robot.launch.py
+
 ```
 
 * ### Chạy robot với điều khiển từ bàn phím
 ``` bash
+
 docker exec -it ros2_humble_container bash
 
 source /opt/ros/humble/install/setup.bash
@@ -77,6 +80,7 @@ source /opt/ros/humble/install/setup.bash
 source install/setup.bash
 
 ros2 run teleop_twist_keyboard teleop_twist_keyboard --ros-args -r /cmd_vel:=/cmd_vel_raw
+
 ```
 
 * ### Chạy né vật cản khi điều khiển bằng tay
