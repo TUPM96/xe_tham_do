@@ -88,36 +88,37 @@ def generate_launch_description():
             package='nav2_controller',
             executable='controller_server',
             output='screen',
-            parameters=['/root/ros2_ws/install/xe_tham_do/share/xe_tham_do/config/nav2_params.yaml'],
-            remappings=remappings),
-
+            parameters=[configured_params],
+            remappings=remappings
+        ),
         Node(
             package='nav2_planner',
             executable='planner_server',
             output='screen',
-            parameters=[params_path],
-            remappings=remappings),
-
+            parameters=[configured_params],
+            remappings=remappings
+        ),
         Node(
             package='nav2_behaviors',
             executable='behavior_server',
             output='screen',
             parameters=[configured_params],
-            remappings=remappings),
-
+            remappings=remappings
+        ),
         Node(
             package='nav2_bt_navigator',
             executable='bt_navigator',
             output='screen',
             parameters=[configured_params],
-            remappings=remappings),
-
+            remappings=remappings
+        ),
         Node(
             package='nav2_waypoint_follower',
             executable='waypoint_follower',
             output='screen',
             parameters=[configured_params],
-            remappings=remappings),
+            remappings=remappings
+        ),
 
         Node(
             package='nav2_lifecycle_manager',
