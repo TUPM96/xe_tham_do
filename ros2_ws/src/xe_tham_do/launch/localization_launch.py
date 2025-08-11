@@ -44,8 +44,17 @@ def generate_launch_description():
         DeclareLaunchArgument('params_file', default_value=os.path.join(bringup_dir, 'config', 'nav2_params.yaml'),
             description='Full path to the ROS2 parameters file to use'),
 
-        Node(package='nav2_map_server', executable='map_server', name='map_server', output='screen',
-            parameters=[configured_params], remappings=remappings),
+        Node(
+            package='nav2_map_server',
+            executable='map_server',
+            name='map_server',
+            output='screen',
+            parameters=[{
+                'use_sim_time': true,
+                'yaml_filename': map_yaml_file
+            }],
+            remappings=remappings
+        )
 
         Node(package='nav2_amcl', executable='amcl', name='amcl', output='screen', parameters=[configured_params],
             remappings=remappings),

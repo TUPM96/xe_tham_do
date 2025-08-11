@@ -186,18 +186,6 @@ ros2 launch xe_tham_do localization_launch.py map:=/root/maps/my_map.yaml params
 
 ```
 
-* ### Init location
-```bash
-docker exec -it ros2_humble_container bash
-
-source /opt/ros/humble/install/setup.bash
-
-source install/setup.bash
-
-ros2 lifecycle set /map_server configure
-
-```
-
 
 * ### Chạy navigation
 ```bash
@@ -207,7 +195,8 @@ source /opt/ros/humble/install/setup.bash
 
 source install/setup.bash
 
-ros2 launch xe_tham_do navigation_launch.py
+ros2 launch nav2_bringup bringup_launch.py  params_file:=/root/ros2_ws/src/xe_tham_do/config/nav2_params.yaml map:=/root/maps/my_map.yaml
+
 
 ```
 
