@@ -174,22 +174,6 @@ python xe_tham_do.py
 
 Tắt rviz2 và slam_toolbox khi đã lưu map
 
-* ###  Chạy location
-``` bash
-docker exec -it ros2_humble_container bash
-
-source /opt/ros/humble/install/setup.bash
-
-source install/setup.bash
-
-sudo apt update
-
-sudo apt install libgraphicsmagick++-dev
-
-ros2 launch xe_tham_do localization_launch.py map:=/root/maps/my_map.yaml params_file:=/root/ros2_ws/src/xe_tham_do/config/nav2_params.yaml
-
-```
-
 
 * ### Chạy navigation
 ```bash
