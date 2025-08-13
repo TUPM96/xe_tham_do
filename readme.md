@@ -54,6 +54,7 @@ docker-compose up -d
 
 **Sau đó có thể chạy lệnh bên dưới**
 
+
 # B. Chạy các phần tử
 
 # 1. Chạy robot thật
