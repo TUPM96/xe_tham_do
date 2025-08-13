@@ -197,9 +197,27 @@ ros2 launch xe_tham_do localization_launch.py map:=/root/maps/my_map.yaml params
 ```bash
 docker exec -it ros2_humble_container bash
 
+sudo apt update
+
+sudo rm -rf /usr/include/opencv4/opencv2
+sudo rm -rf /usr/bin/opencv_annotation
+sudo rm -rf /usr/bin/opencv_*
+sudo rm -rf /usr/lib/*opencv* 
+
+sudo dpkg --remove --force-remove-reinstreq opencv-dev opencv-main
+
+sudo apt-get install libopencv-dev python3-opencv
+
+sudo apt update
+
+sudo apt install ros-${ROS_DISTRO}-nav2-bringup
+
+
 source /opt/ros/humble/install/setup.bash
 
 source install/setup.bash
+
+sudo apt install ros-humble-nav2-map-server
 
 ros2 launch nav2_bringup bringup_launch.py  params_file:=/root/ros2_ws/src/xe_tham_do/config/nav2_params.yaml map:=/root/maps/my_map.yaml
 
