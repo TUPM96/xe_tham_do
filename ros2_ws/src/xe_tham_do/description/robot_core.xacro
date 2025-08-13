@@ -3,19 +3,20 @@
 
     <xacro:include filename="inertial_macros.xacro"/>
 
-    <xacro:property name="chassis_length" value="0.4"/>
-    <xacro:property name="chassis_width" value="0.26"/>
-    <xacro:property name="chassis_height" value="0.15"/>
+
+    <xacro:property name="chassis_length" value="0.49"/>
+    <xacro:property name="chassis_width" value="0.28"/>
+    <xacro:property name="chassis_height" value="0.13"/>
     <xacro:property name="chassis_mass" value="5.0"/>
-    <xacro:property name="wheel_radius" value="0.032"/>
-    <xacro:property name="wheel_thickness" value="0.011"/>
-    <xacro:property name="wheel_mass" value="0.1"/>
-    <xacro:property name="wheel_offset_x" value="0.38"/>
-    <xacro:property name="wheel_offset_y" value="0.135"/>
+    <xacro:property name="wheel_radius" value="0.034"/>
+    <xacro:property name="wheel_thickness" value="0.03"/>
+    <xacro:property name="wheel_mass" value="0.05"/>
+    <xacro:property name="wheel_offset_x" value="0.39"/>
+    <xacro:property name="wheel_offset_y" value="0.165"/>
     <xacro:property name="wheel_offset_z" value="0.01"/>
-    <xacro:property name="caster_wheel_radius" value="0.02"/>
+    <xacro:property name="caster_wheel_radius" value="0.015"/>
     <xacro:property name="caster_wheel_mass" value="0.01"/>
-    <xacro:property name="caster_wheel_offset_x" value="0"/>
+    <xacro:property name="caster_wheel_offset_x" value="0.075"/>
     <xacro:property name="caster_wheel_offset_z" value="${wheel_offset_z - wheel_radius + caster_wheel_radius}"/>
 
     <material name="white">
@@ -39,10 +40,13 @@
     </material>
 
     <!-- BASE LINK -->
+
     <link name="base_link">
+
     </link>
 
     <!-- BASE_FOOTPRINT LINK -->
+
     <joint name="base_footprint_joint" type="fixed">
         <parent link="base_link"/>
         <child link="base_footprint"/>
@@ -52,7 +56,9 @@
     <link name="base_footprint">
     </link>
 
+
     <!-- CHASSIS LINK -->
+
     <joint name="chassis_joint" type="fixed">
         <parent link="base_link"/>
         <child link="chassis"/>
@@ -83,6 +89,7 @@
     </gazebo>
 
     <!-- LEFT WHEEL LINK -->
+
     <joint name="left_wheel_joint" type="continuous">
         <parent link="base_link"/>
         <child link="left_wheel"/>
@@ -111,7 +118,11 @@
         <material>Gazebo/Blue</material>
     </gazebo>
 
+
+
+
     <!-- RIGHT WHEEL LINK -->
+
     <joint name="right_wheel_joint" type="continuous">
         <parent link="base_link"/>
         <child link="right_wheel"/>
@@ -140,12 +151,15 @@
         <material>Gazebo/Blue</material>
     </gazebo>
 
+
     <!-- CASTER WHEEL LINK -->
+
     <joint name="caster_wheel_joint" type="fixed">
         <parent link="chassis"/>
         <child link="caster_wheel"/>
         <origin xyz="${caster_wheel_offset_x} 0 ${caster_wheel_offset_z}"/>
     </joint>
+
 
     <link name="caster_wheel">
         <visual>
