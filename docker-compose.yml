@@ -9,6 +9,7 @@ services:
     volumes:
       - ./ros2_ws:/root/ros2_ws
       - ./maps:/root/maps
+      - ./config:/root/config
       - ./python:/root/python
       - $HOME/.Xauthority:/root/.Xauthority:ro
       - /tmp/.X11-unix:/tmp/.X11-unix

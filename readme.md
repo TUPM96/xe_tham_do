@@ -192,16 +192,21 @@ sudo dpkg --remove --force-remove-reinstreq opencv-dev opencv-main
 
 sudo apt-get install libopencv-dev python3-opencv
 
+sudo dpkg --purge --force-all opencv-licenses opencv-libs
+
 sudo apt update
 
-sudo apt install ros-${ROS_DISTRO}-nav2-bringup
+sudo apt --fix-broken install
 
-
-source /opt/ros/humble/install/setup.bash
+sudo apt reinstall ros-${ROS_DISTRO}-nav2-bringup
 
 source install/setup.bash
 
+source /opt/ros/humble/setup.bash
+
 sudo apt install ros-humble-nav2-map-server
+
+mv ~/config/navigate_through_poses_w_replanning_and_recovery.xml /opt/ros/humble/share/nav2_bt_navigator/behavior_trees/navigate_through_poses_w_replanning_and_recovery.xml
 
 ros2 launch nav2_bringup bringup_launch.py  params_file:=/root/ros2_ws/src/xe_tham_do/config/nav2_params.yaml map:=/root/maps/my_map.yaml
 
