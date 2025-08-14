@@ -16,8 +16,6 @@ from rclpy.node import Node
 from geometry_msgs.msg import Twist, PoseWithCovarianceStamped
 from nav_msgs.msg import Odometry, OccupancyGrid
 
-# ---------- ROS2 PUBLISHER NODE ----------
-
 MAX_MOTOR = 100.0  # motor nhận giá trị từ -100 đến 100
 MAX_LINEAR = 0.5   # m/s (tốc độ tối đa thực tế của xe bạn)
 WHEEL_BASE = 0.3   # mét (khoảng cách giữa 2 bánh, chỉnh theo xe)
@@ -214,7 +212,6 @@ def video_feed():
 
 thermal_index = 1  # đổi thành đúng index hoặc URL của camera nhiệt
 
-# Ngưỡng nhiệt độ để phát hiện lửa (có thể chỉnh từ web)
 FIRE_TEMP_THRESHOLD = 200  # mặc định, bạn có thể đổi thành 180, 220... tùy camera
 
 def detect_fire(frame, fire_threshold=None):
@@ -224,6 +221,21 @@ def detect_fire(frame, fire_threshold=None):
         gray = cv2.cvtColor(frame, cv2.COLOR_BGR2GRAY)
     else:
         gray = frame
+
+    # Tìm pixel có nhiệt độ cao nhất
+    minVal, maxVal, minLoc, maxLoc = cv2.minMaxLoc(gray)
+    # Vẽ khung vùng max nhiệt độ, hiển thị lên hình
+    x, y = maxLoc
+    # Nếu muốn khoanh vùng 20x20 quanh điểm nóng nhất:
+    box_size = 20
+    x1 = max(0, x - box_size // 2)
+    y1 = max(0, y - box_size // 2)
+    x2 = min(gray.shape[1] - 1, x + box_size // 2)
+    y2 = min(gray.shape[0] - 1, y + box_size // 2)
+    cv2.rectangle(frame, (x1, y1), (x2, y2), (0,255,255), 2)
+    cv2.putText(frame, f"MAX TEMP: {int(maxVal)}", (x1, y1-10), cv2.FONT_HERSHEY_SIMPLEX, 0.7, (0,255,255), 2)
+
+    # Phát hiện vùng vượt ngưỡng nhiệt (đám cháy)
     thresh = cv2.threshold(gray, fire_threshold, 255, cv2.THRESH_BINARY)[1]
     contours, _ = cv2.findContours(thresh, cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_SIMPLE)
     has_fire = False
@@ -275,7 +287,6 @@ def set_temp():
             pass
         return redirect('/')
     else:
-        # Hiển thị form HTML để nhập nhiệt độ
         return f'''
         <form method="POST">
             <label>Ngưỡng nhiệt độ phát hiện FIRE (0-255): </label>
@@ -298,6 +309,45 @@ def index():
     <br>
     <b>Ngưỡng hiện tại: {FIRE_TEMP_THRESHOLD}</b>
     """
+
+# ----------- OCCUPANCY GRID MAP TO VIDEO STREAM -----------
+def occupancy_grid_to_img(msg):
+    data = np.array(msg.data, dtype=np.int8).reshape((msg.info.height, msg.info.width))
+    img = np.zeros((msg.info.height, msg.info.width, 3), dtype=np.uint8)
+    img[data == -1] = [128, 128, 128]    # unknown = gray
+    img[data == 0] = [255, 255, 255]     # free = white
+    img[data == 100] = [0, 0, 0]         # occupied = black
+    img = cv2.resize(img, None, fx=2, fy=2, interpolation=cv2.INTER_NEAREST)
+    return img
+
+def gen_map_frames():
+    global latest_map
+    while True:
+        if latest_map is not None:
+            img = occupancy_grid_to_img(latest_map)
+            try:
+                x = latest_pose["x"]
+                y = latest_pose["y"]
+                mx = int((x - latest_map.info.origin.position.x) / latest_map.info.resolution)
+                my = int((y - latest_map.info.origin.position.y) / latest_map.info.resolution)
+                my = latest_map.info.height - my
+                mx = mx * 2
+                my = my * 2
+                cv2.circle(img, (mx, my), 6, (0,0,255), -1)
+            except Exception:
+                pass
+            ret, buffer = cv2.imencode('.jpg', img)
+            if not ret:
+                continue
+            frame = buffer.tobytes()
+            yield (b'--frame\r\n'
+                    b'Content-Type: image/jpeg\r\n\r\n' + frame + b'\r\n')
+        else:
+            time.sleep(0.1)
+
+@app.route('/video3')
+def video3_feed():
+    return Response(gen_map_frames(), mimetype='multipart/x-mixed-replace; boundary=frame')
 
 def start_flask_server():
     print("[KHOI DONG] Flask webcam stream tren http://0.0.0.0:5000/video")
