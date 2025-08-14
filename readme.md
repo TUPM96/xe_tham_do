@@ -208,7 +208,9 @@ source /opt/ros/humble/setup.bash
 
 sudo apt install ros-humble-nav2-map-server
 
-mv ~/config/navigate_through_poses_w_replanning_and_recovery.xml /opt/ros/humble/share/nav2_bt_navigator/behavior_trees/navigate_through_poses_w_replanning_and_recovery.xml
+sudo rm /opt/ros/humble/share/nav2_bt_navigator/behavior_trees/navigate_through_poses_w_replanning_and_recovery.xml
+
+cp ~/config/navigate_through_poses_w_replanning_and_recovery.xml /opt/ros/humble/share/nav2_bt_navigator/behavior_trees/navigate_through_poses_w_replanning_and_recovery.xml
 
 ros2 launch nav2_bringup bringup_launch.py  params_file:=/root/ros2_ws/src/xe_tham_do/config/nav2_params.yaml map:=/root/maps/my_map.yaml
 
