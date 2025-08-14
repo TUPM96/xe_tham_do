@@ -171,10 +171,12 @@ pip install ultralytics
 
 pip install "numpy<2"
 
+rm -rf /usr/local/lib/python3.10/dist-packages/cv2*
+
 python xe_tham_do.py
 ```
 
-Tắt rviz2 và slam_toolbox khi đã lưu map
+Tắt slam_toolbox khi đã lưu map
 
 
 * ### Chạy navigation
