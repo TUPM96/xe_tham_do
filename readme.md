@@ -202,6 +202,8 @@ sudo apt reinstall ros-${ROS_DISTRO}-nav2-bringup
 
 source install/setup.bash
 
+source /opt/ros/humble/install/setup.bash
+
 source /opt/ros/humble/setup.bash
 
 sudo apt install ros-humble-nav2-map-server
